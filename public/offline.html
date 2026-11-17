@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#111113" />
+    <title>COWBOY · Offline</title>
+    <script src="/offline-board.js" defer></script>
+    <style>
+      :root{color-scheme:dark}[hidden]{display:none!important}
+      body{margin:0;background:#111113;color:#f2efea;font:16px system-ui,-apple-system,sans-serif}
+      main{max-width:760px;margin:auto;padding:24px 16px 52px}
+      h1,h2{margin:.5em 0}
+      p{color:#b4ada7;line-height:1.5}
+      a,b{color:#ffc18b}
+      .masthead,.matchup{display:flex;gap:12px;align-items:center}
+      .mark{width:42px;height:42px;border-radius:10px}
+      .scoreboard{border-top:1px solid #39343a;margin-top:24px;padding-top:12px}
+      .tools{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px}
+      select{background:#1e1b1e;color:#f2efea;border:1px solid #645041;border-radius:7px;padding:8px;font:inherit;min-height:42px}
+      .games{list-style:none;padding:0;display:grid;gap:8px}
+      .games li{background:#201d21;border:1px solid #39343a;border-radius:8px;padding:10px}
+      .game-meta{color:#ffc18b;font-size:12px;margin:0 0 5px}
+      .matchup{justify-content:space-between;margin:.16em 0;font-size:14px}
+      .matchup b{font-variant-numeric:tabular-nums}
+    </style>
+  </head>
+  <body>
+    <main>
+      <header class="masthead"><img class="mark" src="/icon-192.png" alt=""/><b>COWBOY</b></header>
+      <h1>You’re offline</h1>
+      <p>No free pick can be submitted offline.</p>
+      <p><a href="/">Try connecting again</a></p>
+      <section class="scoreboard" aria-labelledby="board-title">
+        <h2 id="board-title">Last saved scoreboard</h2>
+        <p id="source">Open COWBOY while connected to save a scoreboard for offline use.</p>
+        <div id="controls" class="tools" hidden>
+          <label for="league">League</label>
+          <select id="league"></select>
+          <span id="count" aria-live="polite"></span>
+        </div>
+        <ul id="games" class="games"></ul>
+      </section>
+    </main>
+  </body>
+</html>

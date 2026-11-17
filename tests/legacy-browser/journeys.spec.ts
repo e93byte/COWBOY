@@ -1,0 +1,20 @@
+import { test, expect } from '@playwright/test';
+test('event detail to reviewed ticket, refresh and controlled settlement', async ({ page }) => {
+ await page.goto('/');
+ await page.getByRole('button', { name: 'Open Buffalo at Miami' }).click();
+ await page.getByRole('button', { name: 'Buffalo wins · 1.90' }).click();
+ await page.getByLabel('Stake · virtual credits').fill('10');
+ await page.getByRole('button', { name: 'Review ticket', exact: true }).click();
+ await expect(page.getByRole('heading', { name: 'Review sportsbook ticket' })).toBeVisible();
+ await page.getByRole('button', { name: 'Accept practice ticket', exact: true }).click();
+ await page.getByRole('button', { name: 'My Bets', exact: true }).click();
+ await expect(page.getByText('Status: open')).toBeVisible();
+ await page.reload();
+ await page.getByRole('button', { name: 'My Bets', exact: true }).click();
+ await expect(page.getByText('Status: open')).toBeVisible();
+ await page.getByRole('button', { name: 'Advance scenario' }).click();
+ await page.getByRole('button', { name: 'Advance scenario' }).click();
+ await page.getByRole('button', { name: 'Settle ticket' }).click();
+ await expect(page.getByText('Status: won')).toBeVisible();
+ await expect(page.getByTestId('sports-balance')).toHaveText('509.00');
+});

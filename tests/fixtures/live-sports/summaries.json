@@ -1,0 +1,186 @@
+{
+  "nfl": {
+    "_source": "https://site.api.espn.com/apis/site/v2/sports/football/nfl/summary?event=401873064",
+    "header": {
+      "id": "401873064",
+      "competitions": [
+        {
+          "id": "401873064",
+          "date": "2026-11-16T01:20Z",
+          "competitors": [
+            {
+              "id": "4",
+              "order": 0,
+              "homeAway": "home",
+              "team": {
+                "id": "4",
+                "name": "Bengals",
+                "abbreviation": "CIN",
+                "displayName": "Cincinnati Bengals",
+                "logos": [
+                  {
+                    "href": "https://a.espncdn.com/i/teamlogos/nfl/500/cin.png"
+                  },
+                  {
+                    "href": "https://a.espncdn.com/i/teamlogos/nfl/500-dark/cin.png"
+                  },
+                  {
+                    "href": "https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/cin.png"
+                  },
+                  {
+                    "href": "https://a.espncdn.com/i/teamlogos/nfl/500-dark/scoreboard/cin.png"
+                  },
+                  {
+                    "href": "https://a.espncdn.com/guid/75b8623b-8926-b411-0476-3d3602b78523/logos/grayscale.png"
+                  },
+                  {
+                    "href": "https://a.espncdn.com/guid/75b8623b-8926-b411-0476-3d3602b78523/logos/primary_logo_on_white_color.png"
+                  },
+                  {
+                    "href": "https://a.espncdn.com/guid/75b8623b-8926-b411-0476-3d3602b78523/logos/primary_logo_on_black_color.png"
+                  },
+                  {
+                    "href": "https://a.espncdn.com/guid/75b8623b-8926-b411-0476-3d3602b78523/logos/primary_logo_on_primary_color.png"
+                  },
+                  {
+                    "href": "https://a.espncdn.com/guid/75b8623b-8926-b411-0476-3d3602b78523/logos/primary_logo_on_secondary_color.png"
+                  },
+                  {
+                    "href": "https://a.espncdn.com/guid/75b8623b-8926-b411-0476-3d3602b78523/logos/primary_logo_black.png"
+                  },
+                  {
+                    "href": "https://a.espncdn.com/guid/75b8623b-8926-b411-0476-3d3602b78523/logos/primary_logo_white.png"
+                  },
+                  {
+                    "href": "https://a.espncdn.com/guid/75b8623b-8926-b411-0476-3d3602b78523/logos/secondary_logo_on_white_color.png"
+                  },
+                  {
+                    "href": "https://a.espncdn.com/guid/75b8623b-8926-b411-0476-3d3602b78523/logos/secondary_logo_on_black_color.png"
+                  },
+                  {
+                    "href": "https://a.espncdn.com/guid/75b8623b-8926-b411-0476-3d3602b78523/logos/secondary_logo_on_primary_color.png"
+                  },
+                  {
+                    "href": "https://a.espncdn.com/guid/75b8623b-8926-b411-0476-3d3602b78523/logos/secondary_logo_on_secondary_color.png"
+                  },
+                  {
+                    "href": "https://a.espncdn.com/guid/75b8623b-8926-b411-0476-3d3602b78523/logos/secondary_logo_black.png"
+                  },
+                  {
+                    "href": "https://a.espncdn.com/guid/75b8623b-8926-b411-0476-3d3602b78523/logos/secondary_logo_white.png"
+                  }
+                ],
+                "links": [
+                  {
+                    "href": "https://www.espn.com/nfl/team/_/name/cin/cincinnati-bengals"
+                  }
+                ]
+              },
+              "score": "10"
+            },
+            {
+              "id": "23",
+              "order": 1,
+              "homeAway": "away",
+              "team": {
+                "id": "23",
+                "name": "Steelers",
+                "abbreviation": "PIT",
+                "displayName": "Pittsburgh Steelers",
+                "logos": [
+                  {
+                    "href": "https://a.espncdn.com/i/teamlogos/nfl/500/pit.png"
+                  },
+                  {
+                    "href": "https://a.espncdn.com/i/teamlogos/nfl/500-dark/pit.png"
+                  },
+                  {
+                    "href": "https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/pit.png"
+                  },
+                  {
+                    "href": "https://a.espncdn.com/i/teamlogos/nfl/500-dark/scoreboard/pit.png"
+                  },
+                  {
+                    "href": "https://a.espncdn.com/guid/debcd592-8d53-71f1-fc15-5c8b8ef9df6e/logos/grayscale.png"
+                  },
+                  {
+                    "href": "https://a.espncdn.com/guid/debcd592-8d53-71f1-fc15-5c8b8ef9df6e/logos/primary_logo_on_white_color.png"
+                  },
+                  {
+                    "href": "https://a.espncdn.com/guid/debcd592-8d53-71f1-fc15-5c8b8ef9df6e/logos/primary_logo_on_black_color.png"
+                  },
+                  {
+                    "href": "https://a.espncdn.com/guid/debcd592-8d53-71f1-fc15-5c8b8ef9df6e/logos/primary_logo_on_primary_color.png"
+                  },
+                  {
+                    "href": "https://a.espncdn.com/guid/debcd592-8d53-71f1-fc15-5c8b8ef9df6e/logos/primary_logo_on_secondary_color.png"
+                  },
+                  {
+                    "href": "https://a.espncdn.com/guid/debcd592-8d53-71f1-fc15-5c8b8ef9df6e/logos/primary_logo_black.png"
+                  },
+                  {
+                    "href": "https://a.espncdn.com/guid/debcd592-8d53-71f1-fc15-5c8b8ef9df6e/logos/primary_logo_white.png"
+                  },
+                  {
+                    "href": "https://a.espncdn.com/guid/debcd592-8d53-71f1-fc15-5c8b8ef9df6e/logos/secondary_logo_on_white_color.png"
+                  },
+                  {
+                    "href": "https://a.espncdn.com/guid/debcd592-8d53-71f1-fc15-5c8b8ef9df6e/logos/secondary_logo_on_black_color.png"
+                  },
+                  {
+                    "href": "https://a.espncdn.com/guid/debcd592-8d53-71f1-fc15-5c8b8ef9df6e/logos/secondary_logo_on_primary_color.png"
+                  },
+                  {
+                    "href": "https://a.espncdn.com/guid/debcd592-8d53-71f1-fc15-5c8b8ef9df6e/logos/secondary_logo_on_secondary_color.png"
+                  },
+                  {
+                    "href": "https://a.espncdn.com/guid/debcd592-8d53-71f1-fc15-5c8b8ef9df6e/logos/secondary_logo_black.png"
+                  },
+                  {
+                    "href": "https://a.espncdn.com/guid/debcd592-8d53-71f1-fc15-5c8b8ef9df6e/logos/secondary_logo_white.png"
+                  }
+                ],
+                "links": [
+                  {
+                    "href": "https://www.espn.com/nfl/team/_/name/pit/pittsburgh-steelers"
+                  }
+                ]
+              },
+              "score": "0"
+            }
+          ],
+          "status": {
+            "displayClock": "14:47",
+            "period": 2,
+            "type": {
+              "id": "2",
+              "name": "STATUS_IN_PROGRESS",
+              "state": "in",
+              "completed": false,
+              "description": "In Progress",
+              "detail": "14:47 - 2nd Quarter",
+              "shortDetail": "14:47 - 2nd"
+            }
+          }
+        }
+      ],
+      "links": [
+        {
+          "href": "https://www.espn.com/nfl/game?gameId=401873064"
+        },
+        {
+          "href": "https://www.espn.com/nfl/boxscore/_/gameId/401873064"
+        },
+        {
+          "href": "https://www.espn.com/nfl/playbyplay/_/gameId/401873064"
+        },
+        {
+          "href": "https://www.espn.com/nfl/matchup?gameId=401873064"
+        },
+        {
+          "href": "https://www.espn.com/nfl/odds/_/gameId/401873064"
+        }
+      ]
+    }
+  }
+}

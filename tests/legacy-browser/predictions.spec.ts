@@ -1,0 +1,20 @@
+import { test, expect } from '@playwright/test';
+test('distinct predictions discover, review, buy, portfolio, sell and resolve', async ({ page }) => {
+ await page.goto('/');
+ await page.getByRole('button', { name: 'Predictions', exact: true }).click();
+ await page.getByRole('button', { name: 'Explore contract' }).click();
+ await page.getByLabel('Contracts quantity').fill('10');
+ await page.getByRole('button', { name: 'Review contract purchase' }).click();
+ await expect(page.getByRole('heading', { name: 'Review prediction purchase' })).toBeVisible();
+ await page.getByRole('button', { name: 'Confirm practice purchase' }).click();
+ await expect(page.getByTestId('prediction-balance')).toHaveText('194.00');
+ await page.getByRole('button', { name: 'Portfolio', exact: true }).click();
+ await page.getByRole('button', { name: 'Sell full position' }).click();
+ await expect(page.getByTestId('prediction-balance')).toHaveText('199.50');
+ await page.getByRole('button', { name: 'Resolve fictional contract YES' }).click();
+ await expect(page.getByText('Contract resolved: YES', { exact: true })).toBeVisible();
+ await page.reload();
+ await page.getByRole('button', { name: 'Portfolio', exact: true }).click();
+ await expect(page.getByText('Contract resolved: YES', { exact: true })).toBeVisible();
+ await expect(page.getByTestId('sports-balance')).toHaveText('500.00');
+});

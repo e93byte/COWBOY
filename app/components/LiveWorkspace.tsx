@@ -1,0 +1,811 @@
+'use client';
+
+import { useCallback, useEffect, useRef, useState } from 'react';
+import '../live.css';
+import { AccountDialog, Modal, PickPanel, PicksHistory, api, useAccount, type Selection } from './AccountPicks';
+import { SportIcon, StarIcon, RefreshIcon, CloseIcon } from './SportIcon';
+import { TeamMark } from './TeamMark';
+import { EventDetail } from './EventDetail';
+import { GolfLeaderboard } from './GolfLeaderboard';
+import PwaControls from './PwaControls';
+import { BoardScore, MatchCard } from './MatchCard';
+import { SportsGlance } from './SportsGlance';
+import { HelpCenter } from './HelpCenter';
+import { saveOfflineScoreboard } from '../lib/offline-scoreboard';
+import { GameAlertSettings, GameAlertsDialog, GameMomentList, useGameAlerts, type GameMoment } from './GameUpdates';
+import { ScheduleDates, scheduleDateLabel } from './ScheduleDates';
+import { ScheduleTimeZone, ScheduleZoneSelect } from './ScheduleTimeZone';
+import { nextScheduleDay, parseScheduleDate, parseSharedScheduleZone, resolvedScheduleZone, scheduleDay, scheduleTime, scheduleZones, type ScheduleZone } from '../lib/schedule-time';
+import { BoardSearch, boardTournamentName, matchesBoardQuery, type BoardSuggestion, type Follow } from './BoardSearch';
+import { useAccountFollows } from './AccountFollows';
+
+import type { LiveBoard, LiveEvent } from '../lib/live-sports';
+import { LIVE_LEAGUES } from '../lib/sports-leagues';
+import { pickName, pickSides, supportsDrawPick, type PickSide } from '../lib/pick-outcomes';
+export type { LiveEvent } from '../lib/live-sports';
+const spotlightOptions = [
+  { id: 'featured', label: 'Featured' },
+  { id: 'live', label: 'Live games' },
+  { id: 'soon', label: 'Starting soon' },
+  { id: 'following', label: 'Following' },
+] as const;
+type SpotlightMode = typeof spotlightOptions[number]['id'];
+type WorkspaceView = 'board' | 'live' | 'picks' | 'preferences' | 'help';
+type LiveScope = 'all' | 'following' | 'final';
+type LiveFilters = {league: string; scope: LiveScope};
+const defaultLiveFilters: LiveFilters = {league:'all',scope:'all'};
+const sportCategories = [
+  ['football','Football'], ['basketball','Basketball'], ['baseball','Baseball'],
+  ['hockey','Hockey'], ['soccer','Soccer'], ['tennis','Tennis'], ['mma','MMA'], ['rugby','Rugby'], ['golf','Golf'],
+] as const;
+const sportFilter = (value: string) => sportCategories.find(([key])=>value === 'sport-'+key)?.[0];
+
+const workspacePaths: Record<WorkspaceView, string> = {board: '/', live: '/live', picks: '/picks', preferences: '/preferences', help: '/help'};
+
+function viewFromPath(pathname: string): WorkspaceView {
+  if (pathname === workspacePaths.live) return 'live';
+  if (pathname === workspacePaths.picks) return 'picks';
+  if (pathname === workspacePaths.preferences) return 'preferences';
+  if (pathname === workspacePaths.help) return 'help';
+  return 'board';
+}
+
+function readLeagueFilter(params: URLSearchParams): string {
+  const leagues = params.getAll('filterLeague');
+  const sports = params.getAll('filterSport');
+  if (leagues.length === 1 && !sports.length && LIVE_LEAGUES.some(item=>item.id===leagues[0])) return leagues[0];
+  if (!leagues.length && sports.length === 1 && sportFilter('sport-'+sports[0])) return 'sport-'+sports[0];
+  return 'all';
+}
+
+function writeLeagueFilter(params: URLSearchParams, league: string) {
+  params.delete('filterLeague');
+  params.delete('filterSport');
+  const sport = sportFilter(league);
+  if (sport) params.set('filterSport',sport);
+  else if (league !== 'all') params.set('filterLeague',league);
+}
+
+function readLiveFilters(params: URLSearchParams): LiveFilters {
+  const scopes = params.getAll('scope');
+  return {
+    league: readLeagueFilter(params),
+    scope: scopes.length === 1 && (scopes[0] === 'following' || scopes[0] === 'final') ? scopes[0] : 'all',
+  };
+}
+
+function teamFollows(event: LiveEvent) {
+  return [event.away, event.home].map(team => event.league + ':' + team.id);
+}
+
+function time(value:string) { return new Date(value).toLocaleString([], {month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}); }
+function canPick(e:LiveEvent,now:number) { return e.status==='scheduled' && new Date(e.startsAt).getTime()>now; }
+function validGameLink(id: string, league: string) {
+  return /^[0-9]{1,16}(?:-[0-9]{1,16})?$/.test(id) && /^[a-z0-9-]{1,24}$/.test(league);
+}
+function eventKey(event: Pick<LiveEvent,'league'|'id'>) { return event.league + ':' + event.id; }
+
+function useGameMoments(board: LiveBoard | null, interrupted: boolean) {
+  const previous = useRef<LiveBoard | null>(null);
+  const [moments, setMoments] = useState<GameMoment[]>([]);
+  useEffect(() => {
+    if (!board || interrupted || board.stale) {
+      previous.current = null;
+      return;
+    }
+    const last = previous.current;
+    previous.current = board;
+    if (!last || last.fetchedAt === board.fetchedAt) return;
+    const healthy = new Set(board.leagues.filter(league=>league.status === 'ok').map(league=>league.id));
+    const lastHealthy = new Set(last.leagues.filter(league=>league.status === 'ok').map(league=>league.id));
+    const events = new Map(last.events.map(event=>[eventKey(event),event]));
+    const changes = board.events.flatMap((event): GameMoment[] => {
+      const key = eventKey(event);
+      const before = events.get(key);
+      if (!before || !healthy.has(event.league) || !lastHealthy.has(event.league)) return [];
+      let change: Pick<GameMoment,'type'|'label'> | undefined;
+      if (before.status === 'scheduled' && event.status === 'live') change = {type:'start',label:'Game started'};
+      else if (!before.completed && event.completed) change = {type:'final',label:'Final'};
+      else if (before.status === 'live' && event.status === 'live' &&
+          [event.away.score, event.home.score, ...event.away.linescores ?? [], ...event.home.linescores ?? []]
+            .some(value=>value !== null) &&
+          JSON.stringify([event.away.score,event.home.score,event.away.linescores,event.home.linescores]) !==
+          JSON.stringify([before.away.score,before.home.score,before.away.linescores,before.home.linescores])) {
+        change = {type:'score',label:'Score updated'};
+      }
+      return change ? [{id:key + ':' + board.fetchedAt,event,...change,observedAt:board.fetchedAt}] : [];
+    });
+    if (changes.length) setMoments(old=>[...changes,...old].slice(0,48));
+  },[board,interrupted]);
+  return moments;
+}
+
+function useLiveBoard() {
+  const [board,setBoard]=useState<LiveBoard|null>(null);
+  const [error,setError]=useState('');
+  const [busy,setBusy]=useState(true);
+  const refresh=useRef<(league?: string)=>void>(()=>{});
+  useEffect(()=>{
+    let disposed=false, running=false, timer:ReturnType<typeof setTimeout>|undefined, controller:AbortController|undefined;
+    let delay=15000;
+    const load=async(league?: string)=>{
+      if(disposed||running||document.hidden)return;
+      clearTimeout(timer);running=true;setBusy(true);controller=new AbortController();
+      try {
+        const url = league ? `/api/sports?${new URLSearchParams({league})}` : '/api/sports';
+        const res=await fetch(url,{signal:controller.signal,cache:'no-store'});
+        if(!res.ok) throw new Error('Sports source is unavailable. Please try again.');
+        const data:LiveBoard=await res.json();
+        if(!Array.isArray(data.events)||!Array.isArray(data.leagues))throw new Error('Sports source returned an invalid response.');
+        if(!disposed){setBoard(data);setError('');delay=Math.max(1000,data.refreshAfterMs||15000);}
+      }catch(e){if(!disposed && (e as Error).name!=='AbortError')setError((e as Error).message);}
+      finally {running=false;if(!disposed){setBusy(false);if(!document.hidden)timer=setTimeout(() => void load(),delay);}}
+    };
+    const visibility=()=>{clearTimeout(timer);if(document.hidden)controller?.abort();else void load();};
+    refresh.current=(league)=>void load(league);document.addEventListener('visibilitychange',visibility);void load();
+    return()=>{disposed=true;clearTimeout(timer);controller?.abort();document.removeEventListener('visibilitychange',visibility);};
+  },[]);
+  return {board,error,busy,refresh:()=>refresh.current(),refreshLeague:(league:string)=>refresh.current(league)};
+}
+
+export default function LiveWorkspace({initialView = 'board'}: {initialView?: WorkspaceView}){
+  const {board,error,busy,refresh,refreshLeague}=useLiveBoard();
+  useEffect(() => { if (board && !error) saveOfflineScoreboard(board); },[board,error]);
+  const moments = useGameMoments(board, Boolean(error));
+  const [spotlightMode, setSpotlightMode] = useState<SpotlightMode>('featured');
+  const [now,setNow]=useState(0);
+  useEffect(()=>{setNow(Date.now());const timer=setInterval(()=>setNow(Date.now()),1000);return()=>clearInterval(timer);},[]);
+  const [boardLeague,setBoardLeague]=useState('all');
+  const [filter,setFilter]=useState('all');
+  const [dateFilter,setDateFilter]=useState('all');
+  const [preferenceZone,setPreferenceZone] = useState<ScheduleZone>('local');
+  const [sharedZone,setSharedZone] = useState<string|null>(null);
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('cowboy.scheduleZone');
+      const preference = scheduleZones.find(option => option.id === saved);
+      if (preference) setPreferenceZone(preference.id);
+    } catch {}
+  }, []);
+  const changeZone = (next: ScheduleZone) => {
+    setPreferenceZone(next);
+    if (dateFilter !== 'all') changeScheduleDate(dateFilter, next);
+    try { localStorage.setItem('cowboy.scheduleZone',next); } catch {}
+  };
+  const [query,setQuery]=useState('');
+  const [teamFilter,setTeamFilter]=useState<Follow|null>(null);
+  const [view,setView]=useState<WorkspaceView>(initialView);
+  const [liveFilters, setLiveFilters] = useState(defaultLiveFilters);
+  const zone = view === 'board' && dateFilter !== 'all' && sharedZone ? sharedZone : preferenceZone;
+  const liveView = view === 'live';
+  const liveScope = liveFilters.scope;
+  const league = liveView ? liveFilters.league : boardLeague;
+  const account=useAccount();
+  const [accountOpen,setAccountOpen]=useState(false);
+  const [alertsOpen,setAlertsOpen]=useState(false);
+  const [selections,setSelections]=useState<Selection[]>([]);
+  const [draftReady,setDraftReady]=useState(false);
+  const [review,setReview]=useState(false);
+  const [pending,setPending]=useState(false);
+  const [pickError,setPickError]=useState('');
+  const [toast,setToast]=useState('');
+  const [drawer,setDrawer]=useState(false);
+  const [detail,setDetail]=useState<LiveEvent|null>(null);
+  const [sharedGameState, setSharedGameState] = useState<'loading'|'unavailable'|null>(null);
+  const sharedGameRequest = useRef<AbortController | null>(null);
+
+  const loadGame = useCallback((id: string, league: string) => {
+    sharedGameRequest.current?.abort();
+    const controller = new AbortController();
+    sharedGameRequest.current = controller;
+    setSharedGameState('loading');
+    const query = new URLSearchParams({id, league});
+    api<LiveEvent>(`/api/sports/event?${query}`, {signal: controller.signal})
+      .then(event => {
+        if (controller.signal.aborted) return;
+        if (event.id !== id || event.league !== league || !event.home || !event.away) {
+          throw new Error('Game identity does not match link.');
+        }
+        setDetail(event);
+        setSharedGameState(null);
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setSharedGameState('unavailable');
+      });
+  }, []);
+
+  useEffect(() => {
+    function readLocation() {
+      sharedGameRequest.current?.abort();
+      setDetail(null);
+      setSharedGameState(null);
+      const workspace = viewFromPath(window.location.pathname);
+      setView(workspace);
+      const params = new URLSearchParams(window.location.search);
+      if (workspace === 'live') setLiveFilters(readLiveFilters(params));
+      if (workspace === 'board') {
+        const selectedLeague = readLeagueFilter(params);
+        setBoardLeague(selectedLeague);
+        const date = selectedLeague === 'pga' || selectedLeague === 'sport-golf' ? 'all' : parseScheduleDate(params);
+        setDateFilter(date);
+        setSharedZone(date === 'all' ? null : parseSharedScheduleZone(params));
+      } else {
+        setDateFilter('all');
+        setSharedZone(null);
+      }
+      if (!params.has('game') && !params.has('league')) return;
+      const id = params.get('game') ?? '';
+      const league = params.get('league') ?? '';
+      if (params.getAll('game').length !== 1 || params.getAll('league').length !== 1 || !validGameLink(id, league)) {
+        setSharedGameState('unavailable');
+        return;
+      }
+      loadGame(id,league);
+    }
+    readLocation();
+    window.addEventListener('popstate', readLocation);
+    return () => {
+      sharedGameRequest.current?.abort();
+      window.removeEventListener('popstate', readLocation);
+    };
+  }, [loadGame]);
+
+  function pushGameLocation(id: string, league: string, preserveSection = false) {
+    const url = new URL(window.location.href);
+    const isSwitch = url.searchParams.has('game');
+    url.searchParams.set('game',id);
+    url.searchParams.set('league',league);
+    if (!isSwitch || !preserveSection || url.searchParams.get('section') === 'pick') {
+      url.searchParams.delete('section');
+    }
+    // Keep a single history entry for the open Game Center, even when switching fixtures.
+    if (isSwitch) window.history.replaceState({cowboyGameEntry: window.history.state?.cowboyGameEntry === true}, '', url);
+    else window.history.pushState({cowboyGameEntry: true}, '', url);
+  }
+
+  function openGame(event: LiveEvent, preserveSection = false) {
+    sharedGameRequest.current?.abort();
+    setSharedGameState(null);
+    if (validGameLink(event.id,event.league)) pushGameLocation(event.id,event.league,preserveSection);
+    setDetail(event);
+  }
+
+  function openSavedGame(id: string, league: string) {
+    if (!validGameLink(id,league)) {
+      setSharedGameState('unavailable');
+      return;
+    }
+    pushGameLocation(id,league);
+    loadGame(id,league);
+  }
+
+  function closeGame() {
+    sharedGameRequest.current?.abort();
+    setSharedGameState(null);
+    setDetail(null);
+    const url = new URL(window.location.href);
+    if (!url.searchParams.has('game') && !url.searchParams.has('league')) return;
+    if (window.history.state?.cowboyGameEntry === true) {
+      window.history.back();
+    } else {
+      url.searchParams.delete('game');
+      url.searchParams.delete('league');
+      url.searchParams.delete('section');
+      window.history.replaceState(null, '', url);
+    }
+  }
+  const subscriptions = useAccountFollows(account.user?.id,account.accountLoading);
+  const {watched,follows,toggleWatch,toggleFollow} = subscriptions;
+  useEffect(() => {
+    try {
+      const value = JSON.parse(sessionStorage.getItem('cowboy.pickDraft.v1') || '[]');
+      if (Array.isArray(value)) {
+        const valid: Selection[] = value.filter(item =>
+          typeof item?.event?.id === 'string' && typeof item.event.league === 'string' &&
+          typeof item.event.name === 'string' && typeof item.event.leagueName === 'string' &&
+          typeof item.event.home?.name === 'string' && typeof item.event.home.shortName === 'string' &&
+          typeof item.event.away?.name === 'string' && typeof item.event.away.shortName === 'string' &&
+          typeof item.event.startsAt === 'string' && Number.isFinite(Date.parse(item.event.startsAt)) &&
+          (item.side === 'home' || item.side === 'away' || (item.side === 'draw' && supportsDrawPick(item.event.league))) && typeof item.requestId === 'string');
+        setSelections([...new Map(valid.map(item=>[eventKey(item.event),item])).values()].slice(0,5));
+      }
+    } catch {}
+    setDraftReady(true);
+  }, []);
+  useEffect(() => {
+    if (draftReady) try { sessionStorage.setItem('cowboy.pickDraft.v1', JSON.stringify(selections)); } catch {}
+  }, [draftReady, selections]);
+
+  const selectionsByGame = new Map(selections.map(pick => [eventKey(pick.event), pick]));
+  const eligiblePick = (event: LiveEvent | undefined) => !!event && canPick(event,now) && !error && !board?.stale &&
+    board?.leagues.find(league => league.id === event.league)?.status === 'ok';
+  const selectionDisabled = selections.some(pick =>
+    !eligiblePick(board?.events.find(event => eventKey(event) === eventKey(pick.event))));
+  const togglePick = (event: LiveEvent, side: PickSide) => {
+    const key = eventKey(event);
+    const {id,league,leagueName,name,startsAt,home,away} = event;
+    const pick: Selection = {event:{id,league,leagueName,name,startsAt,
+      home:{name:home.name,shortName:home.shortName},away:{name:away.name,shortName:away.shortName}},
+      side,requestId:crypto.randomUUID()};
+    setSelections(previous => {
+      const selected = previous.find(item => eventKey(item.event) === key);
+      if (!selected) return previous.length < 5 ? [...previous,pick] : previous;
+      return selected.side === side
+        ? previous.filter(item => item !== selected)
+        : previous.map(item => item === selected ? pick : item);
+    });
+    setPickError('');
+  };
+  const submitPick = async () => {
+    if (!selections.length || pending || selectionDisabled) return;
+    setPending(true);
+    setPickError('');
+    try {
+      const picks = selections.map(({event,side,requestId}) => ({eventId:event.id,league:event.league,side,requestId}));
+      await api(picks.length === 1 ? '/api/picks' : '/api/picks/batch', {
+        method:'POST',body:JSON.stringify(picks.length === 1 ? picks[0] : {picks}),
+      });
+      await account.loadTickets();
+      setSelections([]);
+      setReview(false);
+      setDrawer(false);
+      setToast(picks.length === 1 ? 'Free pick saved. Follow it in My picks.' : `${picks.length} free picks saved. Follow them in My picks.`);
+    } catch (error) {
+      setPickError((error as Error).message);
+    } finally {
+      setPending(false);
+    }
+  };
+  const pickPanel = <PickPanel selections={selections} user={account.user} disabled={selectionDisabled} pending={pending}
+    onReview={()=>{setReview(true);setDrawer(false);}}
+    onRemove={pick=>setSelections(previous=>previous.filter(item=>item.requestId!==pick.requestId))}
+    onSignIn={()=>{setAccountOpen(true);setDrawer(false);}}/>;
+  const todayKey = scheduleDay(now,zone);
+  const tomorrowKey = nextScheduleDay(todayKey);
+  const dateName = scheduleDateLabel(dateFilter,todayKey,tomorrowKey);
+  const preferencesView = view === 'preferences';
+  const helpView = view === 'help';
+  const informationView = preferencesView || helpView;
+  const pageHeading = useRef<HTMLHeadingElement>(null);
+  useEffect(() => {
+    if (informationView && !window.location.hash) {
+      pageHeading.current?.focus({preventScroll:true});
+      window.scrollTo({top:0,behavior:'instant'});
+    }
+  }, [informationView, view]);
+  function navigate(next: WorkspaceView) {
+    const path = workspacePaths[next];
+    if (window.location.pathname !== path) {
+      sharedGameRequest.current?.abort();
+      setDetail(null);
+      setSharedGameState(null);
+      window.history.pushState(null,'',path);
+    }
+    setView(next);
+  }
+  const openBoard = () => { clearTransientFilters(); navigate('board'); replaceBoardLeague('all'); changeScheduleDate('all'); };
+  const openWatchlist = () => { openBoard(); setFilter('watchlist'); };
+  const openLive = () => { clearTransientFilters(); navigate('live'); replaceLiveFilters(defaultLiveFilters); };
+  const openPicks = () => navigate('picks');
+  const allEvents = board?.events ?? [];
+  const liveEvents = allEvents.filter(event => event.status === 'live');
+  const finalEvents = allEvents.filter(event => event.completed);
+  const watchedIds = new Set(watched);
+  const followedIds = new Set(follows.map(item=>item.id));
+  const isWatched = (event: LiveEvent) => watchedIds.has(`${event.league}:${event.id}`);
+  const isFollowed = (event: LiveEvent) => isWatched(event) || followedIds.has(event.league) ||
+    teamFollows(event).some(id=>followedIds.has(id));
+  const scheduledFollows = allEvents.filter(event => eligiblePick(event) && isFollowed(event));
+  const alerts = useGameAlerts(moments.filter(moment=>isFollowed(moment.event)),scheduledFollows,now);
+  const unreadAlerts = alerts.quiet ? 0 : alerts.unread;
+  const openMoment = (event: LiveEvent) =>
+    openGame(allEvents.find(item=>eventKey(item)===eventKey(event)) ?? event);
+  const followedLive = liveEvents.filter(isFollowed);
+  const golfView = league === 'pga' || league === 'sport-golf';
+  const allGolf = board?.golf ?? [];
+  const liveGolf = allGolf.filter(event => event.state === 'in');
+  const finalGolf = allGolf.filter(event => event.completed);
+  const followedGolf = followedIds.has('pga') ? liveGolf : [];
+  const golfEvents = liveView ? {all:liveGolf, following:followedGolf, final:finalGolf}[liveScope] : allGolf;
+  const leagueEvents = liveView
+    ? {all: liveEvents, following: followedLive, final: finalEvents}[liveScope]
+    : allEvents;
+  const selectedSport = sportFilter(league);
+  const inSelectedLeague = (event: LiveEvent) =>
+    selectedSport ? event.sport === selectedSport : league === 'all' || event.league === league;
+  const matchesSelection = (event: LiveEvent) => inSelectedLeague(event) &&
+    (!teamFilter || teamFollows(event).includes(teamFilter.id)) && matchesBoardQuery(event, query);
+  const matchingEvents = leagueEvents.filter(event => {
+    if (!liveView && filter === 'watchlist' && !isFollowed(event)) return false;
+    if (!liveView && filter === 'live' && event.status !== 'live') return false;
+    if (!liveView && filter === 'upcoming' && !canPick(event, now)) return false;
+    return matchesSelection(event);
+  });
+  const visibleMoments = liveView ? moments.filter(moment =>
+    matchesSelection(moment.event) &&
+    (liveScope !== 'following' || isFollowed(moment.event)) &&
+    (liveScope !== 'final' || moment.type === 'final'),
+  ) : [];
+  const dateCounts = new Map<string, number>();
+  if (!liveView && !golfView) {
+    for (const event of matchingEvents) {
+      const day = scheduleDay(event.startsAt,zone);
+      if (day) dateCounts.set(day, (dateCounts.get(day) ?? 0) + 1);
+    }
+  }
+  const events = liveView || dateFilter === 'all'
+    ? matchingEvents : matchingEvents.filter(event => scheduleDay(event.startsAt,zone) === dateFilter);
+  const [sort,setSort]=useState('status');
+  const [collapsed,setCollapsed]=useState<string[]>([]);
+  const [showAllGroups,setShowAllGroups]=useState<string[]>([]);
+  function replaceLiveFilters(next: LiveFilters) {
+    const url = new URL(window.location.href);
+    writeLeagueFilter(url.searchParams,next.league);
+    if (next.scope === 'all') url.searchParams.delete('scope');
+    else url.searchParams.set('scope',next.scope);
+    if (url.href !== window.location.href) window.history.replaceState(window.history.state,'',url);
+    setLiveFilters(next);
+  }
+  function replaceBoardLeague(league: string) {
+    const url = new URL(window.location.href);
+    writeLeagueFilter(url.searchParams,league);
+    if (url.href !== window.location.href) window.history.replaceState(window.history.state,'',url);
+    setBoardLeague(league);
+  }
+
+  function changeScheduleDate(date: string, selectedZone = zone) {
+    const url = new URL(window.location.href);
+    if (viewFromPath(url.pathname) !== 'board') return;
+    const nextZone = date === 'all' ? null : resolvedScheduleZone(selectedZone);
+    if (date === 'all') url.searchParams.delete('date');
+    else url.searchParams.set('date', date);
+    if (nextZone) url.searchParams.set('tz', nextZone);
+    else url.searchParams.delete('tz');
+    if (url.href !== window.location.href) window.history.replaceState(window.history.state,'',url);
+    setDateFilter(date);
+    setSharedZone(nextZone);
+  }
+
+  function selectWorkspaceLeague(id: string) {
+    if (liveView) replaceLiveFilters({...liveFilters,league:id});
+    else {
+      replaceBoardLeague(id);
+      if (id === 'pga' || id === 'sport-golf') changeScheduleDate('all');
+    }
+  }
+  function clearTransientFilters() {
+    setTeamFilter(null);setFilter('all');setDateFilter('all');setQuery('');setCollapsed([]);setShowAllGroups([]);
+  }
+  function resetFilters() {
+    selectWorkspaceLeague('all');
+    clearTransientFilters();
+    changeScheduleDate('all');
+  }
+  function selectLeague(id: string) {
+    if (view==='picks') openBoard();
+    setTeamFilter(null);
+    selectWorkspaceLeague(id);
+  }
+  function selectSuggestion(item: BoardSuggestion) {
+    if (item.kind==='game') {
+      openGame(item.event);
+      return;
+    }
+    clearTransientFilters();
+    changeScheduleDate('all');
+    selectWorkspaceLeague(item.kind==='league' ? item.id : item.league);
+    if (item.kind==='team') setTeamFilter({id:item.id,name:item.name,league:item.league});
+    if (item.kind==='tournament') setQuery(item.name);
+    document.getElementById('games-board')?.focus();
+  }
+  const ranked=[...events].sort((a,b)=>{
+    const priority=(e:LiveEvent)=>e.status==='live'?0:canPick(e,now)?1:2;
+    if (liveView && liveScope === 'final' && sort === 'status') return Date.parse(b.startsAt) - Date.parse(a.startsAt);
+    return (sort==='status'?priority(a)-priority(b):0)||Date.parse(a.startsAt)-Date.parse(b.startsAt);
+  });
+  const groups=(board?.leagues||[]).flatMap(item=>{
+    const groups = new Map<string,{id:string;name:string;sport:string;events:LiveEvent[]}>();
+    for (const event of ranked.filter(event=>event.league===item.id)) {
+      const tournament = event.sport === 'tennis' ? boardTournamentName(event) : undefined;
+      const id = event.fight ? `ufc:${event.fight.cardId}` : tournament ? `${item.id}:tournament:${tournament}` : item.id;
+      let group = groups.get(id);
+      if (!group) {
+        group = {id,name:event.fight?.cardName ?? tournament ?? item.name,sport:item.sport,events:[]};
+        groups.set(id,group);
+      }
+      group.events.push(event);
+    }
+    return [...groups.values()];
+  });
+  const liveScorecards = liveView && liveScope !== 'final' ? ranked.slice(0, 6) : [];
+  const onHome = view === 'board' && league === 'all' && filter === 'all' && dateFilter === 'all' && !query && !teamFilter;
+  const upcomingOrder = (a: LiveEvent,b: LiveEvent) => Date.parse(a.startsAt) - Date.parse(b.startsAt);
+  const followedGame = onHome ? followedLive[0] ?? scheduledFollows.slice().sort(upcomingOrder)[0] ??
+    finalEvents.filter(isFollowed).sort((a,b)=>upcomingOrder(b,a))[0] : undefined;
+  const glanceGame = onHome ? followedGame ?? liveEvents[0] ?? allEvents.filter(event=>eligiblePick(event)).sort(upcomingOrder)[0] : undefined;
+  const spotlightCandidates=events.filter(event=>event.status==='live'||canPick(event,now));
+  const spotlight=spotlightCandidates.filter(event=>{
+    if (spotlightMode==='live') return event.status==='live';
+    if (spotlightMode==='soon') return event.status==='scheduled' && Date.parse(event.startsAt)-now<=2*60*60*1000;
+    if (spotlightMode==='following') return isFollowed(event);
+    return !glanceGame || eventKey(event) !== eventKey(glanceGame);
+  }).sort((a,b)=>Number(b.status==='live')-Number(a.status==='live') ||
+    Number(isFollowed(b))-Number(isFollowed(a)) || Date.parse(a.startsAt)-Date.parse(b.startsAt)).slice(0,6);
+  const spotlightEmpty = {
+    featured:'No featured games for these filters.',
+    live:'No live games for these filters.',
+    soon:'No games starting in the next two hours.',
+    following:'No live or upcoming games from your follows for these filters.',
+  }[spotlightMode];
+  const leagueCounts = new Map<string, number>();
+  for (const event of leagueEvents) leagueCounts.set(event.league, (leagueCounts.get(event.league) ?? 0) + 1);
+  const availableLeagues = board?.leagues ?? [];
+  const deviceFollows = view === 'board' && filter === 'watchlist' ? subscriptions.importable(allEvents,availableLeagues) : [];
+  const pickedLeague = availableLeagues.find(item=>item.id===league);
+  const leagueSport = selectedSport ?? pickedLeague?.sport;
+  const sportLabel = sportCategories.find(([sport])=>sport===leagueSport)?.[1];
+  const sidebarLeagues = availableLeagues.filter(item=>!leagueSport || item.sport===leagueSport).sort((a,b)=>
+    Number(followedIds.has(b.id))-Number(followedIds.has(a.id)) ||
+    (liveView ? (leagueCounts.get(b.id) ?? 0)-(leagueCounts.get(a.id) ?? 0) : 0));
+  const leagueRail = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const rail = leagueRail.current;
+    if (!rail || rail.scrollWidth <= rail.clientWidth) return;
+    const selected = rail.querySelector<HTMLButtonElement>('[aria-pressed="true"]');
+    if (!selected) return;
+    const left = selected.getBoundingClientRect().left - rail.getBoundingClientRect().left;
+    if (left < 0 || left + selected.offsetWidth > rail.clientWidth) {
+      rail.scrollLeft += left - (rail.clientWidth - selected.offsetWidth) / 2;
+    }
+  }, [league, board !== null]);
+  const boardFollow = teamFilter ?? (pickedLeague ? {id:pickedLeague.id,name:pickedLeague.name,league:pickedLeague.id} : null);
+  const live = liveEvents.length;
+  const liveScopes = ([
+    { key: 'all', label: 'In progress', events: liveEvents, golf: liveGolf },
+    { key: 'following', label: 'Following', events: followedLive, golf: followedGolf },
+    { key: 'final', label: 'Recent finals', events: finalEvents, golf: finalGolf },
+  ] as const).map(scope => ({
+    key: scope.key,
+    label: scope.label,
+    count: golfView ? scope.golf.length : scope.events.filter(inSelectedLeague).length,
+  }));
+  const selectedLiveCount = liveScopes[0].count;
+  const liveScopeLabel = liveScopes.find(scope => scope.key === liveScope)?.label;
+  const liveEmpty = {
+    all: ['No live games in this view', 'Try another league or search, or check recent finals.'],
+    following: ['No followed games are live', 'Follow a game, team or league to see its live games here.'],
+    final: ['No finals in this view', 'Try another league or search.'],
+  }[liveScope];
+  const upcoming = (board?.events ?? []).some(event => canPick(event, now));
+  const openUpcoming = () => {
+    resetFilters();
+    setFilter('upcoming');
+    document.getElementById('games-board')?.scrollIntoView({block: 'start'});
+  };
+  const detailTicket = detail && account.user
+    ? account.tickets.find(ticket => ticket.eventId === detail.id && ticket.league === detail.league && ticket.status !== 'cancelled')
+    : undefined;
+  return <ScheduleTimeZone.Provider value={zone}><div className={`cowboy-live ${liveView ? "cw-live-page" : informationView ? "cw-information-page" : view === "picks" ? "cw-picks-page" : "cw-home-page"}`}>
+    <header className="cw-header"><a className="cw-brand" href="/" aria-label="COWBOY home"><img src="/cowboy-mark.webp" alt=""/><span>COWBOY<small>SPORTS / FREE PICKS</small></span></a><nav aria-label="Main navigation"><button aria-pressed={view==='board'} onClick={openBoard}>Sports board</button><button aria-pressed={liveView} onClick={openLive}>Live</button><button aria-pressed={view==='picks'} onClick={openPicks}>My picks</button></nav><div className="cw-header-actions">
+      <button className="cw-updates-button" onClick={()=>setAlertsOpen(true)}
+        aria-label={unreadAlerts ? `Game updates, ${unreadAlerts} unread` : 'Game updates'}>
+        Updates {unreadAlerts > 0 && <span aria-hidden="true">{unreadAlerts}</span>}
+      </button><button className="cw-account" disabled={account.accountLoading} aria-label={account.user?`Account: ${account.user.username}`:undefined} onClick={()=>setAccountOpen(true)}>{account.accountLoading?'Checking session…':account.user?account.user.username:'Sign in'}</button></div></header>
+    <div className="cw-source"><span><i className={error||board?.stale?'warning-dot':'source-dot'}/><b>{board?.source||'ESPN'}</b> <span>{error?'Connection interrupted':board?.stale?'Delayed data':busy?'Syncing scores…':'Sports data'}</span></span><span>{board?`Updated ${new Date(board.fetchedAt).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'})}`:'Connecting to source'}<button disabled={busy} onClick={refresh} aria-label="Refresh sports"><RefreshIcon/></button></span></div>
+    <div className="cw-grid">
+    {!informationView && <aside className="cw-sports">
+      <p className="cw-kicker">{liveView ? 'Live by league' : 'Browse by league'}</p>
+      <nav aria-label="Leagues" ref={leagueRail}>
+        <button aria-pressed={league==='all'} onClick={()=>selectLeague('all')}>
+          <SportIcon sport="all"/>{liveView ? 'All leagues' : 'All sports'} <small aria-hidden="true">{leagueEvents.length}</small>
+        </button>
+        {sportLabel && leagueSport && leagueSport!=='golf' &&
+          <button aria-label={`All ${sportLabel}`} aria-pressed={!!selectedSport} onClick={()=>selectLeague('sport-'+leagueSport)}>
+            <SportIcon sport={leagueSport}/>All {sportLabel}
+            <small aria-hidden="true">{sidebarLeagues.reduce((total,item)=>total+(leagueCounts.get(item.id)??0),0)}</small>
+          </button>}
+        {sidebarLeagues.map(item => (
+          <button key={item.id} aria-label={item.name} aria-pressed={league===item.id}
+            onClick={()=>selectLeague(item.id)}>
+            <SportIcon sport={item.sport}/>{item.name}
+            {followedIds.has(item.id) && <StarIcon filled/>}
+            <small aria-hidden="true">{item.status==='error'?'!':item.id==='pga'?golfEvents.length:leagueCounts.get(item.id)??0}</small>
+          </button>
+        ))}
+      </nav>
+    </aside>}
+    <main className="cw-main">
+      <div className="cw-title">
+        <h1 ref={informationView ? pageHeading : undefined} tabIndex={informationView ? -1 : undefined}>
+          {liveView?'Live board':view==='board'?'Sports board':preferencesView?'Preferences':helpView?'Help & rules':'My picks'}
+        </h1>
+        {view==='board'&&(!onHome||!board)&&<button className="cw-live-count" onClick={openLive}>{live} live games <span aria-hidden="true">→</span></button>}
+        {liveView&&<span className="cw-live-count">{selectedLiveCount} live{error||board?.stale?' · Last received':''}</span>}
+      </div>
+      {!informationView && view !== 'picks' && board && <nav className="cw-sport-categories" aria-label="Sports">
+        <button aria-pressed={league==='all'} onClick={()=>selectLeague('all')}>All</button>
+        {sportCategories.filter(([sport])=>availableLeagues.some(item=>item.sport===sport)).map(([sport,label])=>
+          <button key={sport} aria-pressed={(selectedSport ?? pickedLeague?.sport)===sport}
+            onClick={()=>selectLeague(sport==='golf' ? 'pga' : 'sport-'+sport)}>
+            <SportIcon sport={sport}/>{label}
+          </button>
+        )}
+      </nav>}
+      {onHome && board && <SportsGlance event={glanceGame} personalized={!!followedGame} liveCount={live}
+        followedLiveCount={followedLive.length} fetchedAt={board.fetchedAt} delayed={!!error||board.stale}
+        onOpen={openGame} onWatchlist={openWatchlist} onLive={openLive}/>}
+      {account.accountError&&<p className="cw-alert" role="alert">{account.accountError}</p>}
+      {helpView ? <HelpCenter/> : preferencesView ? <div className="cw-preferences">
+        <p>Schedule and update preferences apply to this browser.</p>
+        <section aria-labelledby="cw-pref-schedule">
+          <h2 id="cw-pref-schedule">Schedule</h2>
+          <p>Display kickoff times and group games by date in this timezone.</p>
+          <ScheduleZoneSelect value={preferenceZone} onChange={changeZone}/>
+        </section>
+        <section aria-labelledby="cw-pref-updates">
+          <h2 id="cw-pref-updates">Followed game updates</h2>
+          <p>Choose which updates appear while COWBOY is open.</p>
+          <GameAlertSettings alerts={alerts}/>
+        </section>
+        <section aria-labelledby="cw-pref-account">
+          <h2 id="cw-pref-account">Account</h2>
+          <p>Manage your signed-in sessions and data.</p>
+          <button onClick={()=>setAccountOpen(true)}>{account.user ? 'Manage account' : 'Open account settings'}</button>
+        </section>
+      </div> : view!=='picks'?<>
+      {liveView && <div className="cw-live-switcher" role="group" aria-label="Live board views">
+        {liveScopes.map(scope => (
+          <button key={scope.key} aria-pressed={scope.key === liveScope} onClick={() => {
+            clearTransientFilters();
+            setSort('status');
+            replaceLiveFilters({...liveFilters,scope:scope.key});
+          }}>
+            <span>{scope.label}</span><strong>{scope.count}</strong>
+          </button>
+        ))}
+      </div>}
+      {liveScorecards.length > 0 && <section className="cw-live-scorecards" aria-label="Live scores">
+        <div className="cw-section-heading">
+          <h2>Live scores</h2>
+          <span>{error || board?.stale ? 'Last received' : 'Updated'} <time dateTime={board?.fetchedAt}>{board && time(board.fetchedAt)}</time></span>
+        </div>
+        <div className="cw-match-shelf">
+          {liveScorecards.map(event => <MatchCard key={eventKey(event)} event={event} onOpen={openGame}/>)}
+        </div>
+      </section>}
+      {!liveView && spotlightCandidates.length > 0 && (spotlightMode!=='featured' || spotlight.length>0) && (
+        <section className="cw-spotlight" aria-label="In the spotlight">
+          <div className="cw-section-heading">
+            <h2>Featured games</h2>
+            {upcoming&&<button className="cw-upcoming-jump" onClick={openUpcoming} aria-pressed={filter==='upcoming'}>
+              Browse upcoming <span aria-hidden="true">→</span>
+            </button>}
+          </div>
+          <div className="cw-spotlight-options" role="group" aria-label="Featured game views">
+            {spotlightOptions.map(option=><button key={option.id} aria-pressed={spotlightMode===option.id}
+              onClick={()=>setSpotlightMode(option.id)}>{option.label}</button>)}
+          </div>
+          {board && <p className="cw-spotlight-source">{board.source} · {error || board.stale ? 'Last received' : 'Updated'} {time(board.fetchedAt)}</p>}
+          {!spotlight.length && <p className="cw-spotlight-empty">{spotlightEmpty}</p>}
+          <div className="cw-match-shelf">
+            {spotlight.map(e => (
+              <MatchCard key={eventKey(e)} event={e} onOpen={openGame}/>
+            ))}
+          </div>
+        </section>
+      )}
+      {!liveView && !golfView && now > 0 && <ScheduleDates value={dateFilter} counts={dateCounts}
+        today={todayKey} tomorrow={tomorrowKey} onChange={changeScheduleDate}/>}
+      {!golfView && <div className="cw-toolbar">
+        {!liveView && <div role="group" aria-label="Event status">
+          {['all','live','upcoming','watchlist'].map(f=><button key={f} aria-pressed={filter===f}
+            onClick={()=>f==='watchlist' ? openWatchlist() : setFilter(f)}>
+            {f==='all' ? 'All games' : f==='live' ? 'Live now' : f==='watchlist' ? 'Watchlist' : 'Upcoming'}
+          </button>)}
+        </div>}
+        <BoardSearch events={leagueEvents} leagues={availableLeagues} query={query} onChange={setQuery} onSelect={selectSuggestion}/>
+      </div>}
+      {!liveView && filter==='watchlist' && deviceFollows.length > 0 && <div className="cw-follow-list">
+        <button disabled={subscriptions.disabled} onClick={()=>void subscriptions.save(deviceFollows,true)}>
+          {subscriptions.saving ? 'Importing follows…' : 'Import device follows'}
+        </button>
+      </div>}
+      {subscriptions.error && <div className="cw-alert" role="alert">
+        Watchlist sync: {subscriptions.error}
+        <button disabled={subscriptions.saving} onClick={()=>void subscriptions.refresh()}>Retry watchlist sync</button>
+      </div>}
+      {!liveView && filter==='watchlist' && follows.length > 0 && <div className="cw-follow-list" aria-label="Followed teams and leagues">
+        {follows.map(item=><button key={item.id} aria-label={`Unfollow ${item.name}`} disabled={subscriptions.disabled} onClick={()=>toggleFollow(item)}>
+          <StarIcon filled/>{item.name}<CloseIcon/>
+        </button>)}
+      </div>}
+      {error&&<div className="cw-alert" role="alert">{error} {board&&'Last received games are shown; new picks are paused.'}<button disabled={busy} onClick={refresh}>Try again</button></div>}
+      {board?.stale&&<div className="cw-alert" role="status">Delayed source data. Last received scores are shown. New picks are paused until the source recovers.</div>}
+      {board?.leagues.filter(l=>l.status!=='ok').map(l=><div className="cw-league-error cw-league-health" key={l.id}>
+        <div>
+          <span>{l.name}: {l.status==='error'?'source unavailable':'delayed'}{l.error?` · ${l.error}`:''}</span>
+          {l.lastSuccessAt && <small>Last successful update <time dateTime={l.lastSuccessAt}>{time(l.lastSuccessAt)}</time></small>}
+        </div>
+        <button disabled={busy} onClick={()=>refreshLeague(l.id)} aria-label={`Retry ${l.name} feed`}>Retry</button>
+      </div>)}
+      <div className="cw-board-meta" id="games-board" tabIndex={-1}>
+        <div className="cw-board-context">
+          <h2>{teamFilter?.name ?? pickedLeague?.name ?? sportLabel ?? (liveView ? liveScopeLabel : 'Around the leagues')}
+            {!liveView && !golfView && <small className="cw-board-date">{dateName}</small>}
+          </h2>
+          {pickedLeague?.status === 'ok' && pickedLeague.lastSuccessAt && <span className="cw-league-updated">Updated <time dateTime={pickedLeague.lastSuccessAt}>{time(pickedLeague.lastSuccessAt)}</time></span>}
+          {boardFollow && <button className="cw-board-follow" disabled={subscriptions.disabled} aria-pressed={followedIds.has(boardFollow.id)}
+            aria-label={`${followedIds.has(boardFollow.id) ? 'Unfollow' : 'Follow'} ${boardFollow.name}`}
+            onClick={()=>toggleFollow(boardFollow)}><StarIcon filled={followedIds.has(boardFollow.id)}/>
+            {followedIds.has(boardFollow.id) ? 'Following' : 'Follow'}
+          </button>}
+        </div>
+        <div className="cw-board-controls">
+          <span aria-live="polite">{golfView ? `${golfEvents.length} tournaments` : `${events.length} games`}</span>
+          <ScheduleZoneSelect value={zone} onChange={changeZone}/>
+          {!golfView && <label><span className="sr-only">Sort games</span><select value={sort} onChange={e=>setSort(e.target.value)}>
+            <option value="status">{liveView ? (liveScope==='final'?'Most recent':'Board order') : 'Live & upcoming first'}</option>
+            <option value="start">Start time</option>
+          </select></label>}
+          {(query||(!liveView&&filter!=='all')||league!=='all'||dateFilter!=='all')&&<button onClick={resetFilters}>Clear filters</button>}
+        </div>
+      </div>
+      {golfView ? <GolfLeaderboard events={golfEvents}/> : !board&&busy?<div role="status" className="cw-empty">Loading games from ESPN…</div>:events.length===0?<div className="cw-empty"><h3>{error?'No games available':liveView?liveEmpty[0]:'No games in this view'}</h3><p>{error?'Refresh the sports feed to try again.':liveView?liveEmpty[1]:filter==='watchlist'?'Follow a team or league, or star a game to add it here.':dateFilter!=='all'?'Choose another schedule date or clear the filters.':'Try another league, status, or search.'}</p></div>:<section className="cw-events" aria-label="Games"><div className="cw-event-head"><span>EVENT / SCORE</span>{!liveView&&<span>FREE WINNER PICK</span>}</div>{groups.map(group=><section className="cw-league-group" key={group.id} aria-label={`${group.name} ${group.sport==='mma'?'bouts':'games'}`}><button className="cw-league-toggle" aria-expanded={!collapsed.includes(group.id)} aria-label={`${collapsed.includes(group.id)?'Expand':'Collapse'} ${group.name}`} onClick={()=>setCollapsed(old=>old.includes(group.id)?old.filter(id=>id!==group.id):[...old,group.id])}><SportIcon sport={group.sport}/><strong>{group.name}</strong><small>{group.events.length} {group.sport==='mma'?'bouts':'games'}</small><span aria-hidden="true">{collapsed.includes(group.id)?'+':'−'}</span></button>{!collapsed.includes(group.id)&&group.events.slice(0,showAllGroups.includes(group.id) || (league==='ufc' && group.sport==='mma') ? undefined : 5).map(e=><article key={e.league+e.id} className="cw-event" data-event-status={e.status}>
+        <div className="cw-event-info">
+          <div className="cw-event-meta"><SportIcon sport={e.sport}/><b>{e.leagueName}</b>{e.fight?.weightClass && <span>{e.fight.weightClass}</span>}<span className={e.status==='live'?'cw-live-label':''}>{e.status==='live'?'LIVE · ':''}{e.statusText}{e.shootoutScores&&` · Penalties ${e.shootoutScores.away}–${e.shootoutScores.home}`}{e.status==='live'&&e.clock?` · ${e.clock}`:''}</span><button className="cw-watch" disabled={subscriptions.disabled} aria-label={`${watched.includes(e.league+':'+e.id)?'Unwatch':'Watch'} ${e.name}`} aria-pressed={watched.includes(e.league+':'+e.id)} onClick={()=>toggleWatch(e)}><StarIcon filled={watched.includes(e.league+':'+e.id)}/></button></div>
+          <button className="cw-event-detail" aria-label={`Details: ${e.name}`} onClick={()=>openGame(e)}><div className="cw-team"><span className="cw-team-identity"><TeamMark team={e.away}/><span>{e.away.name}</span></span><BoardScore event={e} side="away"/></div><div className="cw-team"><span className="cw-team-identity"><TeamMark team={e.home}/><span>{e.home.name}</span></span><BoardScore event={e} side="home"/></div></button>
+          {!liveView&&<div className="cw-event-time"><time dateTime={e.startsAt}>{scheduleTime(e.startsAt,zone)}</time> <span>{canPick(e,now)?'Pre-game':'Entry locked'}</span><button onClick={()=>openGame(e)} aria-label={`Open event information for ${e.name}`}>Details</button></div>}
+        </div>
+        {liveView?<button className="cw-live-open" onClick={()=>openGame(e)}>Game center <span aria-hidden="true">→</span></button>:<div className="cw-pick-options">{pickSides(e.league).map(side=><button key={side} aria-label={`Pick ${pickName(e,side)}`} aria-pressed={selectionsByGame.get(eventKey(e))?.side===side} onClick={()=>togglePick(e,side)} disabled={pending||!eligiblePick(e)||(selections.length>=5&&!selectionsByGame.has(eventKey(e)))}><span>{pickName(e,side,'shortName')}</span><small>{canPick(e,now)?side==='draw'?'Pick draw':'Pick winner':'Closed'}</small></button>)}</div>}
+      </article>)}{!collapsed.includes(group.id)&&group.events.length>5&&league!=='ufc'&&<button className="cw-show-more" aria-expanded={showAllGroups.includes(group.id)} onClick={()=>setShowAllGroups(old=>old.includes(group.id)?old.filter(id=>id!==group.id):[...old,group.id])}>{showAllGroups.includes(group.id)?`Show fewer ${group.sport==='mma'?'bouts':'games'}`:`Show all ${group.events.length} ${group.sport==='mma'?'bouts':'games'}`}</button>}</section>)}</section>}
+      {liveView && !golfView && <section className="cw-moments" aria-label="Game updates">
+        <h2>Game updates</h2>
+        {visibleMoments.length
+          ? <GameMomentList moments={visibleMoments.slice(0,12)} onGame={moment=>openMoment(moment.event)}/>
+          : <p>Updates for this view will appear here as scores and statuses change.</p>}
+      </section>}
+      <p className="cw-feed-note">Source: ESPN public scoreboards. Refreshes about every {Math.round((board?.refreshAfterMs||15000)/1000)} seconds while visible; not a real-time or betting-odds feed. Availability varies by league.</p></>:<PicksHistory key={account.user?.id ?? 'guest'} tickets={account.tickets} onUpdate={account.updateTicket} busy={account.ticketsBusy} error={account.ticketsError} onRefresh={()=>void account.loadTickets(true)} user={account.user} onSignIn={()=>setAccountOpen(true)} events={board?.events??[]} onGame={(ticket,event)=>event ? openGame(event) : openSavedGame(ticket.eventId,ticket.league)} onBrowse={openBoard} feedCurrent={!!board&&!board.stale&&!error}/>}
+      <footer className="cw-footer"><b>ALL GAME. NO GAMBLING.</b><p>Free-to-play predictions only. No money, purchase, cash prizes or wagering. Picks close at scheduled start or when the source marks an event live. Results depend on source confirmation.</p><div className="cw-footer-actions"><button className="cw-terms" aria-current={helpView ? "page" : undefined} onClick={()=>navigate('help')}>Help &amp; rules</button><button className="cw-terms" aria-current={preferencesView ? "page" : undefined} onClick={()=>navigate('preferences')}>Preferences</button><PwaControls/></div></footer>
+    </main>{view==='board'&&<aside className="cw-picks-rail">{pickPanel}</aside>}</div>
+    <nav className="cw-mobile-nav" aria-label="Mobile navigation"><button aria-pressed={view==='board'} onClick={openBoard}><SportIcon sport="all"/>Sports</button><button aria-pressed={liveView} onClick={openLive}><span aria-hidden="true">●</span>Live</button><button aria-pressed={view==='board'&&filter==='watchlist'} onClick={openWatchlist}><StarIcon/>Watchlist</button><button aria-pressed={view==='picks'} onClick={openPicks}><span aria-hidden="true">☷</span>My picks</button></nav>
+    {selections.length>0 && <button className="cw-mobile-pick" onClick={()=>setDrawer(true)}>
+      {selections.length===1 ? `Your pick: ${pickName(selections[0].event,selections[0].side,'shortName')}` : `Your picks: ${selections.length}`} <span>Review →</span>
+    </button>}
+    {alertsOpen && <GameAlertsDialog alerts={alerts} onClose={()=>setAlertsOpen(false)}
+      onGame={event=>{setAlertsOpen(false);openMoment(event);}}
+      onWatchlist={()=>{setAlertsOpen(false);openWatchlist();}}
+      onPreferences={()=>{setAlertsOpen(false);navigate('preferences');}}/>}
+    {drawer&&<Modal title="Your selection" onClose={()=>setDrawer(false)}>{pickPanel}</Modal>}
+    {accountOpen&&<AccountDialog user={account.user} onUser={u=>{account.setUser(u);if(!u){setSelections([]);setReview(false);}}} onClose={()=>setAccountOpen(false)}/>}
+    {sharedGameState==='loading'&&<p className="cw-game-link-status" role="status">Opening shared game…</p>}
+    {sharedGameState==='unavailable'&&<Modal title="Game unavailable" onClose={closeGame}>
+      <p className="cw-dialog-copy">This link could not load a matchup from the sports feed. You can still browse the current scoreboard.</p>
+      <button className="cw-primary" onClick={closeGame}>{view==='picks'?'Back to My picks':'Back to sports board'}</button>
+    </Modal>}
+    {detail&&<EventDetail event={detail} games={allEvents} onGame={event=>openGame(event,true)}
+      boardEvent={board?.events.find(e=>e.id===detail.id&&e.league===detail.league)}
+      boardFetchedAt={board?.fetchedAt}
+      ticket={detailTicket || undefined}
+      ticketsLoading={account.ticketsBusy}
+      ticketsError={account.ticketsError}
+      boardDelayed={!!error || !!board?.stale || board?.leagues.find(item=>item.id===detail.league)?.status!=='ok'}
+      watching={watched.includes(detail.league+':'+detail.id)}
+      onWatch={()=>toggleWatch(detail)} watchDisabled={subscriptions.disabled}
+      onClose={closeGame} onPick={view==='picks'?undefined:side=>{togglePick(detail,side);closeGame();if(window.innerWidth<=700)setDrawer(true);}} picksAvailable={!pending&&eligiblePick(board?.events.find(event=>eventKey(event)===eventKey(detail)))&&(selections.length<5||selectionsByGame.has(eventKey(detail)))}/>}
+    {review && selections.length>0 && <Modal title={selections.length===1?'Review your free pick':'Review your free picks'} locked={pending} onClose={()=>setReview(false)}>
+      {selections.map(({event,side,requestId}) => <div className="cw-review-pick" key={requestId}>
+        <p className="cw-dialog-copy">{event.name}</p>
+        <div className="cw-review-selection"><small>YOUR CALL</small><strong>{pickName(event,side)}</strong></div>
+        <p className="cw-dialog-copy">{scheduleTime(event.startsAt,zone)}</p>
+      </div>)}
+      <p className="cw-dialog-copy">Each pick is saved and tracked separately. Edit or cancel in My picks before kickoff, subject to a fresh source check.</p>
+      {pickError && <p role="alert" className="cw-form-error">{pickError}</p>}
+      {selectionDisabled && <p className="cw-form-error">One or more games are unavailable for entry. Close this review to adjust your picks.</p>}
+      <button className="cw-primary" disabled={pending||selectionDisabled} onClick={()=>void submitPick()}>
+        {pending?(selections.length===1?'Saving free pick…':'Saving free picks…'):selections.length===1?'Confirm free pick':`Confirm ${selections.length} free picks`}
+      </button>
+      <button className="cw-clear" disabled={pending} onClick={()=>setReview(false)}>Cancel review</button>
+    </Modal>}
+    {toast&&<div className="cw-toast" role="status"><span>{toast}</span><button onClick={()=>setToast('')} aria-label="Dismiss notification"><CloseIcon/></button></div>}
+  </div></ScheduleTimeZone.Provider>;
+}

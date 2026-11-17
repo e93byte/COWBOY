@@ -1,0 +1,2637 @@
+{
+  "nfl": {
+    "_source": "https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard",
+    "events": [
+      {
+        "id": "401873064",
+        "date": "2026-11-16T01:20Z",
+        "status": {
+          "clock": 486.0,
+          "displayClock": "8:06",
+          "period": 1,
+          "type": {
+            "id": "2",
+            "name": "STATUS_IN_PROGRESS",
+            "state": "in",
+            "completed": false,
+            "description": "In Progress",
+            "detail": "8:06 - 1st Quarter",
+            "shortDetail": "8:06 - 1st"
+          }
+        },
+        "links": [
+          {
+            "language": "en-US",
+            "rel": [
+              "live",
+              "desktop",
+              "event"
+            ],
+            "href": "https://www.espn.com/nfl/game?gameId=401873064",
+            "text": "Gamecast",
+            "shortText": "Gamecast",
+            "isExternal": false,
+            "isPremium": false
+          },
+          {
+            "language": "en-US",
+            "rel": [
+              "boxscore",
+              "desktop",
+              "event"
+            ],
+            "href": "https://www.espn.com/nfl/boxscore/_/gameId/401873064",
+            "text": "Box Score",
+            "shortText": "Box Score",
+            "isExternal": false,
+            "isPremium": false
+          },
+          {
+            "language": "en-US",
+            "rel": [
+              "pbp",
+              "desktop",
+              "event"
+            ],
+            "href": "https://www.espn.com/nfl/playbyplay/_/gameId/401873064",
+            "text": "Play-by-Play",
+            "shortText": "Play-by-Play",
+            "isExternal": false,
+            "isPremium": false
+          }
+        ],
+        "name": "Pittsburgh Steelers at Cincinnati Bengals",
+        "shortName": "PIT @ CIN",
+        "competitions": [
+          {
+            "id": "401873064",
+            "date": "2026-11-16T01:20Z",
+            "status": {
+              "clock": 486.0,
+              "displayClock": "8:06",
+              "period": 1,
+              "type": {
+                "id": "2",
+                "name": "STATUS_IN_PROGRESS",
+                "state": "in",
+                "completed": false,
+                "description": "In Progress",
+                "detail": "8:06 - 1st Quarter",
+                "shortDetail": "8:06 - 1st"
+              },
+              "isTBDFlex": false
+            },
+            "competitors": [
+              {
+                "id": "4",
+                "homeAway": "home",
+                "score": "3",
+                "team": {
+                  "id": "4",
+                  "abbreviation": "CIN",
+                  "displayName": "Cincinnati Bengals",
+                  "shortDisplayName": "Bengals",
+                  "logo": "https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/cin.png"
+                }
+              },
+              {
+                "id": "23",
+                "homeAway": "away",
+                "score": "0",
+                "team": {
+                  "id": "23",
+                  "abbreviation": "PIT",
+                  "displayName": "Pittsburgh Steelers",
+                  "shortDisplayName": "Steelers",
+                  "logo": "https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/pit.png"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "ncaaf": {
+    "_source": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard",
+    "events": [
+      {
+        "id": "401856887",
+        "date": "2026-11-15T18:00Z",
+        "status": {
+          "clock": 0.0,
+          "displayClock": "0:00",
+          "period": 4,
+          "type": {
+            "id": "3",
+            "name": "STATUS_FINAL",
+            "state": "post",
+            "completed": true,
+            "description": "Final",
+            "detail": "Final",
+            "shortDetail": "Final"
+          }
+        },
+        "links": [
+          {
+            "language": "en-US",
+            "rel": [
+              "summary",
+              "desktop",
+              "event"
+            ],
+            "href": "https://www.espn.com/college-football/game/_/gameId/401856887/ole-miss-oklahoma",
+            "text": "Gamecast",
+            "shortText": "Gamecast",
+            "isExternal": false,
+            "isPremium": false
+          },
+          {
+            "language": "en-US",
+            "rel": [
+              "boxscore",
+              "desktop",
+              "event"
+            ],
+            "href": "https://www.espn.com/college-football/boxscore/_/gameId/401856887",
+            "text": "Box Score",
+            "shortText": "Box Score",
+            "isExternal": false,
+            "isPremium": false
+          },
+          {
+            "language": "en-US",
+            "rel": [
+              "highlights",
+              "desktop"
+            ],
+            "href": "https://www.espn.com/college-football/video?gameId=401856887",
+            "text": "Highlights",
+            "shortText": "Highlights",
+            "isExternal": false,
+            "isPremium": false
+          },
+          {
+            "language": "en-US",
+            "rel": [
+              "pbp",
+              "desktop",
+              "event"
+            ],
+            "href": "https://www.espn.com/college-football/playbyplay/_/gameId/401856887",
+            "text": "Play-by-Play",
+            "shortText": "Play-by-Play",
+            "isExternal": false,
+            "isPremium": false
+          },
+          {
+            "language": "en-US",
+            "rel": [
+              "recap",
+              "desktop",
+              "event"
+            ],
+            "href": "https://www.espn.com/college-football/recap?gameId=401856887",
+            "text": "Recap",
+            "shortText": "Recap",
+            "isExternal": false,
+            "isPremium": false
+          }
+        ],
+        "name": "Ole Miss Rebels at Oklahoma Sooners",
+        "shortName": "MISS @ OU",
+        "competitions": [
+          {
+            "id": "401856887",
+            "date": "2026-11-15T18:00Z",
+            "status": {
+              "clock": 0.0,
+              "displayClock": "0:00",
+              "period": 4,
+              "type": {
+                "id": "3",
+                "name": "STATUS_FINAL",
+                "state": "post",
+                "completed": true,
+                "description": "Final",
+                "detail": "Final",
+                "shortDetail": "Final"
+              }
+            },
+            "competitors": [
+              {
+                "id": "201",
+                "homeAway": "home",
+                "winner": true,
+                "score": "24",
+                "team": {
+                  "id": "201",
+                  "abbreviation": "OU",
+                  "displayName": "Oklahoma Sooners",
+                  "shortDisplayName": "Oklahoma",
+                  "logo": "https://a.espncdn.com/i/teamlogos/ncaa/500/201.png"
+                }
+              },
+              {
+                "id": "145",
+                "homeAway": "away",
+                "winner": false,
+                "score": "17",
+                "team": {
+                  "id": "145",
+                  "abbreviation": "MISS",
+                  "displayName": "Ole Miss Rebels",
+                  "shortDisplayName": "Ole Miss",
+                  "logo": "https://a.espncdn.com/i/teamlogos/ncaa/500/145.png"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "nba": {
+    "_source": "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard",
+    "events": [
+      {
+        "id": "401909985",
+        "date": "2026-11-15T18:00Z",
+        "status": {
+          "clock": 0.0,
+          "displayClock": "0.0",
+          "period": 4,
+          "type": {
+            "id": "3",
+            "name": "STATUS_FINAL",
+            "state": "post",
+            "completed": true,
+            "description": "Final",
+            "detail": "Final",
+            "shortDetail": "Final"
+          }
+        },
+        "links": [
+          {
+            "language": "en-US",
+            "rel": [
+              "summary",
+              "desktop",
+              "event"
+            ],
+            "href": "https://www.espn.com/nba/game/_/gameId/401909985/pacers-76ers",
+            "text": "Gamecast",
+            "shortText": "Gamecast",
+            "isExternal": false,
+            "isPremium": false
+          },
+          {
+            "language": "en-US",
+            "rel": [
+              "boxscore",
+              "desktop",
+              "event"
+            ],
+            "href": "https://www.espn.com/nba/boxscore/_/gameId/401909985",
+            "text": "Box Score",
+            "shortText": "Box Score",
+            "isExternal": false,
+            "isPremium": false
+          },
+          {
+            "language": "en-US",
+            "rel": [
+              "highlights",
+              "desktop"
+            ],
+            "href": "https://www.espn.com/nba/video?gameId=401909985",
+            "text": "Highlights",
+            "shortText": "Highlights",
+            "isExternal": false,
+            "isPremium": false
+          },
+          {
+            "language": "en-US",
+            "rel": [
+              "pbp",
+              "desktop",
+              "event"
+            ],
+            "href": "https://www.espn.com/nba/playbyplay/_/gameId/401909985",
+            "text": "Play-by-Play",
+            "shortText": "Play-by-Play",
+            "isExternal": false,
+            "isPremium": false
+          }
+        ],
+        "name": "Indiana Pacers at Philadelphia 76ers",
+        "shortName": "IND @ PHI",
+        "competitions": [
+          {
+            "id": "401909985",
+            "date": "2026-11-15T18:00Z",
+            "status": {
+              "clock": 0.0,
+              "displayClock": "0.0",
+              "period": 4,
+              "type": {
+                "id": "3",
+                "name": "STATUS_FINAL",
+                "state": "post",
+                "completed": true,
+                "description": "Final",
+                "detail": "Final",
+                "shortDetail": "Final"
+              }
+            },
+            "competitors": [
+              {
+                "id": "20",
+                "homeAway": "home",
+                "winner": true,
+                "score": "131",
+                "team": {
+                  "id": "20",
+                  "abbreviation": "PHI",
+                  "displayName": "Philadelphia 76ers",
+                  "shortDisplayName": "76ers",
+                  "logo": "https://a.espncdn.com/i/teamlogos/nba/500/scoreboard/phi.png"
+                }
+              },
+              {
+                "id": "11",
+                "homeAway": "away",
+                "winner": false,
+                "score": "124",
+                "team": {
+                  "id": "11",
+                  "abbreviation": "IND",
+                  "displayName": "Indiana Pacers",
+                  "shortDisplayName": "Pacers",
+                  "logo": "https://a.espncdn.com/i/teamlogos/nba/500/scoreboard/ind.png"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "wnba": {
+    "_source": "https://site.api.espn.com/apis/site/v2/sports/basketball/wnba/scoreboard",
+    "events": [
+      {
+        "id": "401918311",
+        "date": "2026-11-01T00:00Z",
+        "status": {
+          "clock": 600.0,
+          "displayClock": "10:00",
+          "period": 4,
+          "type": {
+            "id": "3",
+            "name": "STATUS_FINAL",
+            "state": "post",
+            "completed": true,
+            "description": "Final",
+            "detail": "Final",
+            "shortDetail": "Final"
+          }
+        },
+        "links": [
+          {
+            "language": "en-US",
+            "rel": [
+              "summary",
+              "desktop",
+              "event"
+            ],
+            "href": "https://www.espn.com/wnba/game/_/gameId/401918311/dream-valkyries",
+            "text": "Gamecast",
+            "shortText": "Gamecast",
+            "isExternal": false,
+            "isPremium": false
+          },
+          {
+            "language": "en-US",
+            "rel": [
+              "boxscore",
+              "desktop",
+              "event"
+            ],
+            "href": "https://www.espn.com/wnba/boxscore/_/gameId/401918311",
+            "text": "Box Score",
+            "shortText": "Box Score",
+            "isExternal": false,
+            "isPremium": false
+          },
+          {
+            "language": "en-US",
+            "rel": [
+              "highlights",
+              "desktop"
+            ],
+            "href": "https://www.espn.com/wnba/video?gameId=401918311",
+            "text": "Highlights",
+            "shortText": "Highlights",
+            "isExternal": false,
+            "isPremium": false
+          },
+          {
+            "language": "en-US",
+            "rel": [
+              "pbp",
+              "desktop",
+              "event"
+            ],
+            "href": "https://www.espn.com/wnba/playbyplay/_/gameId/401918311",
+            "text": "Play-by-Play",
+            "shortText": "Play-by-Play",
+            "isExternal": false,
+            "isPremium": false
+          },
+          {
+            "language": "en-US",
+            "rel": [
+              "recap",
+              "desktop",
+              "event"
+            ],
+            "href": "https://www.espn.com/wnba/recap?gameId=401918311",
+            "text": "Recap",
+            "shortText": "Recap",
+            "isExternal": false,
+            "isPremium": false
+          }
+        ],
+        "name": "Atlanta Dream at Golden State Valkyries",
+        "shortName": "ATL @ GS",
+        "competitions": [
+          {
+            "id": "401918311",
+            "date": "2026-11-01T00:00Z",
+            "status": {
+              "clock": 600.0,
+              "displayClock": "10:00",
+              "period": 4,
+              "type": {
+                "id": "3",
+                "name": "STATUS_FINAL",
+                "state": "post",
+                "completed": true,
+                "description": "Final",
+                "detail": "Final",
+                "shortDetail": "Final"
+              }
+            },
+            "competitors": [
+              {
+                "id": "129689",
+                "homeAway": "home",
+                "winner": true,
+                "score": "68",
+                "team": {
+                  "id": "129689",
+                  "abbreviation": "GS",
+                  "displayName": "Golden State Valkyries",
+                  "shortDisplayName": "Valkyries",
+                  "logo": "https://a.espncdn.com/i/teamlogos/wnba/500/scoreboard/gs.png"
+                }
+              },
+              {
+                "id": "20",
+                "homeAway": "away",
+                "winner": false,
+                "score": "63",
+                "team": {
+                  "id": "20",
+                  "abbreviation": "ATL",
+                  "displayName": "Atlanta Dream",
+                  "shortDisplayName": "Dream",
+                  "logo": "https://a.espncdn.com/i/teamlogos/wnba/500/atl.png"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "mlb": {
+    "_source": "https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/scoreboard",
+    "events": [
+      {
+        "id": "401908046",
+        "date": "2026-10-29T00:00Z",
+        "status": {
+          "clock": 0.0,
+          "displayClock": "0:00",
+          "period": 9,
+          "type": {
+            "id": "3",
+            "name": "STATUS_FINAL",
+            "state": "post",
+            "completed": true,
+            "description": "Final",
+            "detail": "Final",
+            "shortDetail": "Final"
+          }
+        },
+        "links": [
+          {
+            "language": "en-US",
+            "rel": [
+              "summary",
+              "desktop",
+              "event"
+            ],
+            "href": "https://www.espn.com/mlb/game/_/gameId/401908046/brewers-rays",
+            "text": "Gamecast",
+            "shortText": "Gamecast",
+            "isExternal": false,
+            "isPremium": false
+          },
+          {
+            "language": "en-US",
+            "rel": [
+              "boxscore",
+              "desktop",
+              "event"
+            ],
+            "href": "https://www.espn.com/mlb/boxscore/_/gameId/401908046",
+            "text": "Box Score",
+            "shortText": "Box Score",
+            "isExternal": false,
+            "isPremium": false
+          },
+          {
+            "language": "en-US",
+            "rel": [
+              "highlights",
+              "desktop"
+            ],
+            "href": "https://www.espn.com/mlb/video?gameId=401908046",
+            "text": "Highlights",
+            "shortText": "Highlights",
+            "isExternal": false,
+            "isPremium": false
+          },
+          {
+            "language": "en-US",
+            "rel": [
+              "pbp",
+              "desktop",
+              "event"
+            ],
+            "href": "https://www.espn.com/mlb/playbyplay/_/gameId/401908046",
+            "text": "Play-by-Play",
+            "shortText": "Play-by-Play",
+            "isExternal": false,
+            "isPremium": false
+          },
+          {
+            "language": "en-US",
+            "rel": [
+              "recap",
+              "desktop",
+              "event"
+            ],
+            "href": "https://www.espn.com/mlb/recap?gameId=401908046",
+            "text": "Recap",
+            "shortText": "Recap",
+            "isExternal": false,
+            "isPremium": false
+          }
+        ],
+        "name": "Milwaukee Brewers at Tampa Bay Rays",
+        "shortName": "MIL @ TB",
+        "competitions": [
+          {
+            "id": "401908046",
+            "date": "2026-10-29T00:00Z",
+            "status": {
+              "clock": 0.0,
+              "displayClock": "0:00",
+              "period": 9,
+              "type": {
+                "id": "3",
+                "name": "STATUS_FINAL",
+                "state": "post",
+                "completed": true,
+                "description": "Final",
+                "detail": "Final",
+                "shortDetail": "Final"
+              },
+              "featuredAthletes": [
+                {
+                  "name": "winningPitcher",
+                  "displayName": "Winning Pitcher",
+                  "shortDisplayName": "Win",
+                  "abbreviation": "WP",
+                  "playerId": 5080761,
+                  "athlete": {
+                    "id": "5080761",
+                    "fullName": "Jacob Misiorowski",
+                    "displayName": "Jacob Misiorowski",
+                    "shortName": "J. Misiorowski",
+                    "links": [
+                      {
+                        "rel": [
+                          "playercard",
+                          "desktop",
+                          "athlete"
+                        ],
+                        "href": "https://www.espn.com/mlb/player/_/id/5080761"
+                      }
+                    ],
+                    "headshot": "https://a.espncdn.com/i/headshots/mlb/players/full/5080761.png",
+                    "jersey": "32",
+                    "position": "SP",
+                    "team": {
+                      "id": "8"
+                    }
+                  },
+                  "team": {
+                    "id": "8"
+                  },
+                  "statistics": [
+                    {
+                      "name": "saves",
+                      "abbreviation": "SV",
+                      "displayValue": "0"
+                    },
+                    {
+                      "name": "losses",
+                      "abbreviation": "L",
+                      "displayValue": "0"
+                    },
+                    {
+                      "name": "wins",
+                      "abbreviation": "W",
+                      "displayValue": "2"
+                    },
+                    {
+                      "name": "ERA",
+                      "abbreviation": "ERA",
+                      "displayValue": "1.89"
+                    },
+                    {
+                      "name": "errors",
+                      "abbreviation": "E",
+                      "displayValue": "0"
+                    }
+                  ],
+                  "projections": {
+                    "$ref": "http://sports.core.api.espn.pvt/v2/sports/baseball/leagues/mlb/events/401908046/competitions/401908046/competitors/8/roster/5080761/projections?lang=en&region=us"
+                  }
+                },
+                {
+                  "name": "losingPitcher",
+                  "displayName": "Losing Pitcher",
+                  "shortDisplayName": "Loss",
+                  "abbreviation": "LP",
+                  "playerId": 42584,
+                  "athlete": {
+                    "id": "42584",
+                    "fullName": "Drew Rasmussen",
+                    "displayName": "Drew Rasmussen",
+                    "shortName": "D. Rasmussen",
+                    "links": [
+                      {
+                        "rel": [
+                          "playercard",
+                          "desktop",
+                          "athlete"
+                        ],
+                        "href": "https://www.espn.com/mlb/player/_/id/42584"
+                      }
+                    ],
+                    "headshot": "https://a.espncdn.com/i/headshots/mlb/players/full/42584.png",
+                    "jersey": "57",
+                    "position": "SP",
+                    "team": {
+                      "id": "30"
+                    }
+                  },
+                  "team": {
+                    "id": "30"
+                  },
+                  "statistics": [
+                    {
+                      "name": "saves",
+                      "abbreviation": "SV",
+                      "displayValue": "0"
+                    },
+                    {
+                      "name": "losses",
+                      "abbreviation": "L",
+                      "displayValue": "1"
+                    },
+                    {
+                      "name": "wins",
+                      "abbreviation": "W",
+                      "displayValue": "2"
+                    },
+                    {
+                      "name": "ERA",
+                      "abbreviation": "ERA",
+                      "displayValue": "2.20"
+                    },
+                    {
+                      "name": "errors",
+                      "abbreviation": "E",
+                      "displayValue": "0"
+                    }
+                  ],
+                  "projections": {
+                    "$ref": "http://sports.core.api.espn.pvt/v2/sports/baseball/leagues/mlb/events/401908046/competitions/401908046/competitors/30/roster/42584/projections?lang=en&region=us"
+                  }
+                }
+              ]
+            },
+            "competitors": [
+              {
+                "id": "30",
+                "homeAway": "home",
+                "winner": false,
+                "score": "1",
+                "team": {
+                  "id": "30",
+                  "abbreviation": "TB",
+                  "displayName": "Tampa Bay Rays",
+                  "shortDisplayName": "Rays",
+                  "logo": "https://a.espncdn.com/i/teamlogos/mlb/500/scoreboard/tb.png"
+                }
+              },
+              {
+                "id": "8",
+                "homeAway": "away",
+                "winner": true,
+                "score": "4",
+                "team": {
+                  "id": "8",
+                  "abbreviation": "MIL",
+                  "displayName": "Milwaukee Brewers",
+                  "shortDisplayName": "Brewers",
+                  "logo": "https://a.espncdn.com/i/teamlogos/mlb/500/scoreboard/mil.png"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "nhl": {
+    "_source": "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard",
+    "events": [
+      {
+        "id": "401892721",
+        "date": "2026-11-16T00:30Z",
+        "status": {
+          "clock": 1200.0,
+          "displayClock": "20:00",
+          "period": 2,
+          "type": {
+            "id": "2",
+            "name": "STATUS_IN_PROGRESS",
+            "state": "in",
+            "completed": false,
+            "description": "In Progress",
+            "detail": "20:00 - 2nd Period",
+            "shortDetail": "20:00 - 2nd"
+          }
+        },
+        "links": [
+          {
+            "language": "en-US",
+            "rel": [
+              "live",
+              "desktop",
+              "event"
+            ],
+            "href": "https://www.espn.com/nhl/game/_/gameId/401892721",
+            "text": "Gamecast",
+            "shortText": "Gamecast",
+            "isExternal": false,
+            "isPremium": false
+          },
+          {
+            "language": "en-US",
+            "rel": [
+              "boxscore",
+              "desktop",
+              "event"
+            ],
+            "href": "https://www.espn.com/nhl/boxscore/_/gameId/401892721",
+            "text": "Box Score",
+            "shortText": "Box Score",
+            "isExternal": false,
+            "isPremium": false
+          },
+          {
+            "language": "en-US",
+            "rel": [
+              "highlights",
+              "desktop"
+            ],
+            "href": "https://www.espn.com/nhl/video?gameId=401892721",
+            "text": "Highlights",
+            "shortText": "Highlights",
+            "isExternal": false,
+            "isPremium": false
+          },
+          {
+            "language": "en-US",
+            "rel": [
+              "pbp",
+              "desktop",
+              "event"
+            ],
+            "href": "https://www.espn.com/nhl/playbyplay/_/gameId/401892721",
+            "text": "Play-by-Play",
+            "shortText": "Play-by-Play",
+            "isExternal": false,
+            "isPremium": false
+          }
+        ],
+        "name": "Edmonton Oilers at Philadelphia Flyers",
+        "shortName": "EDM @ PHI",
+        "competitions": [
+          {
+            "id": "401892721",
+            "date": "2026-11-16T00:30Z",
+            "status": {
+              "clock": 1200.0,
+              "displayClock": "20:00",
+              "period": 2,
+              "type": {
+                "id": "2",
+                "name": "STATUS_IN_PROGRESS",
+                "state": "in",
+                "completed": false,
+                "description": "In Progress",
+                "detail": "20:00 - 2nd Period",
+                "shortDetail": "20:00 - 2nd"
+              }
+            },
+            "competitors": [
+              {
+                "id": "15",
+                "homeAway": "home",
+                "score": "0",
+                "team": {
+                  "id": "15",
+                  "abbreviation": "PHI",
+                  "displayName": "Philadelphia Flyers",
+                  "shortDisplayName": "Flyers",
+                  "logo": "https://a.espncdn.com/i/teamlogos/nhl/500/scoreboard/phi.png"
+                }
+              },
+              {
+                "id": "6",
+                "homeAway": "away",
+                "score": "3",
+                "team": {
+                  "id": "6",
+                  "abbreviation": "EDM",
+                  "displayName": "Edmonton Oilers",
+                  "shortDisplayName": "Oilers",
+                  "logo": "https://a.espncdn.com/i/teamlogos/nhl/500/scoreboard/edm.png"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "epl": {
+    "_source": "https://site.api.espn.com/apis/site/v2/sports/soccer/eng.1/scoreboard",
+    "events": [
+      {
+        "id": "401879233",
+        "date": "2026-11-21T12:30Z",
+        "status": {
+          "clock": 0.0,
+          "displayClock": "0'",
+          "type": {
+            "id": "1",
+            "name": "STATUS_SCHEDULED",
+            "state": "pre",
+            "completed": false,
+            "description": "Scheduled",
+            "detail": "Sat, November 21st at 7:30 AM EST",
+            "shortDetail": "Scheduled"
+          }
+        },
+        "links": [
+          {
+            "language": "en-US",
+            "rel": [
+              "summary",
+              "desktop",
+              "event"
+            ],
+            "href": "https://www.espn.com/soccer/match/_/gameId/401879233/fulham-manchester-city",
+            "text": "Summary",
+            "shortText": "Summary",
+            "isExternal": false,
+            "isPremium": false,
+            "isHidden": false
+          }
+        ],
+        "name": "Fulham at Manchester City",
+        "shortName": "FUL @ MNC",
+        "competitions": [
+          {
+            "id": "401879233",
+            "date": "2026-11-21T12:30Z",
+            "status": {
+              "clock": 0.0,
+              "displayClock": "0'",
+              "type": {
+                "id": "1",
+                "name": "STATUS_SCHEDULED",
+                "state": "pre",
+                "completed": false,
+                "description": "Scheduled",
+                "detail": "Sat, November 21st at 7:30 AM EST",
+                "shortDetail": "Scheduled"
+              }
+            },
+            "competitors": [
+              {
+                "id": "382",
+                "homeAway": "home",
+                "winner": false,
+                "score": "0",
+                "team": {
+                  "id": "382",
+                  "abbreviation": "MNC",
+                  "displayName": "Manchester City",
+                  "shortDisplayName": "Man City",
+                  "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/382.png"
+                }
+              },
+              {
+                "id": "370",
+                "homeAway": "away",
+                "winner": false,
+                "score": "0",
+                "team": {
+                  "id": "370",
+                  "abbreviation": "FUL",
+                  "displayName": "Fulham",
+                  "shortDisplayName": "Fulham",
+                  "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/370.png"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "laliga": {
+    "_source": "https://site.api.espn.com/apis/site/v2/sports/soccer/esp.1/scoreboard",
+    "events": [
+      {
+        "id": "401882805",
+        "date": "2026-11-20T20:00Z",
+        "status": {
+          "clock": 0.0,
+          "displayClock": "0'",
+          "type": {
+            "id": "1",
+            "name": "STATUS_SCHEDULED",
+            "state": "pre",
+            "completed": false,
+            "description": "Scheduled",
+            "detail": "Fri, November 20th at 3:00 PM EST",
+            "shortDetail": "Scheduled"
+          }
+        },
+        "links": [
+          {
+            "language": "en-US",
+            "rel": [
+              "summary",
+              "desktop",
+              "event"
+            ],
+            "href": "https://www.espn.com/soccer/match/_/gameId/401882805/espanyol-athletic-club",
+            "text": "Summary",
+            "shortText": "Summary",
+            "isExternal": false,
+            "isPremium": false,
+            "isHidden": false
+          }
+        ],
+        "name": "Espanyol at Athletic Club",
+        "shortName": "ESP @ ATH",
+        "competitions": [
+          {
+            "id": "401882805",
+            "date": "2026-11-20T20:00Z",
+            "status": {
+              "clock": 0.0,
+              "displayClock": "0'",
+              "type": {
+                "id": "1",
+                "name": "STATUS_SCHEDULED",
+                "state": "pre",
+                "completed": false,
+                "description": "Scheduled",
+                "detail": "Fri, November 20th at 3:00 PM EST",
+                "shortDetail": "Scheduled"
+              }
+            },
+            "competitors": [
+              {
+                "id": "93",
+                "homeAway": "home",
+                "winner": false,
+                "score": "0",
+                "team": {
+                  "id": "93",
+                  "abbreviation": "ATH",
+                  "displayName": "Athletic Club",
+                  "shortDisplayName": "Athletic",
+                  "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/93.png"
+                }
+              },
+              {
+                "id": "88",
+                "homeAway": "away",
+                "winner": false,
+                "score": "0",
+                "team": {
+                  "id": "88",
+                  "abbreviation": "ESP",
+                  "displayName": "Espanyol",
+                  "shortDisplayName": "Espanyol",
+                  "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/88.png"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "atp": {
+    "_source": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard",
+    "events": [
+      {
+        "id": "339-2026",
+        "date": "2026-11-15T05:00Z",
+        "status": {
+          "period": 3,
+          "type": {
+            "id": "3",
+            "name": "STATUS_FINAL",
+            "state": "post",
+            "completed": true,
+            "description": "Final",
+            "detail": "Final",
+            "shortDetail": "Final"
+          }
+        },
+        "links": [
+          {
+            "language": "en-US",
+            "rel": [
+              "summary",
+              "desktop",
+              "event"
+            ],
+            "href": "https://www.espn.com/tennis/scoreboard/tournament/_/eventId/339-2026/competitionType/3",
+            "text": "Summary",
+            "shortText": "Summary",
+            "isExternal": false,
+            "isPremium": false,
+            "isHidden": false
+          },
+          {
+            "language": "en-US",
+            "rel": [
+              "bracket",
+              "desktop",
+              "event"
+            ],
+            "href": "https://www.espn.com/tennis/bracket/_/year/2026/tournamentId/339/type/3",
+            "text": "Bracket",
+            "shortText": "Bracket",
+            "isExternal": false,
+            "isPremium": false,
+            "isHidden": false
+          }
+        ],
+        "name": "Nitto ATP Finals",
+        "shortName": "Nitto ATP Finals",
+        "groupings": [
+          {
+            "competitions": [
+              {
+                "id": "187517",
+                "date": "2026-11-15T10:40Z",
+                "status": {
+                  "period": 3,
+                  "type": {
+                    "id": "3",
+                    "name": "STATUS_FINAL",
+                    "state": "post",
+                    "completed": true,
+                    "description": "Final",
+                    "detail": "Final",
+                    "shortDetail": "Final"
+                  }
+                },
+                "competitors": [
+                  {
+                    "id": "2725-2434",
+                    "homeAway": "away",
+                    "winner": false,
+                    "roster": {
+                      "displayName": "Orlando Luz / Rafael Matos",
+                      "shortDisplayName": "O. Luz / R. Matos"
+                    }
+                  },
+                  {
+                    "id": "3540-10685",
+                    "homeAway": "home",
+                    "winner": true,
+                    "roster": {
+                      "displayName": "Harri Heliovaara / Henry Patten",
+                      "shortDisplayName": "H. Heliovaara / H. Patten"
+                    }
+                  }
+                ]
+              },
+              {
+                "id": "187518",
+                "date": "2026-11-15T17:10Z",
+                "status": {
+                  "period": 2,
+                  "type": {
+                    "id": "3",
+                    "name": "STATUS_FINAL",
+                    "state": "post",
+                    "completed": true,
+                    "description": "Final",
+                    "detail": "Final",
+                    "shortDetail": "Final"
+                  }
+                },
+                "competitors": [
+                  {
+                    "id": "10882-1965",
+                    "homeAway": "away",
+                    "winner": false,
+                    "roster": {
+                      "displayName": "Theo Arribage / Albano Olivetti",
+                      "shortDisplayName": "T. Arribage / A. Olivetti"
+                    }
+                  },
+                  {
+                    "id": "1343-1790",
+                    "homeAway": "home",
+                    "winner": true,
+                    "roster": {
+                      "displayName": "Marcelo Arevalo / Mate Pavic",
+                      "shortDisplayName": "M. Arevalo / M. Pavic"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "competitions": [
+              {
+                "id": "187505",
+                "date": "2026-11-15T13:25Z",
+                "status": {
+                  "period": 2,
+                  "type": {
+                    "id": "3",
+                    "name": "STATUS_FINAL",
+                    "state": "post",
+                    "completed": true,
+                    "description": "Final",
+                    "detail": "Final",
+                    "shortDetail": "Final"
+                  }
+                },
+                "competitors": [
+                  {
+                    "id": "12657",
+                    "homeAway": "away",
+                    "winner": false,
+                    "athlete": {
+                      "displayName": "Rafael Jodar",
+                      "shortName": "R. Jodar"
+                    }
+                  },
+                  {
+                    "id": "2375",
+                    "homeAway": "home",
+                    "winner": true,
+                    "athlete": {
+                      "displayName": "Alexander Zverev",
+                      "shortName": "A. Zverev"
+                    }
+                  }
+                ]
+              },
+              {
+                "id": "187506",
+                "date": "2026-11-15T19:40Z",
+                "status": {
+                  "period": 3,
+                  "type": {
+                    "id": "3",
+                    "name": "STATUS_FINAL",
+                    "state": "post",
+                    "completed": true,
+                    "description": "Final",
+                    "detail": "Final",
+                    "shortDetail": "Final"
+                  }
+                },
+                "competitors": [
+                  {
+                    "id": "10052",
+                    "homeAway": "away",
+                    "winner": false,
+                    "athlete": {
+                      "displayName": "Arthur Fils",
+                      "shortName": "A. Fils"
+                    }
+                  },
+                  {
+                    "id": "9250",
+                    "homeAway": "home",
+                    "winner": true,
+                    "athlete": {
+                      "displayName": "Ben Shelton",
+                      "shortName": "B. Shelton"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "wta": {
+    "_source": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard",
+    "events": [
+      {
+        "id": "382-2026",
+        "date": "2026-11-08T05:00Z",
+        "status": {
+          "period": 2,
+          "type": {
+            "id": "3",
+            "name": "STATUS_FINAL",
+            "state": "post",
+            "completed": true,
+            "description": "Final",
+            "detail": "Final",
+            "shortDetail": "Final"
+          }
+        },
+        "links": [
+          {
+            "language": "en-US",
+            "rel": [
+              "summary",
+              "desktop",
+              "event"
+            ],
+            "href": "https://www.espn.com/tennis/scoreboard/tournament/_/eventId/382-2026/competitionType/2",
+            "text": "Summary",
+            "shortText": "Summary",
+            "isExternal": false,
+            "isPremium": false,
+            "isHidden": false
+          },
+          {
+            "language": "en-US",
+            "rel": [
+              "bracket",
+              "desktop",
+              "event"
+            ],
+            "href": "https://www.espn.com/tennis/bracket/_/year/2026/tournamentId/382/type/2",
+            "text": "Bracket",
+            "shortText": "Bracket",
+            "isExternal": false,
+            "isPremium": false,
+            "isHidden": false
+          }
+        ],
+        "name": "FAGE WTA Finals Indian Wells",
+        "shortName": "FAGE WTA Finals Indian Wells",
+        "groupings": [
+          {
+            "competitions": [
+              {
+                "id": "187373",
+                "date": "2026-11-08T20:15Z",
+                "status": {
+                  "period": 2,
+                  "type": {
+                    "id": "3",
+                    "name": "STATUS_FINAL",
+                    "state": "post",
+                    "completed": true,
+                    "description": "Final",
+                    "detail": "Final",
+                    "shortDetail": "Final"
+                  }
+                },
+                "competitors": [
+                  {
+                    "id": "6970",
+                    "homeAway": "away",
+                    "winner": true,
+                    "athlete": {
+                      "displayName": "Linda Noskova",
+                      "shortName": "L. Noskova"
+                    }
+                  },
+                  {
+                    "id": "3382",
+                    "homeAway": "home",
+                    "winner": false,
+                    "athlete": {
+                      "displayName": "Marta Kostyuk",
+                      "shortName": "M. Kostyuk"
+                    }
+                  }
+                ]
+              },
+              {
+                "id": "187374",
+                "date": "2026-11-08T22:05Z",
+                "status": {
+                  "period": 3,
+                  "type": {
+                    "id": "3",
+                    "name": "STATUS_FINAL",
+                    "state": "post",
+                    "completed": true,
+                    "description": "Final",
+                    "detail": "Final",
+                    "shortDetail": "Final"
+                  }
+                },
+                "competitors": [
+                  {
+                    "id": "2113",
+                    "homeAway": "away",
+                    "winner": false,
+                    "athlete": {
+                      "displayName": "Jessica Pegula",
+                      "shortName": "J. Pegula"
+                    }
+                  },
+                  {
+                    "id": "3626",
+                    "homeAway": "home",
+                    "winner": true,
+                    "athlete": {
+                      "displayName": "Coco Gauff",
+                      "shortName": "C. Gauff"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "competitions": [
+              {
+                "id": "187391",
+                "date": "2026-11-09T01:10Z",
+                "status": {
+                  "period": 3,
+                  "type": {
+                    "id": "3",
+                    "name": "STATUS_FINAL",
+                    "state": "post",
+                    "completed": true,
+                    "description": "Final",
+                    "detail": "Final",
+                    "shortDetail": "Final"
+                  }
+                },
+                "competitors": [
+                  {
+                    "id": "636-2615",
+                    "homeAway": "away",
+                    "winner": true,
+                    "roster": {
+                      "displayName": "Sara Errani / Jasmine Paolini",
+                      "shortDisplayName": "S. Errani / J. Paolini"
+                    }
+                  },
+                  {
+                    "id": "2248-2114",
+                    "homeAway": "home",
+                    "winner": false,
+                    "roster": {
+                      "displayName": "Katerina Siniakova / Taylor Townsend",
+                      "shortDisplayName": "K. Siniakova / T. Townsend"
+                    }
+                  }
+                ]
+              },
+              {
+                "id": "187392",
+                "date": "2026-11-09T03:05Z",
+                "status": {
+                  "period": 2,
+                  "type": {
+                    "id": "3",
+                    "name": "STATUS_FINAL",
+                    "state": "post",
+                    "completed": true,
+                    "description": "Final",
+                    "detail": "Final",
+                    "shortDetail": "Final"
+                  }
+                },
+                "competitors": [
+                  {
+                    "id": "3077-1874",
+                    "homeAway": "away",
+                    "winner": false,
+                    "roster": {
+                      "displayName": "Ellen Perez / Demi  Schuurs",
+                      "shortDisplayName": "E. Perez / D. Schuurs"
+                    }
+                  },
+                  {
+                    "id": "3157-2298",
+                    "homeAway": "home",
+                    "winner": true,
+                    "roster": {
+                      "displayName": "Cristina Bucsa / Nicole Melichar-Martinez",
+                      "shortDisplayName": "C. Bucsa / N. Melichar-Martinez"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "pga": {
+    "_source": "https://site.api.espn.com/apis/site/v2/sports/golf/pga/scoreboard",
+    "events": [
+      {
+        "id": "401850980",
+        "date": "2026-11-12T05:00Z",
+        "status": {
+          "type": {
+            "id": "2",
+            "name": "STATUS_IN_PROGRESS",
+            "state": "in",
+            "completed": false,
+            "description": "In Progress"
+          }
+        },
+        "links": [
+          {
+            "language": "en-US",
+            "rel": [
+              "summary",
+              "desktop",
+              "event"
+            ],
+            "href": "https://www.espn.com/golf/leaderboard?tournamentId=401850980",
+            "text": "Gamecast",
+            "shortText": "Gamecast",
+            "isExternal": false,
+            "isPremium": false
+          },
+          {
+            "language": "en-US",
+            "rel": [
+              "recurringevent",
+              "desktop",
+              "event"
+            ],
+            "href": "https://www.espn.com/golf/leaderboard?tournamentId=401850980",
+            "text": "Event",
+            "shortText": "Event",
+            "isExternal": false,
+            "isPremium": false
+          }
+        ],
+        "name": "Austin Championship pres. by Compliance Solutions",
+        "shortName": "Austin Championship pres. by Compliance Solutions",
+        "competitions": [
+          {
+            "id": "401850980",
+            "date": "2026-11-12T05:00Z",
+            "status": {
+              "period": 4,
+              "type": {
+                "id": "8",
+                "name": "STATUS_SUSPENDED",
+                "state": "post",
+                "completed": false,
+                "description": "Suspended",
+                "detail": "Round 4 - Suspended",
+                "shortDetail": "Round 4 - Suspended"
+              }
+            },
+            "competitors": [
+              {
+                "id": "11183",
+                "score": "-14",
+                "athlete": {
+                  "displayName": "Trace Crowe",
+                  "shortName": "T. Crowe"
+                }
+              },
+              {
+                "id": "10057",
+                "score": "-13",
+                "athlete": {
+                  "displayName": "Chad Ramey",
+                  "shortName": "C. Ramey"
+                }
+              },
+              {
+                "id": "9364",
+                "score": "-13",
+                "athlete": {
+                  "displayName": "Erik van Rooyen",
+                  "shortName": "E. van Rooyen"
+                }
+              },
+              {
+                "id": "4585548",
+                "score": "-13",
+                "athlete": {
+                  "displayName": "Sami V\u00e4lim\u00e4ki",
+                  "shortName": "S. V\u00e4lim\u00e4ki"
+                }
+              },
+              {
+                "id": "11101",
+                "score": "-12",
+                "athlete": {
+                  "displayName": "Max Greyserman",
+                  "shortName": "M. Greyserman"
+                }
+              },
+              {
+                "id": "6922",
+                "score": "-12",
+                "athlete": {
+                  "displayName": "Ben Kohles",
+                  "shortName": "B. Kohles"
+                }
+              },
+              {
+                "id": "4565482",
+                "score": "-11",
+                "athlete": {
+                  "displayName": "Will Gordon",
+                  "shortName": "W. Gordon"
+                }
+              },
+              {
+                "id": "9040",
+                "score": "-11",
+                "athlete": {
+                  "displayName": "Zac Blair",
+                  "shortName": "Z. Blair"
+                }
+              },
+              {
+                "id": "11056",
+                "score": "-11",
+                "athlete": {
+                  "displayName": "Austin Smotherman",
+                  "shortName": "A. Smotherman"
+                }
+              },
+              {
+                "id": "4361934",
+                "score": "-11",
+                "athlete": {
+                  "displayName": "John VanDerLaan",
+                  "shortName": "J. VanDerLaan"
+                }
+              },
+              {
+                "id": "5217199",
+                "score": "-11",
+                "athlete": {
+                  "displayName": "Tommy Morrison",
+                  "shortName": "T. Morrison"
+                }
+              },
+              {
+                "id": "3683",
+                "score": "-11",
+                "athlete": {
+                  "displayName": "Rafael Campos",
+                  "shortName": "R. Campos"
+                }
+              },
+              {
+                "id": "4351896",
+                "score": "-11",
+                "athlete": {
+                  "displayName": "Kristoffer Ventura",
+                  "shortName": "K. Ventura"
+                }
+              },
+              {
+                "id": "4349547",
+                "score": "-11",
+                "athlete": {
+                  "displayName": "Kevin Yu",
+                  "shortName": "K. Yu"
+                }
+              },
+              {
+                "id": "10562",
+                "score": "-10",
+                "athlete": {
+                  "displayName": "Hayden Springer",
+                  "shortName": "H. Springer"
+                }
+              },
+              {
+                "id": "4791222",
+                "score": "-10",
+                "athlete": {
+                  "displayName": "Mac Meissner",
+                  "shortName": "M. Meissner"
+                }
+              },
+              {
+                "id": "5211425",
+                "score": "-10",
+                "athlete": {
+                  "displayName": "Blades Brown",
+                  "shortName": "B. Brown"
+                }
+              },
+              {
+                "id": "5209798",
+                "score": "-10",
+                "athlete": {
+                  "displayName": "Miles Russell",
+                  "shortName": "M. Russell"
+                }
+              },
+              {
+                "id": "9506",
+                "score": "-10",
+                "athlete": {
+                  "displayName": "Jordan Smith",
+                  "shortName": "J. Smith"
+                }
+              },
+              {
+                "id": "5113335",
+                "score": "-9",
+                "athlete": {
+                  "displayName": "Emilio Gonz\u00e1lez",
+                  "shortName": "E. Gonz\u00e1lez"
+                }
+              },
+              {
+                "id": "11253",
+                "score": "-9",
+                "athlete": {
+                  "displayName": "Rasmus H\u00f8jgaard",
+                  "shortName": "R. H\u00f8jgaard"
+                }
+              },
+              {
+                "id": "4858859",
+                "score": "-9",
+                "athlete": {
+                  "displayName": "Rasmus Neergaard-Petersen",
+                  "shortName": "R. Neergaard-Petersen"
+                }
+              },
+              {
+                "id": "8973",
+                "score": "-8",
+                "athlete": {
+                  "displayName": "Max Homa",
+                  "shortName": "M. Homa"
+                }
+              },
+              {
+                "id": "4837368",
+                "score": "-8",
+                "athlete": {
+                  "displayName": "Pierceson Coody",
+                  "shortName": "P. Coody"
+                }
+              },
+              {
+                "id": "5070143",
+                "score": "-8",
+                "athlete": {
+                  "displayName": "Christiaan Maas",
+                  "shortName": "C. Maas"
+                }
+              },
+              {
+                "id": "4408318",
+                "score": "-8",
+                "athlete": {
+                  "displayName": "Jeffrey Kang",
+                  "shortName": "J. Kang"
+                }
+              },
+              {
+                "id": "5209442",
+                "score": "-8",
+                "athlete": {
+                  "displayName": "Neal Shipley",
+                  "shortName": "N. Shipley"
+                }
+              },
+              {
+                "id": "6196",
+                "score": "-7",
+                "athlete": {
+                  "displayName": "Joel Dahmen",
+                  "shortName": "J. Dahmen"
+                }
+              },
+              {
+                "id": "8889",
+                "score": "-7",
+                "athlete": {
+                  "displayName": "Zecheng Dou",
+                  "shortName": "Z. Dou"
+                }
+              },
+              {
+                "id": "5882",
+                "score": "-7",
+                "athlete": {
+                  "displayName": "Emiliano Grillo",
+                  "shortName": "E. Grillo"
+                }
+              },
+              {
+                "id": "5143175",
+                "score": "-7",
+                "athlete": {
+                  "displayName": "Sudarshan Yellamaraju",
+                  "shortName": "S. Yellamaraju"
+                }
+              },
+              {
+                "id": "5075652",
+                "score": "-7",
+                "athlete": {
+                  "displayName": "A.J. Ewart",
+                  "shortName": "A.J. Ewart"
+                }
+              },
+              {
+                "id": "1225",
+                "score": "-7",
+                "athlete": {
+                  "displayName": "Brian Harman",
+                  "shortName": "B. Harman"
+                }
+              },
+              {
+                "id": "4423323",
+                "score": "-6",
+                "athlete": {
+                  "displayName": "Dylan Wu",
+                  "shortName": "D. Wu"
+                }
+              },
+              {
+                "id": "4425898",
+                "score": "-6",
+                "athlete": {
+                  "displayName": "Austin Eckroat",
+                  "shortName": "A. Eckroat"
+                }
+              },
+              {
+                "id": "5217048",
+                "score": "-6",
+                "athlete": {
+                  "displayName": "Johnny Keefer",
+                  "shortName": "J. Keefer"
+                }
+              },
+              {
+                "id": "3454",
+                "score": "-6",
+                "athlete": {
+                  "displayName": "Brendon Todd",
+                  "shortName": "B. Todd"
+                }
+              },
+              {
+                "id": "2283",
+                "score": "-6",
+                "athlete": {
+                  "displayName": "Brice Garnett",
+                  "shortName": "B. Garnett"
+                }
+              },
+              {
+                "id": "4426181",
+                "score": "-6",
+                "athlete": {
+                  "displayName": "Sam Stevens",
+                  "shortName": "S. Stevens"
+                }
+              },
+              {
+                "id": "4404991",
+                "score": "-6",
+                "athlete": {
+                  "displayName": "Lee Hodges",
+                  "shortName": "L. Hodges"
+                }
+              },
+              {
+                "id": "1077",
+                "score": "-6",
+                "athlete": {
+                  "displayName": "Kevin Streelman",
+                  "shortName": "K. Streelman"
+                }
+              },
+              {
+                "id": "11456",
+                "score": "-6",
+                "athlete": {
+                  "displayName": "Doug Ghim",
+                  "shortName": "D. Ghim"
+                }
+              },
+              {
+                "id": "4408315",
+                "score": "-6",
+                "athlete": {
+                  "displayName": "Vince Whaley",
+                  "shortName": "V. Whaley"
+                }
+              },
+              {
+                "id": "9221",
+                "score": "-6",
+                "athlete": {
+                  "displayName": "Haotong Li",
+                  "shortName": "H. Li"
+                }
+              },
+              {
+                "id": "9569",
+                "score": "-5",
+                "athlete": {
+                  "displayName": "Tyler Duncan",
+                  "shortName": "T. Duncan"
+                }
+              },
+              {
+                "id": "4901368",
+                "score": "-5",
+                "athlete": {
+                  "displayName": "Matt McCarty",
+                  "shortName": "M. McCarty"
+                }
+              },
+              {
+                "id": "4589406",
+                "score": "-5",
+                "athlete": {
+                  "displayName": "Isaiah Salinda",
+                  "shortName": "I. Salinda"
+                }
+              },
+              {
+                "id": "4618114",
+                "score": "-5",
+                "athlete": {
+                  "displayName": "Chandler Blanchet",
+                  "shortName": "C. Blanchet"
+                }
+              },
+              {
+                "id": "4638",
+                "score": "-5",
+                "athlete": {
+                  "displayName": "Ben Martin",
+                  "shortName": "B. Martin"
+                }
+              },
+              {
+                "id": "9143",
+                "score": "-5",
+                "athlete": {
+                  "displayName": "Mark Hubbard",
+                  "shortName": "M. Hubbard"
+                }
+              },
+              {
+                "id": "1651",
+                "score": "-4",
+                "athlete": {
+                  "displayName": "Billy Horschel",
+                  "shortName": "B. Horschel"
+                }
+              },
+              {
+                "id": "4587989",
+                "score": "-4",
+                "athlete": {
+                  "displayName": "Chandler Phillips",
+                  "shortName": "C. Phillips"
+                }
+              },
+              {
+                "id": "9144",
+                "score": "-4",
+                "athlete": {
+                  "displayName": "Justin Lower",
+                  "shortName": "J. Lower"
+                }
+              },
+              {
+                "id": "5113338",
+                "score": "-4",
+                "athlete": {
+                  "displayName": "Davis Chatfield",
+                  "shortName": "D. Chatfield"
+                }
+              },
+              {
+                "id": "10030",
+                "score": "-4",
+                "athlete": {
+                  "displayName": "Zach Bauchou",
+                  "shortName": "Z. Bauchou"
+                }
+              },
+              {
+                "id": "5139663",
+                "score": "-3",
+                "athlete": {
+                  "displayName": "Gordon Sargent",
+                  "shortName": "G. Sargent"
+                }
+              },
+              {
+                "id": "4699329",
+                "score": "-3",
+                "athlete": {
+                  "displayName": "Jesper Svensson",
+                  "shortName": "J. Svensson"
+                }
+              },
+              {
+                "id": "11383",
+                "score": "-3",
+                "athlete": {
+                  "displayName": "Max McGreevy",
+                  "shortName": "M. McGreevy"
+                }
+              },
+              {
+                "id": "11387",
+                "score": "-2",
+                "athlete": {
+                  "displayName": "Hank Lebioda",
+                  "shortName": "H. Lebioda"
+                }
+              },
+              {
+                "id": "4585549",
+                "score": "-2",
+                "athlete": {
+                  "displayName": "Marco Penge",
+                  "shortName": "M. Penge"
+                }
+              },
+              {
+                "id": "10577",
+                "score": "-2",
+                "athlete": {
+                  "displayName": "Aaron Wise",
+                  "shortName": "A. Wise"
+                }
+              },
+              {
+                "id": "3980",
+                "score": "E",
+                "athlete": {
+                  "displayName": "Patton Kizzire",
+                  "shortName": "P. Kizzire"
+                }
+              },
+              {
+                "id": "6701",
+                "score": "E",
+                "athlete": {
+                  "displayName": "David Lipsky",
+                  "shortName": "D. Lipsky"
+                }
+              },
+              {
+                "id": "7120",
+                "score": "E",
+                "athlete": {
+                  "displayName": "Marcelo Rozo",
+                  "shortName": "M. Rozo"
+                }
+              },
+              {
+                "id": "4671",
+                "score": "+2",
+                "athlete": {
+                  "displayName": "John Parry",
+                  "shortName": "J. Parry"
+                }
+              },
+              {
+                "id": "5076025",
+                "score": "+2",
+                "athlete": {
+                  "displayName": "William Mouw",
+                  "shortName": "W. Mouw"
+                }
+              },
+              {
+                "id": "4691931",
+                "score": "-3",
+                "athlete": {
+                  "displayName": "Ricky Castillo",
+                  "shortName": "R. Castillo"
+                }
+              },
+              {
+                "id": "9127",
+                "score": "-3",
+                "athlete": {
+                  "displayName": "Adam Svensson",
+                  "shortName": "A. Svensson"
+                }
+              },
+              {
+                "id": "9243",
+                "score": "-3",
+                "athlete": {
+                  "displayName": "Christiaan Bezuidenhout",
+                  "shortName": "C. Bezuidenhout"
+                }
+              },
+              {
+                "id": "5692",
+                "score": "-3",
+                "athlete": {
+                  "displayName": "Peter Malnati",
+                  "shortName": "P. Malnati"
+                }
+              },
+              {
+                "id": "4350033",
+                "score": "-3",
+                "athlete": {
+                  "displayName": "Rikuya Hoshino",
+                  "shortName": "R. Hoshino"
+                }
+              },
+              {
+                "id": "9600",
+                "score": "-3",
+                "athlete": {
+                  "displayName": "Paul Peterson",
+                  "shortName": "P. Peterson"
+                }
+              },
+              {
+                "id": "5502",
+                "score": "-3",
+                "athlete": {
+                  "displayName": "Andrew Putnam",
+                  "shortName": "A. Putnam"
+                }
+              },
+              {
+                "id": "4602218",
+                "score": "-3",
+                "athlete": {
+                  "displayName": "Davis Thompson",
+                  "shortName": "D. Thompson"
+                }
+              },
+              {
+                "id": "5214987",
+                "score": "-3",
+                "athlete": {
+                  "displayName": "Cole Sherwood",
+                  "shortName": "C. Sherwood"
+                }
+              },
+              {
+                "id": "11385",
+                "score": "-2",
+                "athlete": {
+                  "displayName": "Rico Hoey",
+                  "shortName": "R. Hoey"
+                }
+              },
+              {
+                "id": "4358083",
+                "score": "-2",
+                "athlete": {
+                  "displayName": "Patrick Fishburn",
+                  "shortName": "P. Fishburn"
+                }
+              },
+              {
+                "id": "9658",
+                "score": "-2",
+                "athlete": {
+                  "displayName": "Taylor Pendrith",
+                  "shortName": "T. Pendrith"
+                }
+              },
+              {
+                "id": "5215039",
+                "score": "-2",
+                "athlete": {
+                  "displayName": "Luke Clanton",
+                  "shortName": "L. Clanton"
+                }
+              },
+              {
+                "id": "6931",
+                "score": "-2",
+                "athlete": {
+                  "displayName": "Mackenzie Hughes",
+                  "shortName": "M. Hughes"
+                }
+              },
+              {
+                "id": "5150294",
+                "score": "-2",
+                "athlete": {
+                  "displayName": "David Ford",
+                  "shortName": "D. Ford"
+                }
+              },
+              {
+                "id": "10372",
+                "score": "-2",
+                "athlete": {
+                  "displayName": "Adam Schenk",
+                  "shortName": "A. Schenk"
+                }
+              },
+              {
+                "id": "6937",
+                "score": "-1",
+                "athlete": {
+                  "displayName": "Stephan Jaeger",
+                  "shortName": "S. Jaeger"
+                }
+              },
+              {
+                "id": "4982182",
+                "score": "-1",
+                "athlete": {
+                  "displayName": "Jackson Suber",
+                  "shortName": "J. Suber"
+                }
+              },
+              {
+                "id": "4358081",
+                "score": "-1",
+                "athlete": {
+                  "displayName": "Alejandro Tosti",
+                  "shortName": "A. Tosti"
+                }
+              },
+              {
+                "id": "9025",
+                "score": "-1",
+                "athlete": {
+                  "displayName": "Daniel Berger",
+                  "shortName": "D. Berger"
+                }
+              },
+              {
+                "id": "10664",
+                "score": "-1",
+                "athlete": {
+                  "displayName": "Taylor Moore",
+                  "shortName": "T. Moore"
+                }
+              },
+              {
+                "id": "4832046",
+                "score": "-1",
+                "athlete": {
+                  "displayName": "Nick Dunlap",
+                  "shortName": "N. Dunlap"
+                }
+              },
+              {
+                "id": "3792",
+                "score": "E",
+                "athlete": {
+                  "displayName": "Nick Taylor",
+                  "shortName": "N. Taylor"
+                }
+              },
+              {
+                "id": "4868733",
+                "score": "E",
+                "athlete": {
+                  "displayName": "Joe Highsmith",
+                  "shortName": "J. Highsmith"
+                }
+              },
+              {
+                "id": "5075548",
+                "score": "E",
+                "athlete": {
+                  "displayName": "Kensei Hirata",
+                  "shortName": "K. Hirata"
+                }
+              },
+              {
+                "id": "10793",
+                "score": "E",
+                "athlete": {
+                  "displayName": "Thomas Rosenmueller",
+                  "shortName": "T. Rosenmueller"
+                }
+              },
+              {
+                "id": "6825",
+                "score": "E",
+                "athlete": {
+                  "displayName": "Patrick Rodgers",
+                  "shortName": "P. Rodgers"
+                }
+              },
+              {
+                "id": "10522",
+                "score": "E",
+                "athlete": {
+                  "displayName": "Eric Cole",
+                  "shortName": "E. Cole"
+                }
+              },
+              {
+                "id": "5215013",
+                "score": "E",
+                "athlete": {
+                  "displayName": "Jackson Koivun",
+                  "shortName": "J. Koivun"
+                }
+              },
+              {
+                "id": "10596",
+                "score": "E",
+                "athlete": {
+                  "displayName": "Matthieu Pavon",
+                  "shortName": "M. Pavon"
+                }
+              },
+              {
+                "id": "10048",
+                "score": "E",
+                "athlete": {
+                  "displayName": "Nick Hardy",
+                  "shortName": "N. Hardy"
+                }
+              },
+              {
+                "id": "10990",
+                "score": "E",
+                "athlete": {
+                  "displayName": "Jimmy Stanger",
+                  "shortName": "J. Stanger"
+                }
+              },
+              {
+                "id": "5351630",
+                "score": "+1",
+                "athlete": {
+                  "displayName": "William Sides",
+                  "shortName": "W. Sides"
+                }
+              },
+              {
+                "id": "4408319",
+                "score": "+1",
+                "athlete": {
+                  "displayName": "Danny Walker",
+                  "shortName": "D. Walker"
+                }
+              },
+              {
+                "id": "4410612",
+                "score": "+1",
+                "athlete": {
+                  "displayName": "Takumi Kanaya",
+                  "shortName": "T. Kanaya"
+                }
+              },
+              {
+                "id": "676",
+                "score": "+1",
+                "athlete": {
+                  "displayName": "Lucas Glover",
+                  "shortName": "L. Glover"
+                }
+              },
+              {
+                "id": "11332",
+                "score": "+1",
+                "athlete": {
+                  "displayName": "Andrew Novak",
+                  "shortName": "A. Novak"
+                }
+              },
+              {
+                "id": "10481",
+                "score": "+1",
+                "athlete": {
+                  "displayName": "Alvaro Ortiz",
+                  "shortName": "A. Ortiz"
+                }
+              },
+              {
+                "id": "4408320",
+                "score": "+1",
+                "athlete": {
+                  "displayName": "Kevin Roy",
+                  "shortName": "K. Roy"
+                }
+              },
+              {
+                "id": "257",
+                "score": "+2",
+                "athlete": {
+                  "displayName": "Matt Kuchar",
+                  "shortName": "M. Kuchar"
+                }
+              },
+              {
+                "id": "3449",
+                "score": "+2",
+                "athlete": {
+                  "displayName": "Chris Kirk",
+                  "shortName": "C. Kirk"
+                }
+              },
+              {
+                "id": "5076011",
+                "score": "+3",
+                "athlete": {
+                  "displayName": "Adrien Dumont de Chassart",
+                  "shortName": "A. Dumont de Chassart"
+                }
+              },
+              {
+                "id": "3257",
+                "score": "+3",
+                "athlete": {
+                  "displayName": "David Skinns",
+                  "shortName": "D. Skinns"
+                }
+              },
+              {
+                "id": "5289828",
+                "score": "+4",
+                "athlete": {
+                  "displayName": "Frankie Harris",
+                  "shortName": "F. Harris"
+                }
+              },
+              {
+                "id": "4375977",
+                "score": "+4",
+                "athlete": {
+                  "displayName": "Pontus Nyholm",
+                  "shortName": "P. Nyholm"
+                }
+              },
+              {
+                "id": "6962",
+                "score": "+4",
+                "athlete": {
+                  "displayName": "Adrien Saddier",
+                  "shortName": "A. Saddier"
+                }
+              },
+              {
+                "id": "10058",
+                "score": "+4",
+                "athlete": {
+                  "displayName": "Davis Riley",
+                  "shortName": "D. Riley"
+                }
+              },
+              {
+                "id": "10863",
+                "score": "+4",
+                "athlete": {
+                  "displayName": "Cam Davis",
+                  "shortName": "C. Davis"
+                }
+              },
+              {
+                "id": "3688",
+                "score": "+8",
+                "athlete": {
+                  "displayName": "Michael Thompson",
+                  "shortName": "M. Thompson"
+                }
+              },
+              {
+                "id": "11022",
+                "score": "+24",
+                "athlete": {
+                  "displayName": "Casey Russell",
+                  "shortName": "C. Russell"
+                }
+              },
+              {
+                "id": "6999",
+                "score": "-6",
+                "athlete": {
+                  "displayName": "Nicholas Lindheim",
+                  "shortName": "N. Lindheim"
+                }
+              },
+              {
+                "id": "5147097",
+                "score": "-2",
+                "athlete": {
+                  "displayName": "Karl Vilips",
+                  "shortName": "K. Vilips"
+                }
+              },
+              {
+                "id": "6017",
+                "score": "-1",
+                "athlete": {
+                  "displayName": "C.T. Pan",
+                  "shortName": "C.T. Pan"
+                }
+              },
+              {
+                "id": "6001",
+                "score": "E",
+                "athlete": {
+                  "displayName": "S\u00e9amus Power",
+                  "shortName": "S. Power"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "ufc": {
+    "_source": "https://site.api.espn.com/apis/site/v2/sports/mma/ufc/scoreboard",
+    "events": [
+      {
+        "id": "600061400",
+        "date": "2026-11-14T22:00Z",
+        "status": {
+          "type": {
+            "id": "3",
+            "name": "STATUS_FINAL",
+            "state": "post",
+            "completed": true,
+            "description": "Final",
+            "detail": "Final",
+            "shortDetail": "Final"
+          }
+        },
+        "links": [
+          {
+            "language": "en-US",
+            "rel": [
+              "summary",
+              "desktop",
+              "event"
+            ],
+            "href": "https://www.espn.com/mma/fightcenter/_/id/600061400/league/ufc",
+            "text": "Gamecast",
+            "shortText": "Gamecast",
+            "isExternal": false,
+            "isPremium": false
+          }
+        ],
+        "name": "UFC 334: Gane vs. Hokit",
+        "shortName": "UFC 334",
+        "competitions": [
+          {
+            "id": "401932013",
+            "date": "2026-11-14T22:00Z",
+            "status": {
+              "clock": 300.0,
+              "displayClock": "5:00",
+              "period": 3,
+              "type": {
+                "id": "3",
+                "name": "STATUS_FINAL",
+                "state": "post",
+                "completed": true,
+                "description": "Final",
+                "detail": "Final",
+                "shortDetail": "Final"
+              },
+              "featured": false
+            },
+            "competitors": [
+              {
+                "id": "5037883",
+                "winner": true,
+                "athlete": {
+                  "displayName": "Evan Elder",
+                  "shortName": "E. Elder"
+                }
+              },
+              {
+                "id": "5293557",
+                "winner": false,
+                "athlete": {
+                  "displayName": "Samuel Sanches",
+                  "shortName": "S. Sanches"
+                }
+              }
+            ]
+          },
+          {
+            "id": "401933936",
+            "date": "2026-11-14T22:00Z",
+            "status": {
+              "clock": 300.0,
+              "displayClock": "5:00",
+              "period": 3,
+              "type": {
+                "id": "3",
+                "name": "STATUS_FINAL",
+                "state": "post",
+                "completed": true,
+                "description": "Final",
+                "detail": "Final",
+                "shortDetail": "Final"
+              },
+              "featured": false
+            },
+            "competitors": [
+              {
+                "id": "3154389",
+                "winner": false,
+                "athlete": {
+                  "displayName": "Alatengheili",
+                  "shortName": "Alatengheili"
+                }
+              },
+              {
+                "id": "5310574",
+                "winner": true,
+                "athlete": {
+                  "displayName": "Juan Diaz",
+                  "shortName": "J. Diaz"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

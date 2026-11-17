@@ -1,0 +1,1201 @@
+{
+  "atp": {
+    "_source": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard",
+    "events": [
+      {
+        "id": "339-2026",
+        "uid": "s:850~l:851~e:339-2026",
+        "date": "2026-11-15T05:00Z",
+        "endDate": "2026-11-23T04:59Z",
+        "major": false,
+        "name": "Nitto ATP Finals",
+        "shortName": "Nitto ATP Finals",
+        "season": {
+          "year": 2026,
+          "type": 2
+        },
+        "groupings": [
+          {
+            "grouping": {
+              "id": "3",
+              "slug": "mens-doubles",
+              "displayName": "Men's Doubles"
+            },
+            "competitions": [
+              {
+                "id": "187517",
+                "uid": "s:850~l:851~e:339-2026~c:187517",
+                "date": "2026-11-15T10:40Z",
+                "startDate": "2026-11-15T10:40Z",
+                "timeValid": true,
+                "recent": false,
+                "status": {
+                  "period": 3,
+                  "type": {
+                    "id": "3",
+                    "name": "STATUS_FINAL",
+                    "state": "post",
+                    "completed": true,
+                    "description": "Final",
+                    "detail": "Final",
+                    "shortDetail": "Final"
+                  }
+                },
+                "venue": {
+                  "fullName": "Turin, Italy",
+                  "court": "Inalpi Arena"
+                },
+                "format": {
+                  "regulation": {
+                    "periods": 5
+                  }
+                },
+                "notes": [
+                  {
+                    "text": "(1) Harri Heliovaara (FIN) & Henry Patten (GBR) bt (8) Orlando Luz (BRA) & Rafael Matos (BRA) 6-3 5-7 1-0 (10-4)",
+                    "type": "event"
+                  }
+                ],
+                "geoBroadcasts": [],
+                "broadcasts": [],
+                "broadcast": "",
+                "competitors": [
+                  {
+                    "id": "2725-2434",
+                    "uid": "s:850~l:851~t:2725-2434",
+                    "type": "team",
+                    "order": 2,
+                    "homeAway": "away",
+                    "winner": false,
+                    "curatedRank": {
+                      "current": 8
+                    },
+                    "linescores": [
+                      {
+                        "value": 3.0,
+                        "winner": false
+                      },
+                      {
+                        "value": 7.0,
+                        "winner": true
+                      },
+                      {
+                        "value": 0.0,
+                        "tiebreak": 4,
+                        "winner": false
+                      }
+                    ],
+                    "roster": {
+                      "displayName": "Orlando Luz / Rafael Matos",
+                      "shortDisplayName": "O. Luz / R. Matos",
+                      "athletes": [
+                        {
+                          "guid": "16241e81-65bf-080b-d56c-4e0c305ad128",
+                          "displayName": "Orlando Luz",
+                          "shortName": "O. Luz",
+                          "fullName": "Orlando Luz",
+                          "flag": {
+                            "href": "https://a.espncdn.com/i/teamlogos/countries/500/bra.png",
+                            "alt": "Brazil",
+                            "rel": [
+                              "country-flag"
+                            ]
+                          },
+                          "links": [
+                            {
+                              "language": "en-US",
+                              "rel": [
+                                "playercard",
+                                "desktop",
+                                "athlete"
+                              ],
+                              "href": "https://www.espn.com/tennis/player/_/id/2725/orlando-luz",
+                              "text": "Player Card",
+                              "shortText": "Player Card",
+                              "isExternal": false,
+                              "isPremium": false,
+                              "isHidden": false
+                            }
+                          ]
+                        },
+                        {
+                          "guid": "eca9d622-ad76-da99-9941-2f9a60234be8",
+                          "displayName": "Rafael Matos",
+                          "shortName": "R. Matos",
+                          "fullName": "Rafael Matos",
+                          "flag": {
+                            "href": "https://a.espncdn.com/i/teamlogos/countries/500/bra.png",
+                            "alt": "Brazil",
+                            "rel": [
+                              "country-flag"
+                            ]
+                          },
+                          "links": [
+                            {
+                              "language": "en-US",
+                              "rel": [
+                                "playercard",
+                                "desktop",
+                                "athlete"
+                              ],
+                              "href": "https://www.espn.com/tennis/player/_/id/2434/rafael-matos",
+                              "text": "Player Card",
+                              "shortText": "Player Card",
+                              "isExternal": false,
+                              "isPremium": false,
+                              "isHidden": false
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    "statistics": []
+                  },
+                  {
+                    "id": "3540-10685",
+                    "uid": "s:850~l:851~t:3540-10685",
+                    "type": "team",
+                    "order": 1,
+                    "homeAway": "home",
+                    "winner": true,
+                    "curatedRank": {
+                      "current": 1
+                    },
+                    "linescores": [
+                      {
+                        "value": 6.0,
+                        "winner": true
+                      },
+                      {
+                        "value": 5.0,
+                        "winner": false
+                      },
+                      {
+                        "value": 1.0,
+                        "tiebreak": 10,
+                        "winner": true
+                      }
+                    ],
+                    "roster": {
+                      "displayName": "Harri Heliovaara / Henry Patten",
+                      "shortDisplayName": "H. Heliovaara / H. Patten",
+                      "athletes": [
+                        {
+                          "guid": "79ee893e-f116-2050-27b0-ec58dde2e146",
+                          "displayName": "Harri Heliovaara",
+                          "shortName": "H. Heliovaara",
+                          "fullName": "Harri Heliovaara",
+                          "flag": {
+                            "href": "https://a.espncdn.com/i/teamlogos/countries/500/fin.png",
+                            "alt": "Finland",
+                            "rel": [
+                              "country-flag"
+                            ]
+                          },
+                          "links": [
+                            {
+                              "language": "en-US",
+                              "rel": [
+                                "playercard",
+                                "desktop",
+                                "athlete"
+                              ],
+                              "href": "https://www.espn.com/tennis/player/_/id/3540/harri-heliovaara",
+                              "text": "Player Card",
+                              "shortText": "Player Card",
+                              "isExternal": false,
+                              "isPremium": false,
+                              "isHidden": false
+                            }
+                          ]
+                        },
+                        {
+                          "guid": "ab8da0b7-dd12-3216-9bc5-b3d3e0c557c4",
+                          "displayName": "Henry Patten",
+                          "shortName": "H. Patten",
+                          "fullName": "Henry Patten",
+                          "flag": {
+                            "href": "https://a.espncdn.com/i/teamlogos/countries/500/gbr.png",
+                            "alt": "Great Britain",
+                            "rel": [
+                              "country-flag"
+                            ]
+                          },
+                          "links": [
+                            {
+                              "language": "en-US",
+                              "rel": [
+                                "playercard",
+                                "desktop",
+                                "athlete"
+                              ],
+                              "href": "https://www.espn.com/tennis/player/_/id/10685/henry-patten",
+                              "text": "Player Card",
+                              "shortText": "Player Card",
+                              "isExternal": false,
+                              "isPremium": false,
+                              "isHidden": false
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    "statistics": []
+                  }
+                ],
+                "tournamentId": 339,
+                "type": {
+                  "id": "3",
+                  "text": "Men's Doubles",
+                  "slug": "mens-doubles"
+                },
+                "round": {
+                  "id": "15",
+                  "displayName": "Group Stage"
+                },
+                "wasSuspended": false
+              },
+              {
+                "id": "187530",
+                "uid": "s:850~l:851~e:339-2026~c:187530",
+                "date": "2026-11-21T05:00Z",
+                "startDate": "2026-11-21T05:00Z",
+                "timeValid": false,
+                "recent": false,
+                "status": {
+                  "period": 1,
+                  "type": {
+                    "id": "1",
+                    "name": "STATUS_SCHEDULED",
+                    "state": "pre",
+                    "completed": false,
+                    "description": "Scheduled",
+                    "detail": "M/d - 'TBD'",
+                    "shortDetail": "TBD"
+                  }
+                },
+                "venue": {
+                  "fullName": "Turin, Italy",
+                  "court": ""
+                },
+                "format": {
+                  "regulation": {
+                    "periods": 5
+                  }
+                },
+                "notes": [],
+                "geoBroadcasts": [],
+                "broadcasts": [],
+                "broadcast": "",
+                "competitors": [
+                  {
+                    "id": "-4",
+                    "uid": "s:850~l:851~a:-4",
+                    "type": "athlete",
+                    "order": 2,
+                    "homeAway": "away",
+                    "athlete": {
+                      "displayName": "TBD",
+                      "shortName": "TBD",
+                      "fullName": "TBD",
+                      "links": []
+                    },
+                    "statistics": []
+                  },
+                  {
+                    "id": "-3",
+                    "uid": "s:850~l:851~a:-3",
+                    "type": "athlete",
+                    "order": 1,
+                    "homeAway": "home",
+                    "athlete": {
+                      "displayName": "TBD",
+                      "shortName": "TBD",
+                      "fullName": "TBD",
+                      "links": []
+                    },
+                    "statistics": []
+                  }
+                ],
+                "tournamentId": 339,
+                "type": {
+                  "id": "3",
+                  "text": "Men's Doubles",
+                  "slug": "mens-doubles"
+                },
+                "round": {
+                  "id": "6",
+                  "displayName": "Semifinal"
+                },
+                "wasSuspended": false
+              }
+            ]
+          },
+          {
+            "grouping": {
+              "id": "1",
+              "slug": "mens-singles",
+              "displayName": "Men's Singles"
+            },
+            "competitions": [
+              {
+                "id": "187505",
+                "uid": "s:850~l:851~e:339-2026~c:187505",
+                "date": "2026-11-15T13:25Z",
+                "startDate": "2026-11-15T13:25Z",
+                "timeValid": true,
+                "recent": false,
+                "status": {
+                  "period": 2,
+                  "type": {
+                    "id": "3",
+                    "name": "STATUS_FINAL",
+                    "state": "post",
+                    "completed": true,
+                    "description": "Final",
+                    "detail": "Final",
+                    "shortDetail": "Final"
+                  }
+                },
+                "venue": {
+                  "fullName": "Turin, Italy",
+                  "court": "Inalpi Arena"
+                },
+                "format": {
+                  "regulation": {
+                    "periods": 5
+                  }
+                },
+                "notes": [
+                  {
+                    "text": "(1) Alexander Zverev (GER) bt (8) Rafael Jodar (ESP) 6-4 6-4",
+                    "type": "event"
+                  }
+                ],
+                "geoBroadcasts": [],
+                "broadcasts": [],
+                "broadcast": "",
+                "competitors": [
+                  {
+                    "id": "12657",
+                    "uid": "s:850~l:851~a:12657",
+                    "type": "athlete",
+                    "order": 2,
+                    "homeAway": "away",
+                    "winner": false,
+                    "curatedRank": {
+                      "current": 8
+                    },
+                    "linescores": [
+                      {
+                        "value": 4.0,
+                        "winner": false
+                      },
+                      {
+                        "value": 4.0,
+                        "winner": false
+                      }
+                    ],
+                    "athlete": {
+                      "guid": "14a740e2-9290-3b00-84d2-8a65c9754208",
+                      "displayName": "Rafael Jodar",
+                      "shortName": "R. Jodar",
+                      "fullName": "Rafael Jodar",
+                      "flag": {
+                        "href": "https://a.espncdn.com/i/teamlogos/countries/500/esp.png",
+                        "alt": "Spain",
+                        "rel": [
+                          "country-flag"
+                        ]
+                      },
+                      "links": [
+                        {
+                          "language": "en-US",
+                          "rel": [
+                            "playercard",
+                            "desktop",
+                            "athlete"
+                          ],
+                          "href": "https://www.espn.com/tennis/player/_/id/12657/rafael-jodar",
+                          "text": "Player Card",
+                          "shortText": "Player Card",
+                          "isExternal": false,
+                          "isPremium": false,
+                          "isHidden": false
+                        }
+                      ]
+                    },
+                    "statistics": []
+                  },
+                  {
+                    "id": "2375",
+                    "uid": "s:850~l:851~a:2375",
+                    "type": "athlete",
+                    "order": 1,
+                    "homeAway": "home",
+                    "winner": true,
+                    "curatedRank": {
+                      "current": 1
+                    },
+                    "linescores": [
+                      {
+                        "value": 6.0,
+                        "winner": true
+                      },
+                      {
+                        "value": 6.0,
+                        "winner": true
+                      }
+                    ],
+                    "athlete": {
+                      "guid": "fd06b6ea-593b-d5b3-da2b-767ec3e4232c",
+                      "displayName": "Alexander Zverev",
+                      "shortName": "A. Zverev",
+                      "fullName": "Alexander Zverev",
+                      "flag": {
+                        "href": "https://a.espncdn.com/i/teamlogos/countries/500/ger.png",
+                        "alt": "Germany",
+                        "rel": [
+                          "country-flag"
+                        ]
+                      },
+                      "links": [
+                        {
+                          "language": "en-US",
+                          "rel": [
+                            "playercard",
+                            "desktop",
+                            "athlete"
+                          ],
+                          "href": "https://www.espn.com/tennis/player/_/id/2375/alexander-zverev",
+                          "text": "Player Card",
+                          "shortText": "Player Card",
+                          "isExternal": false,
+                          "isPremium": false,
+                          "isHidden": false
+                        }
+                      ]
+                    },
+                    "statistics": []
+                  }
+                ],
+                "tournamentId": 339,
+                "type": {
+                  "id": "1",
+                  "text": "Men's Singles",
+                  "slug": "mens-singles"
+                },
+                "round": {
+                  "id": "15",
+                  "displayName": "Group Stage"
+                },
+                "wasSuspended": false
+              },
+              {
+                "id": "187527",
+                "uid": "s:850~l:851~e:339-2026~c:187527",
+                "date": "2026-11-21T05:00Z",
+                "startDate": "2026-11-21T05:00Z",
+                "timeValid": false,
+                "recent": false,
+                "status": {
+                  "period": 1,
+                  "type": {
+                    "id": "1",
+                    "name": "STATUS_SCHEDULED",
+                    "state": "pre",
+                    "completed": false,
+                    "description": "Scheduled",
+                    "detail": "M/d - 'TBD'",
+                    "shortDetail": "TBD"
+                  }
+                },
+                "venue": {
+                  "fullName": "Turin, Italy",
+                  "court": ""
+                },
+                "format": {
+                  "regulation": {
+                    "periods": 5
+                  }
+                },
+                "notes": [],
+                "geoBroadcasts": [],
+                "broadcasts": [],
+                "broadcast": "",
+                "competitors": [
+                  {
+                    "id": "-4",
+                    "uid": "s:850~l:851~a:-4",
+                    "type": "athlete",
+                    "order": 2,
+                    "homeAway": "away",
+                    "athlete": {
+                      "displayName": "TBD",
+                      "shortName": "TBD",
+                      "fullName": "TBD",
+                      "links": []
+                    },
+                    "statistics": []
+                  },
+                  {
+                    "id": "-3",
+                    "uid": "s:850~l:851~a:-3",
+                    "type": "athlete",
+                    "order": 1,
+                    "homeAway": "home",
+                    "athlete": {
+                      "displayName": "TBD",
+                      "shortName": "TBD",
+                      "fullName": "TBD",
+                      "links": []
+                    },
+                    "statistics": []
+                  }
+                ],
+                "tournamentId": 339,
+                "type": {
+                  "id": "1",
+                  "text": "Men's Singles",
+                  "slug": "mens-singles"
+                },
+                "round": {
+                  "id": "6",
+                  "displayName": "Semifinal"
+                },
+                "wasSuspended": false
+              }
+            ]
+          }
+        ],
+        "status": {
+          "period": 3,
+          "type": {
+            "id": "3",
+            "name": "STATUS_FINAL",
+            "state": "post",
+            "completed": true,
+            "description": "Final",
+            "detail": "Final",
+            "shortDetail": "Final"
+          }
+        },
+        "venue": {
+          "displayName": "Inalpi Arena, Turin, Italy"
+        },
+        "links": [
+          {
+            "language": "en-US",
+            "rel": [
+              "summary",
+              "desktop",
+              "event"
+            ],
+            "href": "https://www.espn.com/tennis/scoreboard/tournament/_/eventId/339-2026/competitionType/3",
+            "text": "Summary",
+            "shortText": "Summary",
+            "isExternal": false,
+            "isPremium": false,
+            "isHidden": false
+          },
+          {
+            "language": "en-US",
+            "rel": [
+              "bracket",
+              "desktop",
+              "event"
+            ],
+            "href": "https://www.espn.com/tennis/bracket/_/year/2026/tournamentId/339/type/3",
+            "text": "Bracket",
+            "shortText": "Bracket",
+            "isExternal": false,
+            "isPremium": false,
+            "isHidden": false
+          }
+        ],
+        "previousWinners": [
+          {
+            "displayName": "Jannik Sinner",
+            "shortDisplayName": "J. Sinner",
+            "type": {
+              "id": "1",
+              "text": "Men's Singles",
+              "slug": "mens-singles"
+            },
+            "headshot": "https://a.espncdn.com/i/headshots/tennis/players/full/3623.png",
+            "links": [
+              {
+                "language": "en-US",
+                "rel": [
+                  "playercard",
+                  "desktop",
+                  "athlete"
+                ],
+                "href": "https://www.espn.com/tennis/player/_/id/3623/jannik-sinner",
+                "text": "Player Card",
+                "shortText": "Player Card",
+                "isExternal": false,
+                "isPremium": false,
+                "isHidden": false
+              }
+            ]
+          },
+          {
+            "displayName": "Harri Heliovaara / Henry Patten",
+            "shortDisplayName": "H. Heliovaara / H. Patten",
+            "type": {
+              "id": "3",
+              "text": "Men's Doubles",
+              "slug": "mens-doubles"
+            },
+            "athletes": [
+              {
+                "displayName": "Harri Heliovaara",
+                "shortDisplayName": "H. Heliovaara",
+                "links": [
+                  {
+                    "language": "en-US",
+                    "rel": [
+                      "playercard",
+                      "desktop",
+                      "athlete"
+                    ],
+                    "href": "https://www.espn.com/tennis/player/_/id/3540/harri-heliovaara",
+                    "text": "Player Card",
+                    "shortText": "Player Card",
+                    "isExternal": false,
+                    "isPremium": false,
+                    "isHidden": false
+                  }
+                ]
+              },
+              {
+                "displayName": "Henry Patten",
+                "shortDisplayName": "H. Patten",
+                "links": [
+                  {
+                    "language": "en-US",
+                    "rel": [
+                      "playercard",
+                      "desktop",
+                      "athlete"
+                    ],
+                    "href": "https://www.espn.com/tennis/player/_/id/10685/henry-patten",
+                    "text": "Player Card",
+                    "shortText": "Player Card",
+                    "isExternal": false,
+                    "isPremium": false,
+                    "isHidden": false
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "calendar": {
+          "type": "day",
+          "timeZone": "America/New_York",
+          "startDate": "2026-11-15T05:00Z",
+          "endDate": "2026-11-22T05:00Z",
+          "calendar": [
+            "2026-11-15T05:00Z",
+            "2026-11-16T05:00Z",
+            "2026-11-17T05:00Z",
+            "2026-11-18T05:00Z",
+            "2026-11-21T05:00Z",
+            "2026-11-22T05:00Z"
+          ]
+        }
+      }
+    ]
+  },
+  "wta": {
+    "_source": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard",
+    "events": [
+      {
+        "id": "1031-2026",
+        "uid": "s:850~l:900~e:1031-2026",
+        "date": "2026-11-08T05:00Z",
+        "endDate": "2026-11-16T04:59Z",
+        "major": false,
+        "name": "Austin 125",
+        "shortName": "Austin 125",
+        "season": {
+          "year": 2026,
+          "type": 2
+        },
+        "groupings": [],
+        "links": [],
+        "previousWinners": [
+          {
+            "displayName": "Renata Zarazua",
+            "shortDisplayName": "R. Zarazua",
+            "type": {
+              "id": "2",
+              "text": "Women's Singles",
+              "slug": "womens-singles"
+            },
+            "links": [
+              {
+                "language": "en-US",
+                "rel": [
+                  "playercard",
+                  "desktop",
+                  "athlete"
+                ],
+                "href": "https://www.espn.com/tennis/player/_/id/2751/renata-zarazua",
+                "text": "Player Card",
+                "shortText": "Player Card",
+                "isExternal": false,
+                "isPremium": false,
+                "isHidden": false
+              }
+            ]
+          },
+          {
+            "displayName": "Mariia Kozyreva / Iryna Shymanovich",
+            "shortDisplayName": "M. Kozyreva / I. Shymanovich",
+            "type": {
+              "id": "4",
+              "text": "Women's Doubles",
+              "slug": "womens-doubles"
+            },
+            "athletes": [
+              {
+                "displayName": "Mariia Kozyreva",
+                "shortDisplayName": "M. Kozyreva",
+                "links": [
+                  {
+                    "language": "en-US",
+                    "rel": [
+                      "playercard",
+                      "desktop",
+                      "athlete"
+                    ],
+                    "href": "https://www.espn.com/tennis/player/_/id/15341/mariia-kozyreva",
+                    "text": "Player Card",
+                    "shortText": "Player Card",
+                    "isExternal": false,
+                    "isPremium": false,
+                    "isHidden": false
+                  }
+                ]
+              },
+              {
+                "displayName": "Iryna Shymanovich",
+                "shortDisplayName": "I. Shymanovich",
+                "links": [
+                  {
+                    "language": "en-US",
+                    "rel": [
+                      "playercard",
+                      "desktop",
+                      "athlete"
+                    ],
+                    "href": "https://www.espn.com/tennis/player/_/id/2403/iryna-shymanovich",
+                    "text": "Player Card",
+                    "shortText": "Player Card",
+                    "isExternal": false,
+                    "isPremium": false,
+                    "isHidden": false
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "calendar": {
+          "type": "day",
+          "timeZone": "America/New_York",
+          "startDate": "2026-11-08T05:00Z",
+          "endDate": "2026-11-16T04:59Z",
+          "calendar": []
+        }
+      },
+      {
+        "id": "904-2026",
+        "uid": "s:850~l:900~e:904-2026",
+        "date": "2026-11-15T05:00Z",
+        "endDate": "2026-11-23T04:59Z",
+        "major": false,
+        "name": "LP Open by IND",
+        "shortName": "LP Open by IND",
+        "season": {
+          "year": 2026,
+          "type": 2
+        },
+        "groupings": [
+          {
+            "grouping": {
+              "id": "2",
+              "slug": "womens-singles",
+              "displayName": "Women's Singles"
+            },
+            "competitions": [
+              {
+                "id": "187535",
+                "uid": "s:850~l:900~e:904-2026~c:187535",
+                "date": "2026-11-15T16:00Z",
+                "startDate": "2026-11-15T16:00Z",
+                "timeValid": true,
+                "recent": false,
+                "status": {
+                  "period": 2,
+                  "type": {
+                    "id": "3",
+                    "name": "STATUS_FINAL",
+                    "state": "post",
+                    "completed": true,
+                    "description": "Final",
+                    "detail": "Final",
+                    "shortDetail": "Final"
+                  }
+                },
+                "venue": {
+                  "fullName": "Colina, Chile",
+                  "court": "Center Court"
+                },
+                "format": {
+                  "regulation": {
+                    "periods": 3
+                  }
+                },
+                "notes": [
+                  {
+                    "text": "Diletta Cherubini (ITA) bt Alexandra Osborne (AUS) 6-2 6-2",
+                    "type": "event"
+                  }
+                ],
+                "geoBroadcasts": [],
+                "broadcasts": [],
+                "broadcast": "",
+                "competitors": [
+                  {
+                    "id": "4484",
+                    "uid": "s:850~l:900~a:4484",
+                    "type": "athlete",
+                    "order": 2,
+                    "homeAway": "away",
+                    "winner": false,
+                    "linescores": [
+                      {
+                        "value": 2.0,
+                        "winner": false
+                      },
+                      {
+                        "value": 2.0,
+                        "winner": false
+                      }
+                    ],
+                    "athlete": {
+                      "guid": "f4932eb9-8034-3c53-a6b7-08e828e066fd",
+                      "displayName": "Alexandra Osborne",
+                      "shortName": "A. Osborne",
+                      "fullName": "Alexandra Osborne",
+                      "flag": {
+                        "href": "https://a.espncdn.com/i/teamlogos/countries/500/aus.png",
+                        "alt": "Australia",
+                        "rel": [
+                          "country-flag"
+                        ]
+                      },
+                      "links": [
+                        {
+                          "language": "en-US",
+                          "rel": [
+                            "playercard",
+                            "desktop",
+                            "athlete"
+                          ],
+                          "href": "https://www.espn.com/tennis/player/_/id/4484/alexandra-osborne",
+                          "text": "Player Card",
+                          "shortText": "Player Card",
+                          "isExternal": false,
+                          "isPremium": false,
+                          "isHidden": false
+                        }
+                      ]
+                    },
+                    "statistics": []
+                  },
+                  {
+                    "id": "11455",
+                    "uid": "s:850~l:900~a:11455",
+                    "type": "athlete",
+                    "order": 1,
+                    "homeAway": "home",
+                    "winner": true,
+                    "linescores": [
+                      {
+                        "value": 6.0,
+                        "winner": true
+                      },
+                      {
+                        "value": 6.0,
+                        "winner": true
+                      }
+                    ],
+                    "athlete": {
+                      "guid": "1b1be780-9d14-3452-9535-f5e222055987",
+                      "displayName": "Diletta Cherubini",
+                      "shortName": "D. Cherubini",
+                      "fullName": "Diletta Cherubini",
+                      "flag": {
+                        "href": "https://a.espncdn.com/i/teamlogos/countries/500/ita.png",
+                        "alt": "Italy",
+                        "rel": [
+                          "country-flag"
+                        ]
+                      },
+                      "links": [
+                        {
+                          "language": "en-US",
+                          "rel": [
+                            "playercard",
+                            "desktop",
+                            "athlete"
+                          ],
+                          "href": "https://www.espn.com/tennis/player/_/id/11455/diletta-cherubini",
+                          "text": "Player Card",
+                          "shortText": "Player Card",
+                          "isExternal": false,
+                          "isPremium": false,
+                          "isHidden": false
+                        }
+                      ]
+                    },
+                    "statistics": []
+                  }
+                ],
+                "tournamentId": 904,
+                "type": {
+                  "id": "2",
+                  "text": "Women's Singles",
+                  "slug": "womens-singles"
+                },
+                "round": {
+                  "id": "14",
+                  "displayName": "Qualifying Final"
+                },
+                "wasSuspended": false
+              },
+              {
+                "id": "186809",
+                "uid": "s:850~l:900~e:904-2026~c:186809",
+                "date": "2026-11-18T05:00Z",
+                "startDate": "2026-11-18T05:00Z",
+                "timeValid": false,
+                "recent": false,
+                "status": {
+                  "period": 1,
+                  "type": {
+                    "id": "1",
+                    "name": "STATUS_SCHEDULED",
+                    "state": "pre",
+                    "completed": false,
+                    "description": "Scheduled",
+                    "detail": "M/d - 'TBD'",
+                    "shortDetail": "TBD"
+                  }
+                },
+                "venue": {
+                  "fullName": "Colina, Chile",
+                  "court": ""
+                },
+                "format": {
+                  "regulation": {
+                    "periods": 3
+                  }
+                },
+                "notes": [],
+                "geoBroadcasts": [],
+                "broadcasts": [],
+                "broadcast": "",
+                "competitors": [
+                  {
+                    "id": "-4",
+                    "uid": "s:850~l:900~a:-4",
+                    "type": "athlete",
+                    "order": 2,
+                    "homeAway": "away",
+                    "athlete": {
+                      "displayName": "TBD",
+                      "shortName": "TBD",
+                      "fullName": "TBD",
+                      "links": []
+                    },
+                    "statistics": []
+                  },
+                  {
+                    "id": "-3",
+                    "uid": "s:850~l:900~a:-3",
+                    "type": "athlete",
+                    "order": 1,
+                    "homeAway": "home",
+                    "athlete": {
+                      "displayName": "TBD",
+                      "shortName": "TBD",
+                      "fullName": "TBD",
+                      "links": []
+                    },
+                    "statistics": []
+                  }
+                ],
+                "tournamentId": 904,
+                "type": {
+                  "id": "2",
+                  "text": "Women's Singles",
+                  "slug": "womens-singles"
+                },
+                "round": {
+                  "id": "2",
+                  "displayName": "Round 2"
+                },
+                "wasSuspended": false
+              }
+            ]
+          }
+        ],
+        "status": {
+          "period": 2,
+          "type": {
+            "id": "3",
+            "name": "STATUS_FINAL",
+            "state": "post",
+            "completed": true,
+            "description": "Final",
+            "detail": "Final",
+            "shortDetail": "Final"
+          }
+        },
+        "venue": {
+          "displayName": "Colina, Chile"
+        },
+        "links": [
+          {
+            "language": "en-US",
+            "rel": [
+              "summary",
+              "desktop",
+              "event"
+            ],
+            "href": "https://www.espn.com/tennis/scoreboard/tournament/_/eventId/904-2026/competitionType/2",
+            "text": "Summary",
+            "shortText": "Summary",
+            "isExternal": false,
+            "isPremium": false,
+            "isHidden": false
+          },
+          {
+            "language": "en-US",
+            "rel": [
+              "bracket",
+              "desktop",
+              "event"
+            ],
+            "href": "https://www.espn.com/tennis/bracket/_/year/2026/tournamentId/904/type/2",
+            "text": "Bracket",
+            "shortText": "Bracket",
+            "isExternal": false,
+            "isPremium": false,
+            "isHidden": false
+          }
+        ],
+        "previousWinners": [
+          {
+            "displayName": "Oleksandra Oliynykova",
+            "shortDisplayName": "O. Oliynykova",
+            "type": {
+              "id": "2",
+              "text": "Women's Singles",
+              "slug": "womens-singles"
+            },
+            "links": [
+              {
+                "language": "en-US",
+                "rel": [
+                  "playercard",
+                  "desktop",
+                  "athlete"
+                ],
+                "href": "https://www.espn.com/tennis/player/_/id/5705/oleksandra-oliynykova",
+                "text": "Player Card",
+                "shortText": "Player Card",
+                "isExternal": false,
+                "isPremium": false,
+                "isHidden": false
+              }
+            ]
+          },
+          {
+            "displayName": "Maria Lourdes Carle / Sara Sorribes Tormo",
+            "shortDisplayName": "M. Carle / S. Sorribes Tormo",
+            "type": {
+              "id": "4",
+              "text": "Women's Doubles",
+              "slug": "womens-doubles"
+            },
+            "athletes": [
+              {
+                "displayName": "Maria Lourdes Carle",
+                "shortDisplayName": "M. Carle",
+                "links": [
+                  {
+                    "language": "en-US",
+                    "rel": [
+                      "playercard",
+                      "desktop",
+                      "athlete"
+                    ],
+                    "href": "https://www.espn.com/tennis/player/_/id/3220/maria-lourdes-carle",
+                    "text": "Player Card",
+                    "shortText": "Player Card",
+                    "isExternal": false,
+                    "isPremium": false,
+                    "isHidden": false
+                  }
+                ]
+              },
+              {
+                "displayName": "Sara Sorribes Tormo",
+                "shortDisplayName": "S. Sorribes Tormo",
+                "headshot": "https://a.espncdn.com/i/headshots/tennis/players/full/2929.png",
+                "links": [
+                  {
+                    "language": "en-US",
+                    "rel": [
+                      "playercard",
+                      "desktop",
+                      "athlete"
+                    ],
+                    "href": "https://www.espn.com/tennis/player/_/id/2929/sara-sorribes-tormo",
+                    "text": "Player Card",
+                    "shortText": "Player Card",
+                    "isExternal": false,
+                    "isPremium": false,
+                    "isHidden": false
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "calendar": {
+          "type": "day",
+          "timeZone": "America/New_York",
+          "startDate": "2026-11-15T05:00Z",
+          "endDate": "2026-11-22T05:00Z",
+          "calendar": [
+            "2026-11-15T05:00Z",
+            "2026-11-16T05:00Z",
+            "2026-11-17T05:00Z",
+            "2026-11-18T05:00Z",
+            "2026-11-20T05:00Z",
+            "2026-11-21T05:00Z",
+            "2026-11-22T05:00Z"
+          ]
+        }
+      }
+    ]
+  }
+}

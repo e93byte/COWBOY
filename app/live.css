@@ -1,0 +1,1361 @@
+/* Original COWBOY live-sports interface. Warm pitch-black / saddle tan. */
+.cowboy-live{--paper:#f2efea;--dim:#a6a29d;--surface:#1b1b1e;--edge:#343337;--tan:#ffb477;background:#121214;min-height:100vh;color:var(--paper);font:13px Arial,Helvetica,sans-serif;line-height:1.45;letter-spacing:.05px}.cowboy-live *{box-sizing:border-box}.cowboy-live button,.cowboy-live input{font:inherit}.cowboy-live button{cursor:pointer;border:1px solid var(--edge);background:#262529;color:var(--paper);border-radius:6px;min-height:38px;padding:8px 12px;transition:background .14s,border-color .14s,transform .14s}.cowboy-live button:hover:not(:disabled){background:#38302b;border-color:#b17d53}.cowboy-live button:active:not(:disabled){transform:translateY(1px)}.cowboy-live button:disabled{cursor:not-allowed;opacity:.48}.cowboy-live button:focus-visible,.cowboy-live input:focus-visible,.cowboy-live a:focus-visible{outline:2px solid var(--tan);outline-offset:3px}.cowboy-live h1,.cowboy-live h2,.cowboy-live h3,.cowboy-live p{margin:0}.cowboy-live .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}.free-strip{background:#29211c;color:#dcc0a8;padding:7px 28px;display:flex;justify-content:space-between;font:9px/1.4 monospace;letter-spacing:1px}.free-strip>span:first-child{color:#ffc28c}.cw-header{height:85px;display:flex;align-items:center;padding:0 28px;border-bottom:1px solid var(--edge);gap:55px;background:#19191c}.cw-brand{display:flex;align-items:center;gap:12px;text-decoration:none;color:var(--paper)}.cw-brand img{width:54px;height:54px;object-fit:cover;border-radius:50%}.cw-brand>span{font-size:25px;font-weight:900;letter-spacing:2px;line-height:1}.cw-brand small{display:block;font:8px monospace;letter-spacing:1.8px;color:#b6a99e;margin-top:8px}.cw-header nav{height:100%;display:flex;gap:28px;align-items:stretch}.cowboy-live .cw-header nav button{border:0;border-radius:0;background:none;color:var(--dim);padding:0 3px;font-weight:600;position:relative}.cowboy-live .cw-header nav button[aria-pressed=true]{color:var(--paper)}.cw-header nav button[aria-pressed=true]:after{content:'';position:absolute;bottom:0;height:3px;background:var(--tan);left:0;right:0}.cowboy-live .cw-account{margin-left:auto;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#ffbe87;background:#33271e;border-color:#705035}.cw-source{display:flex;align-items:center;justify-content:space-between;padding:8px 28px;border-bottom:1px solid var(--edge);font-size:11px;color:var(--dim);background:#1b1b1e}.cw-source>span{display:flex;gap:10px;align-items:center}.cw-source b{color:#ece5df;letter-spacing:.8px;font-size:10px}.cowboy-live .cw-source button{min-height:26px;height:26px;width:30px;padding:0;font-size:19px;background:none}.source-dot,.warning-dot{height:6px;width:6px;background:#9aca97;border-radius:50%;display:inline-block}.warning-dot{background:#e5a45d}.cw-grid{display:grid;grid-template-columns:170px minmax(0,1fr) 282px;gap:25px;max-width:1660px;padding:0 28px;margin:auto}.cw-sports{padding:27px 16px 0 0;border-right:1px solid var(--edge)}.cw-kicker{color:#aca098;font:9px/1.4 monospace;letter-spacing:1.6px}.cw-sports>p{margin:0 0 15px 10px}.cw-sports nav{display:flex;flex-direction:column;gap:5px}.cowboy-live .cw-sports nav button{border:1px solid transparent;background:none;display:flex;align-items:center;gap:10px;text-align:left;font-size:12px;min-height:44px;padding:9px}.cowboy-live svg{width:21px;height:21px;flex-shrink:0}.cw-sports button svg{color:#b7afa8}.cw-sports small{margin-left:auto;color:#9a9590;font-size:10px}.cowboy-live .cw-sports button[aria-pressed=true]{background:#35291f;color:#ffc18b;border-color:#60422d}.cw-rail-note{margin-top:30px;padding:19px 9px;border-top:1px solid var(--edge);font-size:11px;color:#b9afa6;line-height:1.7}.cw-rail-note .cw-kicker{color:#e6af82;font-size:8px;line-height:1.8}.cw-rail-note p{margin:12px 0}.cw-rail-note>span:last-child{color:#88827f;font-size:10px}.cw-main{min-width:0;padding-top:26px}.cw-title{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}.cw-title h1{font-size:30px;letter-spacing:-.8px;line-height:1.2;margin-top:6px}.cw-live-count{font:10px monospace;color:#e6af82;border:1px solid #4d3c2f;border-radius:4px;padding:6px 9px;white-space:nowrap}.cw-board-intro{border:1px solid #56402e;background:#28211c;border-radius:7px;display:flex;align-items:center;justify-content:space-between;min-height:122px;padding:19px 23px;margin-bottom:24px;overflow:hidden}.cw-board-intro strong{font-size:24px;letter-spacing:-.5px}.cw-board-intro p{color:#c1b2a6;font-size:12px;line-height:1.65;margin-top:7px}.cw-board-intro img{height:110px;width:110px;object-fit:cover;object-position:center;border-radius:50%;margin:-9px 0 -9px 12px;mix-blend-mode:lighten}.cw-toolbar{display:flex;justify-content:space-between;gap:14px;margin-bottom:22px;align-items:center}.cw-toolbar>div{display:flex;gap:4px;flex-shrink:0}.cowboy-live .cw-toolbar button{background:none;border:0;border-radius:0;padding:10px 12px;color:#a9a3a0;font-size:11px;border-bottom:2px solid transparent}.cowboy-live .cw-toolbar button[aria-pressed=true]{color:#ffc18b;border-bottom-color:var(--tan)}.cw-search{display:flex;gap:8px;border:1px solid var(--edge);background:#1b1b1e;border-radius:5px;padding:8px 10px;align-items:center;min-width:120px}.cw-search svg{width:16px;height:16px;color:#99918b}.cw-search input{width:100%;min-width:0;color:var(--paper);background:none;border:0;padding:1px 0;font-size:11px}.cw-search input::placeholder{color:#938b85}.cw-board-meta{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}.cw-board-meta h2{font-size:15px;font-weight:600}.cw-board-meta>span{font:9px monospace;color:#9b938d}.cw-events{border:1px solid var(--edge);border-radius:7px;overflow:hidden}.cw-event-head{display:grid;grid-template-columns:minmax(0,1fr) 200px;gap:20px;font:8px monospace;letter-spacing:1px;color:#b7aca3;background:#28262a;padding:11px 16px}.cw-event-head span:last-child{text-align:center}.cw-event{display:grid;grid-template-columns:minmax(0,1fr) 200px;gap:20px;padding:17px 16px;background:var(--surface);border-top:1px solid var(--edge);align-items:center}.cw-event-meta{display:flex;align-items:center;gap:7px;color:#a69e97;font-size:9px;margin-bottom:9px;flex-wrap:wrap}.cw-event-meta svg{width:15px;height:15px}.cw-event-meta b{font-size:9px;color:#bfb3aa}.cw-event-meta .cw-live-label{color:#ffb87f}.cw-team{display:flex;justify-content:space-between;gap:12px;align-items:center;line-height:1.7;font-size:13px}.cw-team>b{font:600 15px monospace;min-width:20px;text-align:right;color:#e1d5ca}.cw-event-time{font-size:9px;color:#9e958d;margin-top:8px;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}.cw-event-time>span{font-size:8px;color:#b9ab9f}.cw-pick-options{display:flex;gap:6px;align-items:center}.cowboy-live .cw-pick-options button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;width:100%;min-width:0;min-height:59px;background:#2b292c;border-color:#484047;font-size:12px}.cw-pick-options button small{font:8px monospace;letter-spacing:.4px;color:#d3ab88}.cowboy-live .cw-pick-options button[aria-pressed=true]{background:#ffb477;border-color:#ffd1ab;color:#24180f}.cw-pick-options button[aria-pressed=true] small{color:#583d27}.cw-empty{padding:45px 20px;border:1px dashed #4b4037;background:#1b1919;border-radius:6px;text-align:center;color:#b9aaa0}.cw-empty h3{font-size:16px;color:#eee3db;margin-bottom:9px}.cw-empty p{font-size:12px}.cw-feed-note{font-size:10px;line-height:1.7;color:#96908a;margin:17px 0!important}.cw-footer{border-top:1px solid var(--edge);padding:24px 0 30px;font-size:10px;color:#8f8882;line-height:1.7;margin-top:28px}.cw-footer b{font:9px monospace;letter-spacing:1.3px;color:#bca58f}.cw-footer p{margin-top:8px}.cw-picks-rail{padding-top:29px}.cw-slip{border:1px solid #453b35;border-radius:7px;background:#1d1b1c;position:sticky;top:20px;overflow:hidden}.cw-slip-heading{display:flex;justify-content:space-between;align-items:center;padding:17px 16px;background:#292528;border-bottom:1px solid #403538}.cw-slip-heading h2{font-size:15px;font-weight:600}.cw-slip-heading>span{font:8px monospace;letter-spacing:.8px;color:#d9ac84}.cw-slip-empty{padding:28px 12px 26px;text-align:center}.cw-slip-empty img{width:76px;height:76px;object-fit:cover;border-radius:50%;margin-bottom:12px;opacity:.9}.cw-slip-empty h3{font-size:15px;margin-bottom:9px}.cw-slip-empty p{font-size:11px;color:#b3a69d;line-height:1.8}.cw-slip-note{padding:13px 17px;border-top:1px solid #3c3332;font-size:10px;line-height:1.7;color:#a69a91}.cw-source-card{padding:23px 5px;color:#9f948c;font-size:11px;line-height:1.8}.cw-source-card h3{color:#d0b69f;font-size:12px;font-weight:500;margin-bottom:7px}.cw-source-card span{display:block;font:8px monospace;letter-spacing:1px;margin-top:12px;color:#a69a8d}.cw-alert{border:1px solid #8d6436;background:#30261a;padding:14px;margin-bottom:15px;border-radius:6px;font-size:12px;color:#f4c495}.cowboy-live .cw-alert button{margin-left:10px;min-height:32px;padding:4px 9px}.cw-league-error{font-size:11px;color:#e6af82;padding:7px 0 12px}
+@media(min-width:1500px){.cw-grid{grid-template-columns:190px minmax(0,1fr) 310px;gap:30px}.cw-event,.cw-event-head{grid-template-columns:minmax(0,1fr) 240px}.cw-event{padding-block:21px}.cw-team{font-size:14px}}
+@media(max-width:1190px){.cw-grid{grid-template-columns:145px minmax(0,1fr) 245px;gap:16px;padding:0 20px}.cw-header{gap:35px}.cw-event,.cw-event-head{grid-template-columns:minmax(0,1fr) 155px;gap:12px;padding-inline:12px}.cw-team{font-size:12px}.cw-toolbar{flex-wrap:wrap}.cw-search{flex:1}.cw-sports{padding-right:10px}.cw-sports button{font-size:11px!important}}
+@media(max-width:1000px){.cw-grid{grid-template-columns:minmax(0,1fr) 250px;gap:0 20px}.cw-sports{grid-column:1/-1;border:0;padding:15px 0 0}.cw-sports>p,.cw-rail-note{display:none}.cw-sports nav{display:flex;flex-direction:row;overflow:auto;gap:7px;padding-bottom:5px}.cowboy-live .cw-sports nav button{flex-shrink:0;border-color:#343033;padding:8px 12px;min-height:44px}.cw-sports button small{margin-left:3px}.cw-title h1{font-size:27px}.cw-main{padding-top:18px}.cw-picks-rail{padding-top:20px}.cw-event,.cw-event-head{grid-template-columns:minmax(0,1fr) 130px;gap:12px}.cw-pick-options button{font-size:11px!important}.cw-event-meta{font-size:8px}}
+@media(max-width:700px){.free-strip{padding:6px 14px;font-size:8px;letter-spacing:.7px}.free-strip>span:last-child{display:none}.cw-header{height:112px;padding:11px 14px 0;gap:12px;position:relative;align-items:flex-start;flex-wrap:wrap}.cw-brand img{width:41px;height:41px}.cw-brand>span{font-size:22px}.cw-brand small{font-size:7px;margin-top:7px}.cowboy-live .cw-account{font-size:11px;max-width:140px;margin-top:2px;min-height:40px}.cw-header nav{height:42px;position:absolute;bottom:0;left:14px;gap:26px}.cw-source{padding:7px 14px;font-size:9px;gap:8px}.cw-source>span{gap:6px}.cw-grid{display:flex;flex-direction:column;gap:0;padding:0 12px 20px}.cw-sports{padding-top:12px}.cw-main{padding-top:17px}.cw-title{margin-bottom:15px}.cw-title h1{font-size:28px}.cw-kicker{font-size:8px}.cw-board-intro{padding:15px 17px;margin-bottom:17px;min-height:111px}.cw-board-intro strong{font-size:22px}.cw-board-intro p{font-size:11px}.cw-board-intro img{width:92px;height:92px;margin-right:-3px}.cw-toolbar{gap:9px;margin-bottom:19px}.cw-toolbar>div{width:100%;justify-content:flex-start}.cowboy-live .cw-toolbar button{min-height:44px;font-size:12px;padding:9px 14px}.cw-search{width:100%;min-height:44px;padding:9px 12px}.cw-search input{font-size:12px}.cw-board-meta{margin-bottom:10px}.cw-board-meta h2{font-size:14px}.cw-board-meta>span{font-size:8px}.cw-event-head{grid-template-columns:1fr 130px;font-size:7px;padding:10px}.cw-event{grid-template-columns:minmax(0,1fr) 125px;gap:11px;padding:15px 10px}.cw-team{font-size:11px;line-height:1.8}.cw-team>b{font-size:13px;min-width:16px}.cw-pick-options{gap:4px}.cowboy-live .cw-pick-options button{padding:8px 4px;min-height:58px}.cw-pick-options button small{font-size:7px}.cw-event-meta{gap:5px}.cw-event-meta>span{font-size:8px}.cw-event-time{font-size:8px;gap:5px}.cw-event-time>span{font-size:7px}.cw-picks-rail{display:none}.cw-footer{padding-bottom:70px}.cw-feed-note{font-size:9px}.cw-source>span:last-child{font-size:8px}}
+.cw-selected{padding:19px 16px}.cw-selected h3{font-size:13px;line-height:1.6;margin-top:10px}.cw-selected>p{font-size:10px;color:#b9aba0;margin:12px 0}.cw-chosen,.cw-review-selection{background:#32281f;border:1px solid #6f4b30;border-radius:5px;padding:13px;margin-top:14px;color:#ffc593}.cw-chosen small,.cw-review-selection small{display:block;font:8px monospace;letter-spacing:1px;margin-bottom:6px;color:#bc9b80}.cw-chosen strong,.cw-review-selection strong{font-size:16px}.cowboy-live .cw-primary{background:#ffb477;color:#24180e;border-color:#ffb477;font-weight:700;width:100%;min-height:44px;margin-top:14px}.cowboy-live .cw-primary:hover:not(:disabled){background:#ffc798;color:#24180e}.cowboy-live .cw-clear{background:transparent;border:0;width:100%;font-size:11px;color:#b4a69b;margin-top:6px}.cw-dialog{padding:23px;width:min(440px,calc(100vw - 28px));max-height:90dvh;overflow:auto;border:1px solid #66503d;background:#201c1c;color:var(--paper);border-radius:9px;box-shadow:0 24px 90px #0008}.cw-dialog::backdrop{background:#09080bc9}.cw-dialog-head{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:20px}.cw-dialog-head h2{font-size:20px;letter-spacing:-.4px}.cowboy-live .cw-dialog-head button{border:0;background:transparent;font-size:23px;min-width:44px;min-height:44px;padding:2px}.cw-auth-tabs{display:flex;gap:9px;margin-bottom:20px}.cowboy-live .cw-auth-tabs button{flex:1;min-height:44px}.cowboy-live .cw-auth-tabs button[aria-pressed=true]{background:#463020;border-color:#a36e42;color:#ffc592}.cw-dialog label{display:block;font-size:12px;margin:17px 0 6px;color:#e2c8b3}.cw-dialog input{display:block;background:#141214;color:#f6ece3;border:1px solid #675041;border-radius:5px;width:100%;padding:12px;margin-top:8px;min-height:44px}.cw-field-hint{font-size:10px;color:#b3a297;line-height:1.6}.cw-form-error{color:#ffba9b!important;font-size:12px;margin:13px 0!important;line-height:1.6}.cw-dialog-footnote,.cw-dialog-copy{font-size:12px;color:#bfafa2;line-height:1.8;margin:16px 0!important}.cw-dialog-footnote{font-size:10px}.cw-history-head{display:flex;justify-content:space-between;align-items:start;gap:20px;margin:14px 0 24px}.cw-history-head h2{font-size:20px;margin-bottom:7px}.cw-history-head p{font-size:11px;color:#b4a69b}.cw-history-head button{flex-shrink:0}.cw-ticket-list{border:1px solid #423932;border-radius:6px;overflow:hidden}.cw-ticket{display:flex;align-items:center;justify-content:space-between;gap:15px;background:#201d1e;padding:18px;border-bottom:1px solid #423932}.cw-ticket:last-child{border:0}.cw-ticket h3{font-size:14px;margin:8px 0}.cw-ticket p{font-size:12px;color:#bbaa9e;margin-bottom:9px}.cw-ticket small{font-size:9px;color:#9b8c82}.cw-ticket-status{font:10px monospace;background:#3a3025;color:#edbf8b;border:1px solid #665138;padding:5px 9px;border-radius:4px}.cw-ticket-status.won{color:#bdd8a7;background:#24301f;border-color:#48593d}.cw-ticket-status.lost{color:#e6b0a2;background:#39221f;border-color:#694539}.cw-ticket-status.void,.cw-ticket-status.cancelled{color:#bcb8b4;background:#302d2c;border-color:#55504b}.cw-empty button{margin-top:18px}.cw-toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:16px;background:#2b3524;color:#dce9d1;border:1px solid #6b825a;border-radius:6px;box-shadow:0 9px 30px #0006;z-index:30;padding:10px 12px 10px 17px;max-width:calc(100vw - 28px);font-size:12px}.cowboy-live .cw-toast button{background:none;border:0;font-size:23px;min-width:44px;min-height:44px}.cw-mobile-pick{display:none!important}
+@media(max-width:700px){.cowboy-live .cw-mobile-pick{display:flex!important;position:fixed;bottom:12px;left:12px;right:12px;justify-content:space-between;background:#ffb477;color:#24180e;box-shadow:0 8px 35px #000a;z-index:20;min-height:51px;font-weight:700;padding:14px 17px;border-color:#ffceaa}.cw-mobile-pick span{font-weight:400}.cw-toast{bottom:77px;min-width:300px}.cw-dialog{padding:19px}.cw-history-head{flex-direction:column}.cw-ticket{padding:14px;align-items:flex-start}.cw-ticket h3{font-size:13px}}
+.cw-source button svg,.cw-toast button svg,.cw-dialog-head button svg{width:19px;height:19px;display:block}.cw-source button{display:grid;place-items:center}.cowboy-live .cw-watch{margin-left:auto;flex-shrink:0;display:grid;place-items:center;min-width:38px;min-height:38px;padding:9px;border:0;background:none;color:#a6a29d}.cw-watch svg{width:17px;height:17px}.cowboy-live .cw-watch[aria-pressed=true]{color:#ffbc82;background:#30261f}.cowboy-live .cw-event-detail{display:block;width:100%;padding:0;border:0;background:none;text-align:left;border-radius:2px}.cowboy-live .cw-event-detail:hover{background:none;color:#ffcfaa}.cw-event-meta{min-height:28px}.cw-event-meta>span{min-width:0}.cw-team span{min-width:0;overflow-wrap:anywhere}.cw-event-time{align-items:center}.cowboy-live .cw-event-time button{background:none;border:0;padding:3px 0 3px 7px;min-height:26px;font-size:9px;color:#c9b3a1;margin-left:auto;text-decoration:underline;text-underline-offset:3px}.cw-detail-league{display:flex;align-items:center;gap:9px;font:10px monospace;letter-spacing:1px;color:#d8b496;margin-bottom:20px}.cw-detail-league svg{width:24px;height:24px}.cw-detail-score{background:#171416;border:1px solid #4b3e36;border-radius:6px;padding:14px 16px;margin:15px 0}.cw-detail-score>div{display:flex;justify-content:space-between;gap:20px;align-items:center;min-height:40px}.cw-detail-score b{font-size:23px;font-variant-numeric:tabular-nums}.cw-detail-facts{margin:20px 0}.cw-detail-facts>div{display:flex;justify-content:space-between;gap:20px;border-bottom:1px solid #423832;padding:11px 0;font-size:11px}.cw-detail-facts dt{color:#b6a89e}.cw-detail-facts dd{margin:0;text-align:right}.cw-source-link{display:inline-block;margin-top:16px;color:#ffc28f;font-size:12px;min-height:44px;padding-top:12px}.cowboy-live .cw-terms{background:none;border:0;color:#ceb399;padding:12px 0;font-size:10px;text-decoration:underline;text-underline-offset:4px;min-height:44px}.cw-rules{font-size:12px;line-height:1.8;color:#c4b8af}.cw-rules p+p{margin-top:15px}.cw-scores-updated{animation:cw-score-change 1.6s ease-out}@keyframes cw-score-change{0%,20%{background:#755038;color:#ffe8d5}100%{background:transparent}}
+@media(max-width:700px){.cowboy-live .cw-watch{min-width:44px;min-height:44px;padding:12px}.cw-event-meta{gap:4px;flex-wrap:wrap}.cw-event-meta>span{max-width:110px;line-height:1.6}.cw-event-meta .cw-watch{margin-top:-4px;margin-bottom:-4px}.cw-event-time{flex-wrap:wrap}.cowboy-live .cw-event-time button{min-height:36px}.cowboy-live .cw-toolbar button{padding-inline:10px}.cw-dialog-head button{flex-shrink:0}.cw-rules{font-size:12px}}
+.cw-team>b.cw-scores-updated{color:#ffd0a6;background:#5b3d28;box-shadow:0 0 0 4px #5b3d28;border-radius:2px}
+/* Board composition informed by Fanatics official product screens; no operator assets or money UI. */
+.cowboy-live{--edge:#303033;--surface:#1c1c1f;background:#101012;color:#f5f4f1}
+.free-strip{background:#29251e;padding-block:6px}.cw-header{height:76px;background:#171719;position:sticky;top:0;z-index:25;gap:55px}.cw-brand img{width:45px;height:45px}.cw-brand>span{font-size:23px}.cw-brand small{font-size:7px}.cw-source{background:#111113;border-bottom:1px solid #242426}.cw-grid{grid-template-columns:168px minmax(0,1fr) 280px;gap:24px;padding:0 24px;max-width:1800px;margin:auto;align-items:start}.cw-sports{position:sticky;top:76px;max-height:calc(100dvh - 76px);overflow:auto;padding-top:25px}.cw-main{min-width:0;padding-top:24px}.cw-title{margin-bottom:20px}.cw-title h1{font-size:29px;letter-spacing:-1px}.cw-kicker{letter-spacing:1.5px}.cw-picks-rail{position:sticky;top:94px;padding-top:24px;min-width:0}.cw-picks-rail>div:first-child{border-top:3px solid var(--tan);box-shadow:0 8px 30px #0002}.cw-rail-note{margin-top:28px}.cw-board-intro{position:relative;overflow:hidden;border:1px solid #755139;border-radius:10px;min-height:225px;padding:25px 28px;margin-bottom:27px;background:radial-gradient(ellipse at 88% 70%,#a36c3b55,transparent 48%),repeating-linear-gradient(120deg,transparent 0 35px,#aa805108 36px 37px),#27201d}.cw-board-intro>div{position:relative;z-index:1;max-width:72%}.cw-board-intro .cw-kicker{font-size:9px;color:#e9b68e}.cw-board-intro strong{display:block;margin:10px 0;font-size:36px;line-height:1.02;letter-spacing:-1.5px;color:#fff1e6}.cw-board-intro p{font-size:11px;color:#cfbbb0;line-height:1.5}.cw-board-intro img{position:absolute;width:190px;height:190px;right:10px;bottom:0;object-fit:contain;transform:rotate(-5deg);filter:drop-shadow(0 10px 25px #0008)}.cowboy-live .cw-board-intro button{margin-top:17px;min-height:36px;background:#ffb477;color:#21150d;border-color:#ffb477;font-weight:700;font-size:11px;border-radius:5px;display:flex;gap:24px;align-items:center}.cw-section-heading{display:flex;align-items:center;justify-content:space-between;margin-bottom:13px}.cw-section-heading h2{font-size:17px;letter-spacing:-.3px}.cw-section-heading>span{font:8px monospace;color:#aaa19a;letter-spacing:1px}.cw-feature-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:26px}.cw-feature{border:1px solid #383639;border-radius:8px;background:linear-gradient(150deg,#272426,#1b1b1e);padding:13px 12px;min-width:0}.cw-feature-top{display:flex;align-items:center;gap:6px;font-size:9px;color:#c4b6ab}.cw-feature-top svg{width:16px;height:16px;flex-shrink:0}.cw-feature-top>span{margin-left:auto;font:8px monospace;white-space:nowrap;color:#e9bb97}.cw-feature-top b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.cw-feature-teams{margin:16px 0 9px}.cw-feature-teams>div{display:flex;align-items:center;gap:7px;min-height:37px;font-size:10px}.cw-feature-teams>div>span:nth-child(2){min-width:0;line-height:1.4}.cw-team-monogram{display:grid;place-items:center;background:#3d322a;border:1px solid #67503c;border-radius:4px;min-width:33px;height:27px;font-size:9px;font-weight:800;color:#ffd7b6}.cw-feature-teams b{margin-left:auto;font-size:17px}.cw-feature-bottom{display:flex;align-items:center;justify-content:space-between;gap:4px;border-top:1px solid #393235;padding-top:8px}.cw-feature-bottom>span{font-size:8px;color:#b5a99f}.cowboy-live .cw-feature-bottom button{border:0;background:none;font-size:10px;padding:4px;min-height:32px;color:#ffbb85;white-space:nowrap}.cw-toolbar{border-top:1px solid #303034;padding-top:19px;gap:10px;flex-wrap:wrap;margin-bottom:14px}.cw-toolbar>div{display:flex;flex:1;gap:5px}.cowboy-live .cw-toolbar button{border-radius:5px;min-height:38px;font-size:11px;padding:8px 12px;white-space:nowrap}.cowboy-live .cw-toolbar button[aria-pressed=true]{background:#eee8e0;color:#242020;border-color:#eee8e0}.cw-search{flex:1;min-width:170px;max-width:none;background:#1b1b1e}.cw-search input{width:100%;min-width:0}.cw-board-meta{align-items:center;gap:12px;flex-wrap:wrap;scroll-margin-top:90px;margin:20px 0 12px}.cw-board-meta h2{font-size:17px}.cw-board-controls{display:flex;align-items:center;gap:10px;flex-wrap:wrap;color:#aaa29a;font-size:9px}.cw-board-controls select{font:10px Arial;background:#242427;color:#ddd1c6;border:1px solid #414044;border-radius:4px;padding:8px;min-height:34px;max-width:170px}.cw-board-controls select:focus-visible{outline:2px solid var(--tan);outline-offset:2px}.cowboy-live .cw-board-controls button{font-size:10px;min-height:34px;padding:6px 8px}.cw-events{background:#1a1a1d;border-color:#343337;overflow:hidden;border-radius:8px}.cw-event-head{background:#141416;grid-template-columns:minmax(0,1fr) 180px;padding:12px 16px;font-size:8px;letter-spacing:1.2px}.cowboy-live .cw-league-toggle{display:flex;width:100%;align-items:center;gap:9px;padding:12px 16px;background:#282629;border:0;border-block:1px solid #393438;border-radius:0;text-align:left;min-height:45px}.cw-league-toggle svg{width:18px;height:18px;color:#e8b48b}.cw-league-toggle strong{font-size:12px}.cw-league-toggle small{font-size:9px;color:#aea49c;margin-left:auto}.cw-league-toggle>span{font-size:20px;color:#b3a194;margin-left:10px}.cw-event{grid-template-columns:minmax(0,1fr) 180px;gap:20px;padding:12px 16px;background:#1a1a1d}.cw-event:hover{background:#201e21}.cw-event-meta{font-size:8px;min-height:28px}.cw-event-meta>svg,.cw-event-meta>b{display:none}.cw-event-meta>span{line-height:1.4}.cw-team{font-size:12px;line-height:1.85}.cw-team>b{font-size:15px;font-variant-numeric:tabular-nums}.cw-event-time{font-size:9px}.cw-pick-options{align-self:center;gap:6px}.cowboy-live .cw-pick-options button{min-height:60px;background:#2b292d;border-color:#494247;border-radius:5px;font-weight:700;font-size:12px}.cowboy-live .cw-pick-options button:not(:disabled):hover{background:#47362b;border-color:#c68d5d}.cowboy-live .cw-pick-options button[aria-pressed=true]{background:#ffb477;color:#27180d;border-color:#ffb477}.cw-pick-options button small{font-size:7px;letter-spacing:.6px}.cw-detail-pick{padding:15px;background:#171416;border:1px solid #4b3e36;border-radius:6px;margin:15px 0}.cw-detail-pick h3{font-size:14px}.cw-detail-pick .cw-pick-options{display:grid;grid-template-columns:1fr 1fr;margin-top:12px}.cw-detail-pick small{display:block;margin-top:5px}.cw-mobile-nav{display:none}.cw-league-error{font-size:9px;line-height:1.5;padding:9px 12px;background:#2b241d;border-left:2px solid #a6784b;margin-block:10px;border-radius:0 4px 4px 0}.cw-feed-note{line-height:1.7}.cw-live-label{color:#aee0ba!important}
+@media(min-width:1500px){.cw-grid{grid-template-columns:180px minmax(0,1fr) 300px;gap:28px}.cw-feature{padding:17px}.cw-feature-teams>div{font-size:12px}.cw-board-intro strong{font-size:42px}}
+@media(max-width:1190px){.cw-grid{grid-template-columns:140px minmax(0,1fr) 235px;gap:16px;padding-inline:18px}.cw-feature-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.cw-feature:last-child{display:none}.cw-event,.cw-event-head{grid-template-columns:minmax(0,1fr) 130px;gap:12px;padding-inline:12px}.cw-board-intro{padding:24px 20px}.cw-board-intro strong{font-size:30px}.cw-board-intro img{width:145px;height:160px;right:-10px}.cw-board-intro>div{max-width:78%}}
+@media(max-width:1000px){.cw-grid{grid-template-columns:minmax(0,1fr) 240px;gap:0 18px}.cw-sports{position:static;max-height:none;overflow:visible;padding-top:16px}.cw-sports nav{gap:7px}.cowboy-live .cw-sports nav button{font-size:11px!important;background:#1c1c1f;border:1px solid #393438;min-height:44px;padding-inline:12px}.cw-main{padding-top:20px}.cw-picks-rail{top:88px}.cw-feature-top{font-size:9px}.cw-board-controls{gap:8px}.cw-board-intro strong{font-size:30px}}
+@media(max-width:700px){.cowboy-live{padding-bottom:72px}.free-strip{font-size:8px}.cw-header{height:66px;padding:10px 14px;align-items:center;flex-wrap:nowrap;gap:8px}.cw-header nav{display:none}.cw-brand img{height:37px;width:37px}.cw-brand>span{font-size:20px}.cw-brand small{font-size:6px}.cowboy-live .cw-account{margin:0 0 0 auto;min-height:40px}.cw-source{font-size:8px;padding-block:7px}.cw-grid{padding-inline:12px;display:flex}.cw-sports{padding-top:12px;max-width:100%}.cw-main{width:100%;padding-top:16px}.cw-title h1{font-size:27px}.cw-title{margin-bottom:17px}.cw-title .cw-kicker{font-size:7px}.cw-board-intro{min-height:218px;padding:20px;margin-bottom:23px}.cw-board-intro strong{font-size:30px}.cw-board-intro img{width:145px;height:165px;right:-10px}.cw-board-intro>div{max-width:77%}.cw-board-intro p{font-size:10px;max-width:210px}.cw-board-intro .cw-kicker{font-size:8px}.cw-feature-grid{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;gap:10px;padding-bottom:5px;margin-bottom:19px}.cw-feature{flex:0 0 84%;scroll-snap-align:start;padding:15px}.cw-feature:last-child{display:block}.cw-feature-teams>div{font-size:12px;min-height:39px}.cw-feature-top{font-size:10px}.cw-feature-bottom>span{font-size:9px}.cowboy-live .cw-feature-bottom button{min-height:44px;font-size:11px}.cw-section-heading h2{font-size:16px}.cw-section-heading>span{font-size:7px}.cw-toolbar>div{gap:5px}.cowboy-live .cw-toolbar button{padding-inline:10px;flex:1;min-height:44px;font-size:11px}.cw-search{flex-basis:100%;min-height:44px}.cw-board-meta{margin-top:18px;gap:9px}.cw-board-meta h2{font-size:16px}.cw-board-controls{width:100%;justify-content:space-between}.cw-board-controls select{min-height:44px;font-size:10px}.cowboy-live .cw-board-controls button{min-height:44px}.cw-event,.cw-event-head{grid-template-columns:minmax(0,1fr) 112px;gap:10px;padding-inline:11px}.cw-event{padding-block:13px}.cw-event-meta{flex-wrap:nowrap;font-size:8px}.cw-event-meta>span{max-width:170px}.cw-team{font-size:11px;line-height:1.9}.cw-event-time>span{display:none}.cw-event-time{gap:3px}.cowboy-live .cw-pick-options button{font-size:11px;min-height:58px;padding:8px 3px}.cowboy-live .cw-league-toggle{min-height:47px;padding-inline:12px}.cw-picks-rail{display:none}.cw-mobile-nav{display:flex;position:fixed;inset:auto 0 0;z-index:30;background:#1b191bf5;backdrop-filter:blur(12px);border-top:1px solid #574333;padding:5px 12px max(5px,env(safe-area-inset-bottom));gap:8px}.cowboy-live .cw-mobile-nav button{flex:1;display:flex;flex-direction:column;gap:3px;align-items:center;justify-content:center;min-height:52px;border:0;background:transparent;color:#aea59d;font-size:9px}.cw-mobile-nav svg{width:20px;height:20px}.cw-mobile-nav button>span{font-size:21px;line-height:20px}.cowboy-live .cw-mobile-nav button[aria-pressed=true]{color:#ffc08b;background:#33271f}.cowboy-live .cw-mobile-pick{bottom:74px;z-index:26;left:12px;right:12px}.cw-toast{bottom:140px}.cw-footer{padding-bottom:100px}.cw-dialog{max-height:86dvh}.cw-board-meta{scroll-margin-top:80px}}
+@media(prefers-reduced-motion:reduce){.cowboy-live *{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+
+/* Provider team marks are optional; names and COWBOY initials remain the fallback. */
+.cw-team-mark{display:grid;place-items:center;flex:none;width:28px;height:28px;border-radius:50%;overflow:hidden;background:#302b28;border:1px solid #51443b;color:#ffe0c6;font:700 8px/1 Arial,Helvetica,sans-serif;letter-spacing:0}
+.cw-team-mark img{width:100%;height:100%;object-fit:contain;padding:3px}
+.cw-team-mark.small{width:33px;height:27px;border-radius:5px}
+.cw-team-identity{display:flex;align-items:center;gap:8px;min-width:0}
+.cw-team-identity>span:last-child{min-width:0;overflow-wrap:anywhere}
+.cw-feature-teams .cw-team-mark{width:33px;height:27px;border-radius:5px}
+.cw-live-overview{display:flex;align-items:center;justify-content:space-between;gap:24px;min-height:118px;padding:20px 24px;margin:0 0 23px;border:1px solid #3d3836;border-radius:8px;background:linear-gradient(105deg,#211e1d 0%,#19191b 64%,#25201d 100%)}
+.cw-overview-copy{min-width:0}.cw-overview-copy .cw-kicker{margin-bottom:6px;color:#eab58c;font-size:9px}.cw-overview-copy h2{font-size:22px;line-height:1.15;letter-spacing:-.5px}.cw-overview-copy>span{display:block;margin-top:6px;color:#aaa49f;font-size:11px}
+.cw-overview-stats{display:flex;align-items:stretch;gap:0;flex:none}.cw-overview-stats>div{display:flex;flex-direction:column;justify-content:center;min-width:98px;padding:0 18px;border-left:1px solid #3a3837}.cw-overview-stats strong{font-size:26px;line-height:1.05;font-variant-numeric:tabular-nums;color:#f7eee5}.cw-overview-stats strong small{font-size:14px;color:#a79d95}.cw-overview-stats span{margin-top:5px;color:#aaa49f;font-size:9px}
+.cw-date-tabs{display:flex;gap:7px;overflow-x:auto;scrollbar-width:none;margin:0 0 9px;padding:1px 0 3px}.cw-date-tabs::-webkit-scrollbar{display:none}.cowboy-live .cw-date-tabs button{flex:none;min-height:34px;padding:7px 14px;border-radius:18px;background:#1b1b1e;border-color:#38363a;color:#aaa5a0;font-size:10px;white-space:nowrap}.cowboy-live .cw-date-tabs button[aria-pressed=true]{background:#efe6dc;border-color:#efe6dc;color:#211b17;font-weight:700}.cw-board-date{display:inline-block;margin-left:9px;color:#b2a9a1;font-size:10px;font-weight:500;letter-spacing:0}
+@media(max-width:700px){.cw-live-overview{align-items:flex-start;flex-direction:column;gap:15px;padding:17px;margin-bottom:17px}.cw-overview-copy h2{font-size:20px}.cw-overview-stats{width:100%}.cw-overview-stats>div{flex:1;min-width:0;padding:0 10px}.cw-overview-stats>div:first-child{padding-left:0;border-left:0}.cw-overview-stats strong{font-size:22px}.cw-overview-stats span{font-size:8px}.cw-board-date{display:block;margin:4px 0 0}}
+.cowboy-live .cw-show-more{display:flex;width:100%;justify-content:center;align-items:center;min-height:40px;border:0;border-top:1px solid #333136;border-radius:0;background:#1b1a1d;color:#f4b77f;font-size:10px;font-weight:700;letter-spacing:.25px}.cowboy-live .cw-show-more:hover:not(:disabled){background:#272326;border-color:#594334}
+
+/* Home and game center */
+.cw-match-shelf {
+  display: grid;
+  grid-template-columns: 1.35fr 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.cowboy-live .cw-match-card {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+  padding: 14px;
+  border-radius: 12px;
+  background: #1b1a1d;
+  text-align: left;
+}
+
+.cowboy-live .cw-match-card:first-child {
+  background: radial-gradient(ellipse at 48% 100%, #563824 0%, #272022 60%, #201d20 100%);
+  border-color: #654733;
+}
+
+.cw-match-meta, .cw-match-link, .cw-game-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.cw-match-meta, .cw-match-link { font-size: 11px; }
+.cw-match-meta > span, .cw-game-meta > span { display: flex; align-items: center; gap: 6px; }
+.cw-match-meta svg { width: 16px; height: 16px; }
+.cw-match-meta strong { color: #dbc6b4; text-align: right; font-weight: 600; }
+.cw-match-link { margin-top: auto; padding-top: 10px; border-top: 1px solid #ffffff21; color: #ffc18b; }
+.cw-game-scoreboard {
+  display: grid;
+  grid-template-columns: minmax(0,1fr) minmax(0,1fr) minmax(0,1fr);
+  align-items: center;
+  text-align: center;
+  min-width: 0;
+}
+.cw-game-team, .cw-game-status { display: grid; justify-items: center; gap: 6px; min-width: 0; overflow-wrap: anywhere; }
+.cw-game-away { grid-column: 1; grid-row: 1; }
+.cw-game-home { grid-column: 3; grid-row: 1; }
+.cw-game-status { grid-column: 2; grid-row: 1; font-variant-numeric: tabular-nums; }
+
+.cowboy-live .cw-game-dialog { width: min(660px, calc(100% - 24px)); max-width: none; }
+.cw-game-header { border: 1px solid #5b4335; border-radius: 12px; background: radial-gradient(ellipse at center bottom, #503428, #1b191c 78%); }
+.cw-game-meta { padding: 9px 14px; border-bottom: 1px solid #ffffff20; color: #e7cbb4; }
+.cowboy-live .cw-game-watch { display: flex; align-items: center; gap: 6px; }
+.cowboy-live .cw-game-watch[aria-pressed=true] { color: var(--tan); border-color: #946340; }
+.cw-game-scoreboard { grid-template-columns: minmax(0,1fr) minmax(70px,.65fr) minmax(0,1fr); padding: 20px 12px; }
+.cw-game-team { font-weight: 700; }
+.cw-game-team .cw-team-mark { width: clamp(46px,10vw,74px); height: clamp(46px,10vw,74px); font-size: 14px; }
+.cw-game-team strong { font-size: 30px; line-height: 1.2; }
+.cw-game-status { align-self: center; color: #e8c7ae; font-size: 11px; }
+.cw-game-status span { color: var(--dim); }
+.cowboy-live .cw-game-info-toggle { width: 100%; display: flex; justify-content: space-between; text-align: left; }
+.cw-game-dialog .cw-detail-facts { margin: 0 0 12px; }
+.cowboy-live .cw-game-source { margin-top: 12px; color: var(--dim); font-size: 11px; }
+
+@media (max-width: 1190px) {
+  .cw-match-shelf { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; padding: 2px 4px 6px; }
+  .cowboy-live .cw-match-card { flex: 1 0 min(76%, 225px); scroll-snap-align: start; }
+}
+
+/* Live board and pick tracker */
+.cw-live-page .cw-grid, .cw-picks-page .cw-grid {
+  grid-template-columns: 168px minmax(0, 880px);
+  justify-content: center;
+}
+.cw-live-page .cw-toolbar { border-top: 0; padding-top: 0; }
+.cw-live-page .cw-event-head, .cw-live-page .cw-event { grid-template-columns: minmax(0, 1fr) auto; }
+.cowboy-live .cw-live-open { align-self: center; color: var(--tan); min-height: 44px; }
+.cw-live-page .cw-event-detail { padding-bottom: 4px; }
+
+.cw-history .cw-history-head { margin-bottom: 16px; }
+.cw-history-record {
+  padding: 14px;
+  margin-bottom: 16px;
+  border: 1px solid var(--edge);
+  border-radius: 10px;
+  background: var(--surface);
+}
+.cw-history-record dl {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin: 10px 0;
+}
+.cw-history-record dt, .cw-history-record p { color: var(--dim); }
+.cw-history-record dd {
+  margin: 2px 0 0;
+  color: var(--paper);
+  font-size: clamp(15px, 3vw, 22px);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.cw-history-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+.cowboy-live .cw-history-tabs button { border-radius: 18px; min-height: 44px; }
+.cowboy-live .cw-history-tabs button[aria-pressed=true] { background: var(--paper); color: #211b17; }
+.cw-history .cw-tracker-card { display: block; padding: 0; border-radius: 10px; overflow: hidden; }
+.cw-tracker-card > header, .cw-tracker-card > footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px 14px;
+  background: #232126;
+  color: #e0d3c6;
+}
+.cw-tracker-card .cw-tracker-matchup { padding: 14px; }
+.cw-tracker-card .cw-tracker-matchup p { margin-top: 6px; }
+.cw-tracker-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+
+@media (max-width: 1000px) {
+  .cw-live-page .cw-grid, .cw-picks-page .cw-grid { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 700px) {
+  .cw-live-page .cw-event, .cw-live-page .cw-event-head { gap: 6px; }
+  .cowboy-live .cw-live-open { font-size: 11px; padding-inline: 7px; }
+  .cw-picks-page .cw-sports { display: none; }
+}
+
+/* Scoreboard and matchup workspace */
+.cw-home-page .cw-grid, .cw-live-page .cw-grid {
+  grid-template-columns: minmax(0, 1fr) 280px;
+  gap: 0 24px;
+  justify-content: stretch;
+}
+.cw-live-page .cw-grid { grid-template-columns: minmax(0, 1fr); max-width: 1240px; }
+.cw-home-page .cw-sports, .cw-live-page .cw-sports {
+  grid-column: 1 / -1;
+  position: static;
+  max-height: none;
+  border-right: 0;
+  padding: 13px 0;
+  min-width: 0;
+  border-bottom: 1px solid var(--edge);
+}
+.cw-home-page .cw-sports > p, .cw-live-page .cw-sports > p { display: none; }
+.cw-home-page .cw-sports nav, .cw-live-page .cw-sports nav {
+  display: flex;
+  flex-direction: row;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 3px;
+}
+.cowboy-live.cw-home-page .cw-sports nav button, .cowboy-live.cw-live-page .cw-sports nav button {
+  flex: none;
+  gap: 7px;
+  border: 1px solid var(--edge);
+  border-radius: 24px;
+  padding: 8px 12px;
+  white-space: nowrap;
+}
+.cw-sports nav button small { font-variant-numeric: tabular-nums; }
+.cowboy-live .cw-upcoming-jump {
+  min-height: 40px;
+  background: transparent;
+  color: var(--tan);
+  border-color: transparent;
+}
+.cowboy-live .cw-upcoming-jump[aria-pressed=true] { border-color: var(--edge); }
+.cw-home-page .cw-match-card:first-child { background: radial-gradient(ellipse at center bottom,#654125,#2a211e 78%); }
+.cw-home-page .cw-match-shelf { margin-bottom: 18px; }
+.cw-live-page .cw-events { background: transparent; border: 0; }
+.cw-live-page .cw-event-head { display: none; }
+.cw-live-page .cw-league-group {
+  background: #19191c;
+  border: 1px solid var(--edge);
+  border-radius: 10px;
+  overflow: hidden;
+  margin-bottom: 14px;
+}
+.cw-live-page .cw-league-group .cw-event:last-child { border-bottom: none; }
+.cw-live-page .cw-event-meta .cw-live-label { font-size: 11px; }
+.cw-live-page .cw-team { font-size: 13px; }
+.cw-live-page .cw-team > b { min-width: 24px; text-align: center; }
+.cowboy-live .cw-game-tabs {
+  display: flex;
+  gap: 6px;
+  margin: 14px 0;
+  padding: 4px;
+  background: #18171a;
+  border: 1px solid var(--edge);
+  border-radius: 9px;
+}
+.cowboy-live .cw-game-tabs button { background: transparent; flex: 1; border-color: transparent; min-height: 44px; }
+.cowboy-live .cw-game-tabs button[aria-pressed=true] { color: #26180d; background: var(--tan); }
+.cw-game-section { background: #201d20; border: 1px solid var(--edge); border-radius: 8px; padding: 15px; }
+.cowboy-live .cw-game-section h3 { margin-bottom: 8px; }
+.cowboy-live .cw-game-section button { margin-top: 10px; }
+.cowboy-live .cw-game-section-note { color: var(--dim); margin-top: 8px; }
+.cw-game-score-list { margin: 0; }
+.cw-game-score-list > div { display: flex; justify-content: space-between; gap: 16px; padding: 8px 0; border-bottom: 1px solid var(--edge); }
+.cw-game-score-list dd { margin: 0; font-weight: 700; font-variant-numeric: tabular-nums; }
+@media(max-width:1000px) {
+  .cw-home-page .cw-grid { grid-template-columns: minmax(0,1fr) 240px; gap: 0 16px; }
+}
+@media(max-width:700px) {
+  .cw-home-page .cw-grid, .cw-live-page .cw-grid { gap: 0; }
+  .cw-home-page .cw-sports, .cw-live-page .cw-sports { width: 100%; }
+  .cw-live-page .cw-team { font-size: 12px; }
+  .cw-live-page .cw-event-meta .cw-live-label { font-size: 10px; }
+}
+.cw-game-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 6px; }
+.cowboy-live .cw-game-copy { color: var(--tan); }
+.cw-game-share-field { display: grid; gap: 4px; margin-top: 10px; }
+.cw-game-share-field input { min-width: 0; color: var(--paper); background: #171619; border: 1px solid var(--edge); padding: 8px; }
+.cowboy-live .cw-game-link-status {
+  position: fixed; inset: auto auto 18px 18px; z-index: 40;
+  padding: 10px 14px; background: #201d20; border: 1px solid var(--edge); border-radius: 9px;
+}
+@media(max-width:700px) { .cowboy-live .cw-game-link-status { bottom: 74px; } }
+
+/* Compact matchup board and source-backed scorecards */
+.cw-home-page .cw-event {
+  grid-template-columns: minmax(0, 1fr) clamp(92px, 14vw, 158px);
+  align-items: start;
+  column-gap: 16px;
+}
+.cw-home-page .cw-event .cw-pick-options {
+  align-self: start;
+  display: grid;
+  gap: 4px;
+  margin-top: 32px;
+}
+.cowboy-live.cw-home-page .cw-event .cw-pick-options button {
+  min-height: 40px;
+  flex-direction: row;
+  gap: 6px;
+  padding: 5px 7px;
+  border-color: #79513a;
+  background: #30251f;
+}
+.cowboy-live.cw-home-page .cw-event .cw-pick-options button[aria-pressed=true] {
+  background: var(--tan);
+  border-color: var(--tan);
+}
+.cowboy-live.cw-home-page .cw-event .cw-pick-options button:disabled {
+  opacity: 1;
+  color: #9c9691;
+  background: #232225;
+  border-color: #403a3b;
+}
+.cw-home-page .cw-event .cw-pick-options button:disabled small { color: #a49a92; }
+.cw-home-page .cw-event-meta { margin-bottom: 4px; }
+.cw-home-page .cw-event-detail { min-height: 84px; }
+.cw-home-page .cw-team { min-height: 40px; }
+.cw-home-page .cw-team + .cw-team { margin-top: 4px; }
+.cw-home-page .cw-event-head { grid-template-columns: minmax(0, 1fr) clamp(92px, 14vw, 158px); }
+
+.cw-live-switcher {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.cowboy-live .cw-live-switcher button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 52px;
+  padding: 9px 15px;
+  background: #1c1b1e;
+  text-align: left;
+  font-weight: 700;
+}
+.cw-live-switcher strong {
+  font-size: 17px;
+  font-variant-numeric: tabular-nums;
+}
+.cowboy-live .cw-live-switcher button[aria-pressed=true] {
+  background: #3a2a21;
+  border-color: #a27351;
+  color: #ffcfaa;
+}
+.cw-live-page .cw-event { padding-block: 11px; }
+.cw-live-page .cw-event[data-event-status=live] {
+  box-shadow: inset 3px 0 #78977c;
+}
+.cw-live-page .cw-team > b { min-width: 38px; font-size: 18px; }
+
+.cowboy-live .cw-game-venue {
+  padding: 0 12px 14px;
+  text-align: center;
+  color: #e0cebe;
+  font-size: 12px;
+}
+.cw-linescores-scroll {
+  overflow-x: auto;
+  border: 1px solid var(--edge);
+  border-radius: 8px;
+  background: #1a191c;
+}
+.cw-linescores-scroll:focus-visible { outline: 2px solid var(--tan); outline-offset: 2px; }
+.cw-linescores {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+.cw-linescores caption {
+  padding: 12px;
+  text-align: left;
+  font-weight: 700;
+}
+.cw-linescores th, .cw-linescores td {
+  padding: 7px 10px;
+  border-top: 1px solid var(--edge);
+  text-align: right;
+}
+.cw-linescores thead { color: var(--dim); font-size: 11px; }
+.cw-linescores tr > :first-child { text-align: left; }
+.cw-linescores tr > :last-child { color: #ffcfaa; font-weight: 700; }
+
+@media (max-width: 700px) {
+  .cw-home-page .cw-event { column-gap: 8px; }
+  .cowboy-live.cw-home-page .cw-event .cw-pick-options button { gap: 4px; }
+  .cowboy-live .cw-live-switcher button { padding: 7px 8px; font-size: 11px; }
+  .cw-live-switcher strong { font-size: 14px; }
+}
+
+.cw-set-scores {
+  display: inline-flex;
+  gap: 4px;
+  font-variant-numeric: tabular-nums;
+}
+.cw-team .cw-set-scores b {
+  min-width: 24px;
+  padding: 1px 4px;
+  text-align: center;
+  background: #262428;
+  border-radius: 4px;
+}
+.cw-team .cw-set-scores b:last-child { color: var(--tan); }
+.cw-game-team .cw-set-scores b {
+  min-width: 24px;
+  padding: 2px 5px;
+  background: #262428;
+  border-radius: 4px;
+  font-size: 15px;
+}
+.cw-linescores .cw-active-set { background: #322920; color: #ffcfaa; }
+.cw-linescores .cw-won-set { font-weight: 700; }
+.cw-linescores sup { margin-inline-start: 2px; }
+.cw-result-winner { color: var(--tan); }
+.cw-fight-summary {
+  display: grid;
+  gap: 3px;
+  padding: 0 12px 10px;
+  text-align: center;
+}
+.cw-fight-summary span, .cw-fighter-record { color: var(--dim); }
+.cw-fighter-record { font-variant-numeric: tabular-nums; }
+.cw-fight-scorecards { margin-top: 14px; }
+.cw-fight-scorecards h4 { margin: 0 0 8px; }
+
+.cw-game-stats-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.cowboy-live .cw-game-stats-heading > :is(h3, button) { margin: 0; }
+.cowboy-live .cw-game-stats-heading button { min-height: 34px; font-size: 12px; }
+
+.cw-team-stats-table {
+  border-collapse: collapse;
+  width: 100%;
+  table-layout: fixed;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.cw-team-stats-table :is(td, th) {
+  border-bottom: 1px solid var(--edge);
+  padding: 10px 5px;
+  overflow-wrap: anywhere;
+}
+
+.cw-team-stats-table thead th { color: var(--tan); }
+.cw-team-stats-table thead th:nth-child(2) { width: 52%; }
+.cw-team-stats-table tbody th { color: var(--dim); font-weight: 500; }
+.cw-team-stats-table tbody td { font-weight: 700; }
+.cw-scoring-plays { margin-top: 20px; }
+.cw-scoring-plays ol { list-style: none; padding: 0; margin: 0; }
+
+.cw-scoring-plays li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-bottom: 1px solid var(--edge);
+  padding: 10px 0;
+}
+
+.cw-scoring-plays li strong {
+  margin-left: auto;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  color: var(--tan);
+}
+
+.cw-scoring-plays small { color: var(--dim); }
+@media (max-width: 420px) {
+  .cowboy-live .cw-game-tabs button { padding-inline: 4px; white-space: nowrap; }
+}
+
+.cw-matchup-teams {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.cw-matchup-team { border-top: 1px solid var(--edge); padding: 12px 0 0; }
+.cw-matchup-team-heading { display: flex; align-items: center; gap: 9px; min-height: 42px; }
+.cw-matchup-team h4 { margin: 0 0 2px; }
+.cw-matchup-team h5 { margin: 14px 0 5px; color: var(--dim); font-size: 12px; }
+.cw-matchup-team-heading span:not(.cw-team-mark) { color: var(--dim); font-size: 12px; }
+.cowboy-live .cw-series-result { color: var(--tan); margin-bottom: 8px; font-weight: 700; }
+.cw-matchup ol, .cw-matchup ul { padding: 0; margin: 0; list-style: none; }
+.cw-matchup li { border-bottom: 1px solid var(--edge); padding: 7px 0; font-size: 12px; }
+
+.cw-recent-results li {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr) max-content;
+  align-items: center;
+  gap: 8px;
+}
+
+.cw-result-badge {
+  text-align: center;
+  background: #342c31;
+  color: var(--paper);
+  border-radius: 4px;
+  padding: 3px;
+  font-weight: 700;
+}
+
+.cw-result-badge[data-result="W"] { background: #294038; color: #c2eed7; }
+.cw-recent-results strong { font-variant-numeric: tabular-nums; }
+.cw-matchup time { display: block; font-size: 11px; color: var(--dim); }
+.cw-injury-report li > span { display: block; color: #e9c5a5; }
+.cw-injury-report small { color: var(--dim); font-size: 11px; }
+@media (max-width: 490px) {
+  .cw-matchup-teams { grid-template-columns: 1fr; }
+  .cowboy-live .cw-game-tabs { gap: 2px; }
+  .cowboy-live .cw-game-tabs button { min-width: 0; padding-inline: 3px; font-size: 11px; }
+}
+
+.cw-toolbar:has(.cw-board-search) { align-items: flex-start; }
+.cw-toolbar > .cw-board-search { display: block; flex: 1 1 220px; min-width: 0; }
+.cw-board-search .cw-search { min-width: 0; }
+.cw-search-suggestions {
+  list-style: none;
+  padding: 3px;
+  margin: 6px 0 0;
+  border: 1px solid var(--edge);
+  border-radius: 8px;
+  background: #201d20;
+}
+
+.cowboy-live .cw-search-suggestions button {
+  display: flex;
+  width: 100%;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 2px 8px;
+  text-align: left;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  padding: 7px 8px;
+}
+.cowboy-live .cw-search-suggestions button:hover, .cowboy-live .cw-search-suggestions button:focus-visible {
+  background: #30262a;
+  border-color: var(--tan);
+}
+.cw-search-suggestions button > span { overflow-wrap: anywhere; }
+.cw-search-suggestions small { color: var(--dim); font-size: 10px; }
+.cw-board-context { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.cowboy-live .cw-board-follow, .cowboy-live .cw-follow-list button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 8px;
+  min-height: 36px;
+  font-size: 12px;
+}
+.cw-board-follow svg, .cw-follow-list svg, .cw-sports nav button > svg:nth-of-type(2) {
+  height: 14px;
+  width: 14px;
+  color: var(--tan);
+}
+.cw-follow-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.cw-follow-list button svg:last-child { color: var(--dim); }
+
+@media (max-width: 700px) {
+  .cw-toolbar > .cw-board-search { flex-basis: 100%; }
+  .cowboy-live .cw-board-follow, .cowboy-live .cw-follow-list button { min-height: 44px; }
+}
+
+.cw-timeline-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.cw-timeline-controls span { color: var(--dim); }
+.cw-timeline-controls select {
+  color: var(--paper);
+  background: #211d20;
+  border: 1px solid var(--edge);
+  padding: 6px;
+  border-radius: 4px;
+}
+.cowboy-live .cw-timeline-controls button[aria-pressed=true] {
+  background: var(--tan);
+  color: #26180d;
+}
+.cw-timeline-plays { margin-top: 10px; }
+.cw-timeline-plays li > div { min-width: 0; overflow-wrap: anywhere; }
+
+@media (max-width: 490px) {
+  .cowboy-live .cw-game-tabs {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.cw-player-controls { margin-bottom: 10px; }
+.cw-player-teams { display: flex; gap: 8px; flex-wrap: wrap; }
+.cw-player-table-scroll { overflow-x: auto; max-width: 100%; }
+.cw-player-table-scroll table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.cw-player-table-scroll caption { padding: 8px 0; text-align: left; color: var(--dim); }
+.cw-player-table-scroll :is(th, td) { border-bottom: 1px solid var(--edge); padding: 9px 8px; text-align: right; white-space: nowrap; }
+.cw-player-table-scroll tr > :first-child { position: sticky; left: 0; background: #201d20; text-align: left; }
+
+@media (max-width: 490px) {
+  .cowboy-live .cw-game-tabs { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .cw-player-table-scroll tr > :first-child { min-width: 110px; max-width: 135px; white-space: normal; }
+}
+
+.cw-spotlight-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0 0 8px;
+}
+.cowboy-live .cw-spotlight-options button { min-height: 36px; padding: 5px 10px; }
+.cowboy-live .cw-spotlight-options button[aria-pressed=true] {
+  background: var(--tan);
+  border-color: var(--tan);
+  color: #26180d;
+}
+.cowboy-live .cw-spotlight-source, .cowboy-live .cw-spotlight-empty {
+  margin: 0 0 10px;
+  color: var(--dim);
+  font-size: 12px;
+}
+.cw-moments {
+  margin: 14px 0;
+  padding: 12px;
+  border: 1px solid var(--edge);
+  border-radius: 8px;
+}
+.cowboy-live .cw-moments h2 { font-size: 15px; margin-bottom: 8px; }
+.cowboy-live .cw-moments p { color: var(--dim); }
+.cw-moments ul {
+  display: flex;
+  gap: 8px;
+  list-style: none;
+  margin: 0;
+  padding: 4px;
+  overflow-x: auto;
+}
+.cw-moments li { flex: 0 0 min(235px, 85%); }
+.cowboy-live .cw-moments button { display: grid; gap: 5px; width: 100%; height: 100%; text-align: left; }
+.cw-moments button > strong { color: var(--tan); }
+.cw-moments button > small { color: var(--dim); }
+
+.cw-golf-search { display: grid; gap: 6px; max-width: 350px; }
+.cw-golf-search input { color: var(--paper); background: #211d20; border: 1px solid var(--edge); border-radius: 5px; padding: 8px; min-width: 0; }
+.cw-golf-event { border: 1px solid var(--edge); border-radius: 8px; margin: 12px 0; padding: 12px; }
+.cowboy-live .cw-golf-event h3 { margin-bottom: 6px; }
+.cowboy-live .cw-golf-event p { color: var(--dim); }
+.cw-golf-table { width: 100%; margin: 8px 0; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.cw-golf-table :is(th, td) { border-bottom: 1px solid var(--edge); padding: 7px 5px; text-align: left; }
+.cw-golf-table tr > :last-child { width: 5rem; text-align: right; }
+
+.cw-match-lines { display: grid; gap: 6px; }
+.cw-match-line {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  text-align: left;
+}
+.cw-match-line .cw-team-mark { width: 28px; height: 28px; }
+.cw-match-line > strong { min-width: 0; overflow-wrap: anywhere; }
+.cw-match-line b { color: var(--tan); font-variant-numeric: tabular-nums; }
+.cw-match-line .cw-set-scores { flex-wrap: wrap; justify-content: flex-end; max-width: 66px; }
+.cw-match-meta .cw-live-label { color: var(--tan); }
+.cw-live-scorecards { margin-bottom: 16px; }
+.cw-live-scorecards .cw-section-heading { flex-wrap: wrap; }
+.cw-live-scorecards .cw-section-heading > span { color: var(--dim); font-size: 12px; }
+.cw-live-scorecards .cw-match-shelf {
+  grid-template-columns: none;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(220px, 31%);
+  overflow-x: auto;
+  padding: 3px 3px 8px;
+  scroll-snap-type: x proximity;
+}
+.cw-live-scorecards .cw-match-card { scroll-snap-align: start; }
+
+@media (min-width: 1050px) and (min-height: 650px) {
+  .cowboy-live .cw-game-dialog { width: min(1110px, calc(100% - 48px)); }
+  .cw-game-layout { display: grid; grid-template-columns: minmax(265px, 0.44fr) minmax(0,1fr); gap: 20px; }
+  .cw-game-header { align-self: start; position: sticky; top: 0; }
+  .cw-game-body { min-width: 0; }
+  .cw-game-body > .cw-game-tabs:first-child { margin-top: 0; }
+  .cw-game-actions { flex-wrap: wrap; justify-content: flex-end; }
+}
+
+.cw-matchup-navigation {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 0 3px 5px;
+}
+.cw-matchup-navigation span {
+  color: var(--dim);
+  font-size: 12px;
+  text-align: center;
+}
+.cowboy-live .cw-matchup-navigation button {
+  padding: 7px 9px;
+}
+.cowboy-live .cw-matchup-navigation button[aria-disabled=true] {
+  opacity: .55;
+  cursor: default;
+}
+
+.cw-league-matchups {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 3px 3px 9px;
+  margin-bottom: 10px;
+  scroll-snap-type: x proximity;
+}
+.cowboy-live .cw-league-matchups button {
+  display: grid;
+  flex: 0 0 132px;
+  gap: 4px;
+  min-height: 56px;
+  padding: 7px 9px;
+  text-align: left;
+  scroll-snap-align: start;
+}
+.cw-league-matchups button span { color: var(--dim); font-size: 11px; }
+.cowboy-live .cw-league-matchups button[aria-current=true] {
+  border-color: var(--tan);
+  background: #38281f;
+  color: #ffe2c9;
+}
+
+.cw-league-health {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.cw-league-health small, .cw-league-updated {
+  display: block;
+  color: var(--dim);
+  font-size: 11px;
+}
+.cowboy-live .cw-league-health button {
+  flex-shrink: 0;
+  min-height: 44px;
+  color: var(--tan);
+}
+
+.cw-pick-changes { margin-top: 10px; color: var(--dim); }
+.cw-pick-changes summary { cursor: pointer; color: var(--tan); }
+.cw-pick-changes ol { margin: 7px 0 0; padding-left: 20px; }
+
+.cw-draft-pick + .cw-draft-pick, .cw-review-pick + .cw-review-pick {
+  border-top: 1px solid var(--edge);
+  padding-top: 12px;
+  margin-top: 12px;
+}
+.cw-draft-pick .cw-clear { min-height: 40px; }
+
+.cw-pick-options.cw-three-outcomes { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.cw-three-outcomes button { overflow-wrap: anywhere; }
+
+.cw-schedule-dates {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+  margin-bottom: 10px;
+}
+.cw-schedule-dates .cw-date-tabs { min-width: 0; max-width: 100%; margin: 0; }
+.cw-date-picker { display: flex; min-width: 0; gap: 4px; align-items: center; }
+.cw-date-picker label { min-width: 0; }
+.cowboy-live .cw-date-picker button, .cowboy-live .cw-date-picker select {
+  min-height: 40px;
+  background: var(--surface);
+  color: var(--paper);
+}
+.cowboy-live .cw-date-picker button { min-width: 40px; padding: 0 8px; font-size: 18px; }
+.cowboy-live .cw-date-picker select {
+  max-width: 100%;
+  padding: 5px 8px;
+  border: 1px solid var(--edge);
+  border-radius: 7px;
+  font: inherit;
+}
+@media (max-width: 700px) {
+  .cw-date-picker { width: 100%; }
+  .cw-date-picker label { flex: 1; }
+  .cowboy-live .cw-date-picker select { width: 100%; }
+  .cowboy-live .cw-date-picker button, .cowboy-live .cw-date-picker select { min-height: 44px; }
+}
+
+.cw-board-controls .cw-schedule-zone select { min-height: 40px; max-width: 145px; }
+@media (max-width: 700px) {
+  .cw-board-controls .cw-schedule-zone select { min-height: 44px; }
+}
+
+.cw-header-actions { display: flex; min-width: 0; align-items: center; gap: 8px; margin-left: auto; }
+.cowboy-live .cw-header-actions .cw-account { margin: 0; }
+.cowboy-live .cw-updates-button { white-space: nowrap; min-height: 40px; }
+.cw-updates-button span {
+  display: inline-block;
+  min-width: 18px;
+  margin-inline-start: 3px;
+  padding: 0 4px;
+  border-radius: 10px;
+  background: var(--tan);
+  color: #21180f;
+  text-align: center;
+}
+.cw-alert-types { margin: 0 0 13px; padding: 10px; border: 1px solid var(--edge); border-radius: 7px; }
+.cw-alert-types label { display: flex; align-items: center; gap: 7px; padding: 4px 0; }
+.cw-alert-types input { accent-color: var(--tan); }
+.cw-alert-actions { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.cw-alert-list ul { padding: 0; margin: 10px 0; list-style: none; display: grid; gap: 7px; }
+.cowboy-live .cw-alert-list button { width: 100%; display: grid; gap: 3px; text-align: left; }
+.cw-alert-list small { color: var(--dim); }
+.cw-alert-unread { color: var(--tan); font-size: 11px; }
+@media (max-width: 700px) {
+  .cowboy-live .cw-updates-button { min-height: 44px; padding-inline: 7px; }
+  .cw-header-actions { gap: 5px; }
+  .cowboy-live .cw-header-actions .cw-account { max-width: 103px; }
+}
+
+.cw-quiet-times { display: flex; align-items: end; flex-wrap: wrap; gap: 8px 16px; }
+.cw-alert-types .cw-quiet-times label { display: grid; gap: 4px; }
+.cowboy-live .cw-quiet-times input {
+  min-height: 38px;
+  padding: 5px 8px;
+  border: 1px solid var(--edge);
+  border-radius: 5px;
+  background: var(--surface);
+  color: var(--paper);
+}
+
+.cw-footer-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.cowboy-live .cw-footer-actions .install-button { color: var(--tan); background: var(--surface); border-color: var(--edge); }
+
+.cw-glance {
+  display: grid;
+  grid-template-columns: minmax(150px, .8fr) minmax(0, 1.2fr);
+  gap: 14px;
+  margin-bottom: 16px;
+  padding: 12px;
+  border: 1px solid var(--edge);
+  border-radius: 12px;
+  background: #1e1a1c;
+}
+.cw-glance h2 { margin: 0 0 2px; font-size: 18px; }
+.cw-glance h3 { margin: 0 0 5px; font-size: 12px; color: var(--tan); }
+.cw-glance p { margin: 0; color: var(--dim); font-size: 12px; }
+.cw-glance-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.cowboy-live .cw-glance-actions button { min-height: 40px; padding: 4px 8px; }
+.cw-glance-actions small { color: var(--tan); }
+.cowboy-live .cw-glance-match .cw-match-card {
+  width: 100%;
+  gap: 6px;
+  padding: 7px 9px;
+  border-radius: 8px;
+  background: #222024;
+}
+.cw-glance-match .cw-match-link { padding-top: 4px; }
+.cw-glance-match .cw-match-line .cw-team-mark { width: 24px; height: 24px; }
+@media (max-width: 700px) {
+  .cw-glance { grid-template-columns: minmax(0,1fr); gap: 9px; }
+  .cw-glance-overview { display: grid; grid-template-columns: 1fr auto; align-items: baseline; gap: 3px 8px; }
+  .cw-glance-overview p { text-align: right; }
+  .cw-glance-actions { grid-column: 1 / -1; margin-top: 3px; }
+  .cowboy-live .cw-glance-actions button { min-height: 44px; }
+}
+
+.cw-account-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+.cowboy-live .cw-account-actions button { min-height: 44px; }
+
+.cowboy-live .cw-delete-account {
+  color: #ffc4c0;
+  border-color: #975454;
+  margin: 6px 8px 0 0;
+  min-height: 44px;
+}
+
+.cw-game-leaders { margin: 12px 0; overflow-wrap: anywhere; }
+.cw-game-leaders h3 { margin-bottom: 8px; }
+.cw-leader-table { width: 100%; table-layout: fixed; border-collapse: collapse; text-align: left; }
+.cw-leader-table :is(th,td) { padding: 8px 6px; border-bottom: 1px solid var(--edge); vertical-align: top; }
+.cw-leader-table th:first-child { width: 25%; }
+.cw-leader-table thead, .cw-leader-table tbody th { color: var(--dim); font-size: 11px; }
+.cw-leader-player { display: flex; align-items: flex-start; gap: 6px; }
+.cw-leader-player + .cw-leader-player { margin-top: 7px; }
+.cw-leader-player strong { display: block; line-height: 1.35; }
+.cw-leader-player small { display: block; color: var(--dim); margin-top: 3px; }
+.cw-leader-player .cw-team-mark { flex: none; width: 28px; height: 28px; }
+.cowboy-live .cw-game-leaders > button { margin-top: 9px; min-height: 40px; }
+@media (max-width: 500px) {
+  .cw-leader-player .cw-team-mark { display: none; }
+  .cw-leader-table :is(th,td) { padding-inline: 4px; }
+}
+
+.cw-score-progression { margin-top: 14px; border-top: 1px solid var(--edge); padding-top: 11px; }
+.cw-score-progression h3 { margin-bottom: 8px; }
+.cw-score-legend { display: flex; flex-wrap: wrap; gap: 12px; color: var(--dim); font-size: 12px; }
+.cw-score-legend span::before { content: ''; display: inline-block; width: 16px; margin-right: 5px; vertical-align: middle; border-top: 2px solid #ffb477; }
+.cw-score-legend .cw-score-away::before { border-top: 2px dashed #82d9e9; }
+.cw-score-progression canvas { display: block; width: 100%; height: 160px; }
+.cw-score-scrub { display: grid; gap: 4px; font-size: 12px; color: var(--dim); }
+.cowboy-live .cw-score-scrub input { width: 100%; margin: 0; accent-color: var(--tan); }
+.cw-score-step { display: flex; flex-wrap: wrap; align-items: baseline; gap: 5px 10px; margin-top: 8px; }
+.cw-score-step strong { font-variant-numeric: tabular-nums; }
+.cw-score-step small { color: var(--dim); }
+.cw-score-step p { width: 100%; margin: 0; overflow-wrap: anywhere; }
+
+/* Preferences */
+.cw-information-page .cw-grid {
+  grid-template-columns: minmax(0, 1fr);
+  max-width: 860px;
+}
+
+.cw-preferences,
+.cw-preferences > section {
+  display: grid;
+  gap: 12px;
+}
+
+.cw-preferences > section {
+  justify-items: start;
+  padding: clamp(14px, 3vw, 24px);
+  border: 1px solid var(--edge);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.cw-preferences > section h2 {
+  font-size: 16px;
+}
+
+.cw-preferences p {
+  color: var(--dim);
+}
+
+.cw-preferences .cw-alert-types {
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+}
+
+.cw-preferences .cw-alert-types label {
+  min-height: 38px;
+}
+
+.cw-preferences .cw-schedule-zone select {
+  min-height: 44px;
+  max-width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--edge);
+  border-radius: 7px;
+  background: #262529;
+  color: var(--paper);
+  font: inherit;
+}
+
+.cw-preferences select:focus-visible {
+  outline: 2px solid var(--tan);
+  outline-offset: 3px;
+}
+
+/* Help */
+.cw-help { display: grid; gap: 14px; }
+.cw-help-search,
+.cw-help-topic {
+  padding: clamp(14px, 3vw, 24px);
+  border: 1px solid var(--edge);
+  border-radius: 8px;
+  background: var(--surface);
+}
+.cw-help-search { display: grid; gap: 8px; }
+.cw-help-search label { font-weight: 700; }
+.cw-help-search input {
+  min-width: 0;
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px solid var(--edge);
+  border-radius: 7px;
+  color: var(--paper);
+  background: #262529;
+}
+.cw-help-topics { display: flex; flex-wrap: wrap; gap: 6px; }
+.cw-help a {
+  color: var(--tan);
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  text-underline-offset: 3px;
+  gap: 5px;
+}
+.cw-help-topics a { padding: 0 10px; }
+.cw-help p { color: var(--dim); }
+.cw-help-topic { scroll-margin-top: 96px; }
+.cw-help-topic h2 { font-size: 18px; }
+.cw-help-topic h3 { font-size: 14px; margin-bottom: 3px; }
+.cw-help-topic article { padding: 13px 0; border-bottom: 1px solid var(--edge); }
+.cw-help > button { justify-self: start; }
+
+.cw-history-search {
+  display: grid;
+  grid-template-columns: minmax(0,2fr) repeat(3,minmax(0,1fr));
+  gap: 8px;
+  margin-bottom: 12px;
+  align-items: end;
+}
+.cw-history-search label,
+.cw-history-search > div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+.cw-history-search input,
+.cw-history-search select {
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  padding: 8px 10px;
+  border: 1px solid var(--edge);
+  border-radius: 7px;
+  color: var(--paper);
+  background: #262529;
+  font: inherit;
+}
+.cw-history-search > button { justify-self: start; }
+.cw-history-range {
+  grid-column: 1 / -1;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(2,minmax(0,1fr));
+  gap: 8px;
+  padding: 8px;
+  border: 1px solid var(--edge);
+  border-radius: 7px;
+  margin: 0;
+}
+.cw-history-range p { grid-column: 1 / -1; }
+.cw-history-times { display: grid; gap: 3px; }
+@media (max-width: 700px) {
+  .cw-history-search { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .cw-history-search > label, .cw-history-search > div:last-of-type { grid-column: 1 / -1; }
+}
+
+.cw-lineup-teams {
+  display: grid;
+  grid-template-columns: repeat(2,minmax(0,1fr));
+  gap: 12px;
+}
+.cw-lineup-team {
+  min-width: 0;
+  border: 1px solid var(--edge);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.cw-lineup-team-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+  background: #262529;
+}
+.cw-lineup-team-heading h4 { margin: 0; flex: 1; min-width: 0; }
+.cw-lineup-team h5, .cw-lineup-team > p { margin: 0; padding: 8px 12px; color: var(--dim); }
+.cw-formation { color: var(--tan); white-space: nowrap; }
+.cw-soccer-roster { list-style: none; padding: 0; margin: 0; }
+.cw-soccer-roster li {
+  display: grid;
+  grid-template-columns: 24px minmax(0,1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-top: 1px solid var(--edge);
+}
+.cw-soccer-roster li small { display: block; color: var(--dim); }
+.cw-roster-number { color: var(--tan); font-variant-numeric: tabular-nums; }
+.cw-sub-used { color: #9aca97; white-space: nowrap; font-size: 11px; }
+.cw-lineup-team summary { cursor: pointer; padding: 10px 12px; border-top: 1px solid var(--edge); }
+@media (max-width: 620px) {
+  .cw-lineup-teams { grid-template-columns: minmax(0,1fr); }
+}
+
+.cw-lineup-view { display: flex; margin-bottom: 10px; }
+.cw-lineup-view button {
+  background: #262529;
+  color: var(--text);
+  border: 1px solid var(--edge);
+  border-radius: 6px;
+  padding: 8px 12px;
+  min-height: 40px;
+  font: inherit;
+  cursor: pointer;
+}
+.cw-lineup-view button[aria-pressed="true"] { border-color: var(--tan); color: var(--tan); }
+.cw-lineup-pitch {
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  gap: 8px;
+  align-content: space-evenly;
+  min-height: 265px;
+  margin: 0 8px 8px;
+  padding: 9px 3px;
+  border: 1px solid #82a887;
+  border-radius: 4px;
+  background: repeating-linear-gradient(#153929 0 20%, #1b4431 20% 40%);
+}
+.cw-lineup-pitch::before {
+  content: "";
+  position: absolute;
+  inset: 5px 18%;
+  border: 1px solid #82a887;
+  border-top: 0;
+  border-bottom: 0;
+  z-index: -1;
+}
+.cw-pitch-row {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  text-align: center;
+}
+.cw-pitch-row li { display: grid; gap: 3px; justify-items: center; min-width: 0; }
+.cw-pitch-row li span {
+  display: grid;
+  place-items: center;
+  min-width: 23px;
+  height: 23px;
+  border-radius: 50%;
+  background: #f0dec5;
+  color: #1b201c;
+  font-variant-numeric: tabular-nums;
+  font-size: 11px;
+  font-weight: 800;
+}
+.cw-pitch-row li strong {
+  padding: 1px 3px;
+  border-radius: 3px;
+  background: #102b20;
+  color: #f3f2ee;
+  font-size: clamp(10px, 1vw, 12px);
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+}
+
+.cw-soccer-stats-table tbody tr:has(.cw-stat-share) td {
+  font-size: 16px;
+  font-variant-numeric: tabular-nums;
+}
+.cw-soccer-stats-table tbody tr:has(.cw-stat-share) td:first-child { color: var(--tan); }
+.cw-soccer-stats-table tbody tr:has(.cw-stat-share) td:last-child { color: #b8caff; }
+.cw-stat-share {
+  display: block;
+  height: 5px;
+  margin: 4px auto 0;
+  max-width: 224px;
+  overflow: hidden;
+  border-radius: 6px;
+  background: #b8caff;
+}
+.cw-stat-share > span { display: block; height: 100%; background: var(--tan); }
+
+.cw-standings-table caption {
+  padding: 9px 8px;
+  color: var(--paper);
+  text-align: left;
+  font-weight: 700;
+}
+.cw-standings-table :is(td, th) {
+  padding: 6px;
+  font-variant-numeric: tabular-nums;
+}
+.cw-standings-table abbr { text-decoration: none; }
+.cw-standings-table :is(thead,tbody) th:nth-child(2) { text-align: left; }
+.cw-standings-table tr[data-match-team="true"] { background: #312721; }
+.cw-standings-table tr[data-match-team="true"] th { color: var(--tan); font-weight: 700; }
+
+.cw-pregame-players { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 10px; }
+.cw-pregame-team {
+  min-width: 0;
+  border: 1px solid var(--edge);
+  border-radius: 9px;
+  background: #222125;
+}
+.cw-pregame-team h4 {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--edge);
+}
+.cw-pregame-team ul { list-style: none; margin: 0; padding: 0; }
+.cw-pregame-team li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px;
+  overflow-wrap: anywhere;
+}
+.cw-pregame-team li + li { border-top: 1px solid var(--edge); }
+.cw-pregame-team li span:not(.cw-team-mark) { display: block; margin-top: 2px; color: var(--tan); }
+.cw-pregame-team p { margin: 10px; color: var(--dim); }
+@media (max-width: 500px) {
+  .cw-pregame-team li { align-items: flex-start; flex-direction: column; }
+}
+
+.cw-season-series { margin: 0 0 14px; }
+.cw-season-series h4 { margin: 0 0 6px; }
+.cw-season-series ul { list-style: none; padding: 0; margin: 0; }
+.cw-season-series li :is(a, div) {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) auto;
+  align-items: center;
+  gap: 8px;
+  min-height: 42px;
+  padding: 8px;
+  border-bottom: 1px solid var(--edge);
+  color: var(--paper);
+  text-decoration: none;
+}
+.cw-season-series li a:hover, .cw-season-series li [aria-current="true"] { background: #312721; }
+.cw-season-series li time { color: var(--dim); }
+.cw-season-series li span { color: var(--tan); text-align: right; white-space: nowrap; }
+
+.cw-sport-categories {
+  display: flex;
+  gap: 7px;
+  max-width: 100%;
+  overflow-x: auto;
+  padding: 3px 1px 8px;
+  margin: 0 0 8px;
+  scrollbar-width: thin;
+}
+.cw-sport-categories button {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 40px;
+  padding: 6px 10px;
+  background: #211f22;
+  color: var(--paper);
+  border: 1px solid var(--edge);
+  border-radius: 7px;
+  font: inherit;
+  cursor: pointer;
+}
+.cw-sport-categories button[aria-pressed="true"] {
+  color: var(--tan);
+  border-color: var(--tan);
+}
+
+.cw-football-field {
+  margin: 0 14px 12px;
+}
+.cw-field-context {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 3px 8px;
+  margin-bottom: 7px;
+  font-size: 11px;
+}
+.cw-field-context span {
+  color: var(--dim);
+}
+.cw-football-pitch {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr) 32px;
+  min-height: 51px;
+  overflow: hidden;
+  border: 1px solid #65796a;
+  border-radius: 5px;
+  background: #223f32;
+}
+.cw-football-endzone {
+  display: grid;
+  place-items: center;
+  color: #e2f0e6;
+  background: #31483d;
+  font-size: 9px;
+  font-weight: 700;
+}
+.cw-football-yards {
+  position: relative;
+  border-inline: 1px solid #98ad9d;
+  color: #e7f0e8;
+  font-size: 9px;
+  font-variant-numeric: tabular-nums;
+  background-image: repeating-linear-gradient(to right, transparent 0 calc(10% - 1px), #6f8b79 calc(10% - 1px) 10%);
+}
+.cw-football-yards > span {
+  position: absolute;
+  bottom: 3px;
+  transform: translateX(-50%);
+}
+.cw-football-yards > span:nth-child(1) { left: 20%; }
+.cw-football-yards > span:nth-child(2) { left: 50%; }
+.cw-football-yards > span:nth-child(3) { left: 80%; }
+.cw-football-ball {
+  position: absolute;
+  inset-block: 5px 16px;
+  left: var(--ball-position);
+  width: 2px;
+  background: #ffc38c;
+  transform: translateX(-50%);
+}
+.cw-football-ball::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ffc38c;
+  transform: translate(-50%, -50%);
+}
+
+.cw-football-drives {
+  list-style: none;
+  margin: 12px 0;
+  padding: 0;
+}
+.cw-football-drives li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) minmax(90px, auto);
+  align-items: center;
+  gap: 10px;
+  padding: 10px 8px;
+  border-top: 1px solid var(--edge);
+}
+.cw-football-drives li[data-scored=true] {
+  border-inline-start: 2px solid var(--tan);
+}
+.cw-football-drives li div span,
+.cw-football-drives li div small {
+  display: block;
+}
+.cw-football-drives li small {
+  color: var(--dim);
+}
+.cw-drive-numbers {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-size: 11px;
+}
+
+.cw-player-search {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 5px;
+}
+.cw-player-search input {
+  min-width: 0;
+  width: 12rem;
+  max-width: 100%;
+  padding: 7px 9px;
+  color: var(--paper);
+  background: #19181b;
+  border: 1px solid var(--edge);
+  border-radius: 5px;
+}
+.cowboy-live .cw-game-section .cw-player-sort {
+  min-height: 32px;
+  margin: 0;
+  padding: 4px 5px;
+  border-color: transparent;
+  background: transparent;
+  color: inherit;
+  font-weight: 700;
+}
+.cw-player-sort span { color: var(--dim); }
+.cw-player-table-scroll th[aria-sort] .cw-player-sort span { color: var(--tan); }

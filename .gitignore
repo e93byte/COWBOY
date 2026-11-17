@@ -1,0 +1,15 @@
+node_modules/
+.next/
+out/
+dist/
+.env*
+!.env.example
+*.pem
+*.key
+.DS_Store
+npm-debug.log*
+.cowboy-data/
+playwright-report/
+test-results/
+next-env.d.ts
+*.tsbuildinfo
