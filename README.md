@@ -1,7 +1,7 @@
 <div align="center">
   <img src="https://raw.githubusercontent.com/e93byte/COWBOY/main/public/cowboy-mark.webp" alt="COWBOY mascot" width="120">
   <h1>COWBOY</h1>
-  <p><strong>A premium suite of sports and entertainment experiences—starting with live sports and free picks.</strong></p>
+  <p><strong>Premium suite of products</strong></p>
   <p>
     <a href="https://github.com/e93byte/COWBOY/actions/workflows/ci.yml"><img src="https://github.com/e93byte/COWBOY/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI status"></a>
     <img src="https://img.shields.io/badge/Next.js-16-black?logo=next.js" alt="Next.js 16">
@@ -13,18 +13,37 @@
 
 ## What COWBOY stands for
 
-COWBOY is a bold, friendly home for sports and entertainment. The long-term product vision brings several experiences together under one recognizable brand, with a polished interface and the COWBOY mascot at its heart.
+COWBOY is a bold, premium sports-and-entertainment brand. The long-term product vision brings several experiences together under one recognizable identity, with a polished experience and the COWBOY mascot at the center.
 
-**Today, this repository contains the COWBOY sports experience:** browse real fixtures, follow live scores, and make free picks. Picks have no stakes, payouts, or prizes. The broader product ideas below are a vision—not features currently delivered by this app.
+This repository currently delivers the COWBOY sports experience: live sports scores, schedule browsing, and free picks. Picks have no stakes, payouts, or prizes. The sections below describe the broader COWBOY ecosystem as a brand vision and product direction—not features currently implemented in this repo.
 
-| Product idea | What it means | Status in this repository |
+| Product area | Purpose | Status |
 | --- | --- | --- |
-| **COWBOY Sports** | Sports schedules, live scoreboards, game details, watchlists, and free winner picks. | **Available** |
-| **COWBOY Live** | A future home for live entertainment experiences. The current app follows scores; it does not stream broadcasts. | Vision only |
-| **COWBOY Movies** | A possible future destination for movie discovery and streaming. | Vision only |
-| **COWBOY Games** | A possible future collection of interactive entertainment. | Vision only |
+| **COWBOY Sportsbook** | Live scores, match tracking, matchup insights, and free picks. | **Available in this repo** |
+| **COWBOY Live TV & Sports** | Streaming, sports broadcasting, and live event viewing. | Vision only |
+| **COWBOY Casino** | Entertainment and table-game experiences. | Vision only |
+| **COWBOY Movies & Streaming** | Movie discovery and premium streaming content. | Vision only |
+| **Daily Fantasy & Predictions** | Leaderboards, free entries, and skill-based prediction play. | Vision only |
+| **Interactive Games** | Mini-games, live engagement, and entertainment features. | Vision only |
 
-Casino, wagering, paid entries, and prize-based contests are **not** part of this project. The image concept shared for the broader COWBOY brand should be understood as aspirational artwork, not a description of features available today.
+> The broader product-suite imagery is best understood as a brand concept. The code in this repository is focused on the sports board, live updates, and free-pick experience. It does not include paid gaming, media streaming, or wagering features.
+
+## Screenshots
+
+<p align="center">
+  <img src="docs/screenshots/product-vision.png" alt="COWBOY premium product vision" width="100%">
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/sports-board.png" alt="COWBOY sports board" width="48%">
+  <img src="docs/screenshots/game-details.png" alt="COWBOY game details" width="48%">
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/free-picks.png" alt="COWBOY free picks" width="70%">
+</p>
+
+These screenshots should live in `docs/screenshots/` and show the current COWBOY sports experience and the premium product direction.
 
 ## Try COWBOY locally
 
