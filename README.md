@@ -31,6 +31,7 @@ Open [COWBOY on port 3213](http://127.0.0.1:3213). Create a local test account, 
 
 - Active leagues and open live games are checked about every **5 seconds** while the app is visible. Idle leagues are checked about every **15 seconds**. ESPN controls when it publishes updates, and request time adds to these intervals.
 - Concurrent requests share the server cache. A rate-limited scoreboard league backs off for at least 30 seconds. The scoreboard can retain the last successful league response for up to five minutes and labels its original timestamp.
+- Game updates use each league’s last successful refresh. A delayed league resumes from its first successful response, while healthy leagues keep producing score updates.
 - If the ESPN event summary fails, Game Center can show the last scoreboard response for that exact league and event and retain details it already received. The app labels the fallback. Pick verification still requires current source data.
 - The installed web app can show the last saved scoreboard offline. Coverage varies by league, and both the scoreboard and summary come from ESPN.
 

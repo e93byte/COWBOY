@@ -604,6 +604,42 @@ test('featured filters and game updates use observed sports data', async ({page}
   await expect(page.getByRole('dialog',{name:'Game details'})).toContainText('Baltimore Ravens');
 });
 
+test('live updates keep advancing for healthy leagues through a partial delay', async ({page}) => {
+  await setup(page);
+  const nba = {...event, status:'live' as const, statusText:'Third quarter',
+    away:{...event.away,score:50},home:{...event.home,score:60}};
+  const nfl = board.events[1];
+  const initial = '2026-11-17T03:00:00Z';
+  const second = '2026-11-17T03:00:05Z';
+  const third = '2026-11-17T03:00:10Z';
+  let response:LiveBoard = {...board,events:[nba,nfl],fetchedAt:initial,refreshAfterMs:60_000,
+    leagues:board.leagues.map(league=>({...league,lastSuccessAt:initial}))};
+  await page.route('**/api/sports',route=>route.fulfill({json:response}));
+  await page.goto('/live');
+  const refresh = page.getByRole('button',{name:'Refresh sports'});
+  const moments = page.getByRole('region',{name:'Game updates'});
+  await expect(moments.getByText(/Updates for this view/)).toBeVisible();
+  await expect(page.getByRole('button',{name:`Details: ${nba.name}`,exact:true})).toBeVisible();
+  response = {...response,stale:true,events:[{...nba,home:{...nba.home,score:63}},{...nfl,home:{...nfl.home,score:17}}],
+    leagues:response.leagues.map(league=>league.id==='nba' ? {...league,lastSuccessAt:second} : {...league,status:'stale'})};
+  await refresh.click();
+  await expect(moments.getByRole('button',{name:/Score updated.*NYK 63/})).toBeVisible();
+  await expect(moments.locator('time')).toHaveAttribute('datetime',second);
+  await expect(moments.getByRole('listitem')).toHaveCount(1);
+  await refresh.click();
+  await expect(moments.getByRole('listitem')).toHaveCount(1);
+  response = {...response,stale:false,fetchedAt:second,
+    leagues:response.leagues.map(league=>({...league,status:'ok',lastSuccessAt:second}))};
+  await refresh.click();
+  await expect(page.getByText('Delayed source data.',{exact:false})).toHaveCount(0);
+  await expect(moments.getByRole('listitem')).toHaveCount(1);
+  response = {...response,events:[response.events[0],{...nfl,home:{...nfl.home,score:20}}],
+    leagues:response.leagues.map(league=>league.id==='nfl' ? {...league,lastSuccessAt:third} : league)};
+  await refresh.click();
+  await expect(moments.getByRole('button',{name:/Score updated.*BAL 20/})).toBeVisible();
+  await expect(moments.getByRole('listitem')).toHaveCount(2);
+});
+
 test('polling follows provider interval, pauses while hidden and never overlaps a request',async({page})=>{
   const now=new Date();await page.clock.install({time:now});await page.clock.pauseAt(now);await setup(page);
   let calls=0,holdNext=false;let release:(()=>void)|undefined;

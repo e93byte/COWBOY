@@ -96,20 +96,29 @@ function useGameMoments(board: LiveBoard | null, interrupted: boolean) {
   const previous = useRef<LiveBoard | null>(null);
   const [moments, setMoments] = useState<GameMoment[]>([]);
   useEffect(() => {
-    if (!board || interrupted || board.stale) {
+    if (!board || interrupted || (board.stale && board.leagues.every(league=>league.status === 'ok'))) {
       previous.current = null;
       return;
     }
     const last = previous.current;
     previous.current = board;
-    if (!last || last.fetchedAt === board.fetchedAt) return;
-    const healthy = new Set(board.leagues.filter(league=>league.status === 'ok').map(league=>league.id));
-    const lastHealthy = new Set(last.leagues.filter(league=>league.status === 'ok').map(league=>league.id));
+    if (!last) return;
+    const lastLeagues = new Map(last.leagues.map(league=>[league.id,league]));
+    const updatedLeagues = new Map<string, string>();
+    for (const league of board.leagues) {
+      const before = lastLeagues.get(league.id);
+      if (league.status !== 'ok' || before?.status !== 'ok') continue;
+      const observedAt = league.lastSuccessAt ?? board.fetchedAt;
+      const previousAt = before.lastSuccessAt ?? last.fetchedAt;
+      if (Date.parse(observedAt) > Date.parse(previousAt)) updatedLeagues.set(league.id,observedAt);
+    }
+    if (!updatedLeagues.size) return;
     const events = new Map(last.events.map(event=>[eventKey(event),event]));
     const changes = board.events.flatMap((event): GameMoment[] => {
       const key = eventKey(event);
       const before = events.get(key);
-      if (!before || !healthy.has(event.league) || !lastHealthy.has(event.league)) return [];
+      const observedAt = updatedLeagues.get(event.league);
+      if (!before || !observedAt) return [];
       let change: Pick<GameMoment,'type'|'label'> | undefined;
       if (before.status === 'scheduled' && event.status === 'live') change = {type:'start',label:'Game started'};
       else if (!before.completed && event.completed) change = {type:'final',label:'Final'};
@@ -120,9 +129,10 @@ function useGameMoments(board: LiveBoard | null, interrupted: boolean) {
           JSON.stringify([before.away.score,before.home.score,before.away.linescores,before.home.linescores])) {
         change = {type:'score',label:'Score updated'};
       }
-      return change ? [{id:key + ':' + board.fetchedAt,event,...change,observedAt:board.fetchedAt}] : [];
+      return change ? [{id:key + ':' + observedAt,event,...change,observedAt}] : [];
     });
-    if (changes.length) setMoments(old=>[...changes,...old].slice(0,48));
+    if (changes.length) setMoments(old=>[...changes,...old]
+      .sort((a,b)=>Date.parse(b.observedAt)-Date.parse(a.observedAt)).slice(0,48));
   },[board,interrupted]);
   return moments;
 }
