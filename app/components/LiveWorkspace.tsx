@@ -160,6 +160,7 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
   useEffect(() => { if (board && !error) saveOfflineScoreboard(board); },[board,error]);
   const moments = useGameMoments(board, Boolean(error));
   const [spotlightMode, setSpotlightMode] = useState<SpotlightMode>('featured');
+  const [highlightsExpanded, setHighlightsExpanded] = useState(false);
   const [now,setNow]=useState(0);
   useEffect(()=>{setNow(Date.now());const timer=setInterval(()=>setNow(Date.now()),1000);return()=>clearInterval(timer);},[]);
   const [boardLeague,setBoardLeague]=useState('all');
@@ -592,6 +593,8 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
     final: ['No finals in this view', 'Try another league or search.'],
   }[liveScope];
   const upcoming = (board?.events ?? []).some(event => canPick(event, now));
+  const showSpotlight = spotlightCandidates.length > 0 && (spotlightMode !== 'featured' || spotlight.length > 0);
+  const showHighlights = view === 'board' && ((onHome && !!board) || showSpotlight);
   const openUpcoming = () => {
     resetFilters();
     setFilter('upcoming');
@@ -640,6 +643,10 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
           {liveView?'Live board':view==='board'?'Sports board':preferencesView?'Preferences':helpView?'Help & rules':'My picks'}
         </h1>
         {view==='board'&&(!onHome||!board)&&<button className="cw-live-count" onClick={openLive}>{live} live games <span aria-hidden="true">→</span></button>}
+        {showHighlights&&<button className="cw-highlights-toggle" type="button" aria-expanded={highlightsExpanded}
+          aria-controls="cw-board-highlights" onClick={()=>setHighlightsExpanded(value=>!value)}>
+          Highlights <span aria-hidden="true">{highlightsExpanded?'−':'+'}</span>
+        </button>}
         {liveView&&<span className="cw-live-count">{selectedLiveCount} live{error||board?.stale?' · Last received':''}</span>}
       </div>
       {!informationView && view !== 'picks' && board && <nav className="cw-sport-categories" aria-label="Sports">
@@ -651,9 +658,6 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
           </button>
         )}
       </nav>}
-      {onHome && board && <SportsGlance event={glanceGame} personalized={!!followedGame} liveCount={live}
-        followedLiveCount={followedLive.length} fetchedAt={board.fetchedAt} delayed={!!error||board.stale}
-        onOpen={openGame} onWatchlist={openWatchlist} onLive={openLive}/>}
       {account.accountError&&<p className="cw-alert" role="alert">{account.accountError}</p>}
       {helpView ? <HelpCenter/> : preferencesView ? <div className="cw-preferences">
         <p>Schedule and update preferences apply to this browser.</p>
@@ -693,27 +697,32 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
           {liveScorecards.map(event => <MatchCard key={eventKey(event)} event={event} onOpen={openGame}/>)}
         </div>
       </section>}
-      {!liveView && spotlightCandidates.length > 0 && (spotlightMode!=='featured' || spotlight.length>0) && (
-        <section className="cw-spotlight" aria-label="In the spotlight">
-          <div className="cw-section-heading">
-            <h2>Featured games</h2>
-            {upcoming&&<button className="cw-upcoming-jump" onClick={openUpcoming} aria-pressed={filter==='upcoming'}>
-              Browse upcoming <span aria-hidden="true">→</span>
-            </button>}
-          </div>
-          <div className="cw-spotlight-options" role="group" aria-label="Featured game views">
-            {spotlightOptions.map(option=><button key={option.id} aria-pressed={spotlightMode===option.id}
-              onClick={()=>setSpotlightMode(option.id)}>{option.label}</button>)}
-          </div>
-          {board && <p className="cw-spotlight-source">{board.source} · {error || board.stale ? 'Last received' : 'Updated'} {time(board.fetchedAt)}</p>}
-          {!spotlight.length && <p className="cw-spotlight-empty">{spotlightEmpty}</p>}
-          <div className="cw-match-shelf">
-            {spotlight.map(e => (
-              <MatchCard key={eventKey(e)} event={e} onOpen={openGame}/>
-            ))}
-          </div>
-        </section>
-      )}
+      {showHighlights && <div id="cw-board-highlights" data-expanded={highlightsExpanded}>
+          {onHome && board && <SportsGlance event={glanceGame} personalized={!!followedGame} liveCount={live}
+            followedLiveCount={followedLive.length} fetchedAt={board.fetchedAt} delayed={!!error||board.stale}
+            onOpen={openGame} onWatchlist={openWatchlist} onLive={openLive}/>}
+          {showSpotlight && (
+            <section className="cw-spotlight" aria-label="In the spotlight">
+              <div className="cw-section-heading">
+                <h2>Featured games</h2>
+                {upcoming&&<button className="cw-upcoming-jump" onClick={openUpcoming} aria-pressed={filter==='upcoming'}>
+                  Browse upcoming <span aria-hidden="true">→</span>
+                </button>}
+              </div>
+              <div className="cw-spotlight-options" role="group" aria-label="Featured game views">
+                {spotlightOptions.map(option=><button key={option.id} aria-pressed={spotlightMode===option.id}
+                  onClick={()=>setSpotlightMode(option.id)}>{option.label}</button>)}
+              </div>
+              {board && <p className="cw-spotlight-source">{board.source} · {error || board.stale ? 'Last received' : 'Updated'} {time(board.fetchedAt)}</p>}
+              {!spotlight.length && <p className="cw-spotlight-empty">{spotlightEmpty}</p>}
+              <div className="cw-match-shelf">
+                {spotlight.map(e => (
+                  <MatchCard key={eventKey(e)} event={e} onOpen={openGame}/>
+                ))}
+              </div>
+            </section>
+          )}
+      </div>}
       {!liveView && !golfView && now > 0 && <ScheduleDates value={dateFilter} counts={dateCounts}
         today={todayKey} tomorrow={tomorrowKey} onChange={changeScheduleDate}/>}
       {!golfView && <div className="cw-toolbar">

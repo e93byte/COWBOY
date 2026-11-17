@@ -854,7 +854,20 @@
 }
 .cw-glance-match .cw-match-link { padding-top: 4px; }
 .cw-glance-match .cw-match-line .cw-team-mark { width: 24px; height: 24px; }
+.cowboy-live .cw-highlights-toggle { display: none; }
 @media (max-width: 700px) {
+  .cowboy-live .cw-highlights-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 44px;
+  }
+  .cw-home-page .cw-main { padding-top: 10px; }
+  .cw-home-page .cw-title { flex-wrap: wrap; margin-bottom: 10px; }
+  .cw-home-page .cw-toolbar { padding-top: 9px; }
+  .cw-home-page .cw-board-meta { margin-top: 12px; }
+  .cw-home-page .cw-event-head { display: none; }
+  #cw-board-highlights[data-expanded="false"] { display: none; }
   .cw-glance { grid-template-columns: minmax(0,1fr); gap: 9px; }
   .cw-glance-overview { display: grid; grid-template-columns: 1fr auto; align-items: baseline; gap: 3px 8px; }
   .cw-glance-overview p { text-align: right; }

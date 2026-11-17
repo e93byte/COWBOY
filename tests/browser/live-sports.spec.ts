@@ -1080,6 +1080,11 @@ test('Home glance prioritizes a followed matchup and opens the exact Game Center
   await page.setViewportSize({width:390,height:844});
   await page.goto('/');
   const glance=page.getByRole('region',{name:'Sports at a glance'});
+  const highlights=page.getByRole('button',{name:'Highlights',exact:true});
+  await expect(highlights).toHaveAttribute('aria-expanded','false');
+  await expect(glance).toHaveCount(0);
+  await highlights.click();
+  await expect(highlights).toHaveAttribute('aria-expanded','true');
   await expect(glance.getByRole('button',{name:`Glance game: ${live.name}`})).toBeVisible();
   await page.getByRole('button',{name:`Watch ${followed.name}`,exact:true}).click();
   await expect(glance.getByRole('heading',{name:'Your next game'})).toBeVisible();
