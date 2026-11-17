@@ -12,6 +12,7 @@ import { ScoreProgression } from './ScoreProgression';
 import { SoccerLineups } from './SoccerLineups';
 import { scheduleTime } from '../lib/schedule-time';
 import { BoardScore } from './MatchCard';
+import { LIVE_SCORE_REFRESH_MS } from '../lib/score-refresh';
 
 function FootballField({event, position}: {event: LiveEvent; position: NonNullable<LiveEvent['footballPosition']>}) {
   return <section className="cw-football-field" aria-label="Football field position">
@@ -617,7 +618,6 @@ const gameSections = [
   {id: 'pick', label: 'My pick'},
 ] as const;
 type GameSection = (typeof gameSections)[number]['id'];
-const gameRefreshMs = 15_000;
 
 function sectionAvailable(section: GameSection, sport: string) {
   if (section === 'drives') return sport === 'football';
@@ -695,15 +695,19 @@ function EventDetailContent({
       const startedAt = Date.now();
       setBusy(true);
       try {
-        const result = await api<{event?: LiveEvent; stale?: boolean} & Partial<LiveEvent>>(url,{signal:controller.signal});
+        const result = await api<{event?:LiveEvent; stale?:boolean; fallback?:'scoreboard'; lastSuccessAt?:string} & Partial<LiveEvent>>(
+          url,{signal:controller.signal}
+        );
         if (controller.signal.aborted) return;
         const next = result.event || (result.id ? result as LiveEvent : null);
         if (!next || next.id !== event.id || next.league !== event.league) throw new Error('Event details unavailable.');
-        status = next.status;
-        setSnapshot(next);
-        setRequestedAt(startedAt);
+        const fallback = result.fallback === 'scoreboard';
+        if (!fallback) status = next.status;
+        const readAt = Date.parse(result.lastSuccessAt ?? '');
+        setSnapshot(previous => fallback ? {...previous,...next} : next);
+        setRequestedAt(fallback && Number.isFinite(readAt) ? readAt : startedAt);
         setStale(!!result.stale);
-        setError('');
+        setError(fallback ? 'Game summary unavailable. Showing the last scoreboard update.' : '');
       } catch {
         if (!controller.signal.aborted) setError('Could not refresh event details. Last available data shown.');
       } finally {
@@ -711,7 +715,7 @@ function EventDetailContent({
           tried = true;
           active = undefined;
           setBusy(false);
-          if (!document.hidden && shouldPoll()) timer = setTimeout(load, gameRefreshMs);
+          if (!document.hidden && shouldPoll()) timer = setTimeout(load, LIVE_SCORE_REFRESH_MS);
         }
       }
     }

@@ -22,7 +22,8 @@ const topics = [
   {
     id:'live-data', title:'Live scores and data', link:{href:'/live',label:'Open Live'},
     articles:[
-      {title:'How often do scores update?', text:'COWBOY checks ESPN public scoreboards about every 15 seconds while the app is visible. Game Center shows clocks, plays, stats and results when the source supplies them. Coverage varies by sport. COWBOY is independent of ESPN.'},
+      {title:'How often do scores update?', text:'While COWBOY is visible, it checks active leagues and open live games about every 5 seconds. Idle leagues are checked about every 15 seconds. Scores, clocks and plays update when ESPN publishes them. Coverage varies by sport.'},
+      {title:'What happens if the game summary fails?', text:'Game Center can show the last ESPN scoreboard for that matchup while the detailed feed recovers. The page labels the fallback and pauses picks when current game data is unavailable.'},
       {title:'Why are scores or games missing?', text:'Check the source timestamp and the league’s status. A delayed feed can show the last received data. Use Refresh sports or retry the affected league. Some sports supply a scoreboard without a play-by-play feed.'},
     ],
   },

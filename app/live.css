@@ -734,6 +734,21 @@
   margin-top: 12px;
 }
 .cw-draft-pick .cw-clear { min-height: 40px; }
+.cw-draft-options { display: grid; gap: 6px; margin: 10px 0; }
+.cowboy-live .cw-draft-options button {
+  min-height: 44px;
+  padding: 6px 10px;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+.cowboy-live .cw-draft-options button[aria-pressed="true"] {
+  background: #32281f;
+  border-color: #a36e42;
+  color: #ffc593;
+}
+.cw-draft-clear { margin-top: 10px; }
+.cw-draft-clear p { color: var(--dim); font-size: 12px; }
+.cowboy-live .cw-draft-clear .cw-clear { min-height: 44px; }
 
 .cw-pick-options.cw-three-outcomes { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .cw-three-outcomes button { overflow-wrap: anywhere; }

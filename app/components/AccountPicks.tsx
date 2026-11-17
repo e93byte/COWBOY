@@ -396,26 +396,47 @@ export function PicksHistory({tickets,busy,error,onRefresh,onUpdate,user,onSignI
     {cancelling&&<Modal title="Cancel your free pick?" onClose={()=>setCancelling(null)} locked={cancelPending}><p className="cw-dialog-copy">Remove your call for <strong>{cancelling.selection}</strong> in {cancelling.eventName}? The server will verify the game has not started before cancelling.</p>{cancelError&&<p role="alert" className="cw-form-error">{cancelError}</p>}<button className="cw-primary" disabled={cancelPending} onClick={()=>void cancel()}>{cancelPending?'Cancelling…':'Confirm cancellation'}</button><button className="cw-clear" disabled={cancelPending} onClick={()=>setCancelling(null)}>Keep pick</button></Modal>}
   </section>;
 }
-export function PickPanel({selections,user,disabled,pending,onReview,onRemove,onSignIn}: {
+export function PickPanel({selections,user,disabled,pending,draftEvents,onChoose,onClear,onReview,onRemove,onSignIn}: {
   selections: Selection[]; user: User|null; disabled: boolean; pending: boolean;
+  draftEvents: ReadonlyMap<string, LiveEvent>;
+  onChoose: (event: LiveEvent, side: PickSide) => void;
+  onClear: () => void;
   onReview: () => void; onRemove: (selection: Selection) => void; onSignIn: () => void;
 }) {
   const zone = useContext(ScheduleTimeZone);
+  const [confirmClear,setConfirmClear] = useState(false);
   const count = selections.length;
   return <div className="cw-slip">
     <div className="cw-slip-heading"><h2>{count > 1 ? `Your picks (${count})` : 'Your pick'}</h2><span>FREE ENTRY</span></div>
     {count ? <div className="cw-selected">
       {selections.map(selection => {
         const {event,side} = selection;
-        return <div className="cw-draft-pick" key={selection.requestId}>
+        const key = `${event.league}:${event.id}`;
+        const current = draftEvents.get(key);
+        return <div className="cw-draft-pick" key={key}>
           <span className="cw-kicker">{event.leagueName} · {supportsDrawPick(event.league)?'FULL-TIME RESULT':'MATCH WINNER'}</span>
           <h3>{event.name}</h3>
-          <div className="cw-chosen"><small>YOUR CALL</small><strong>{pickName(event,side)}</strong></div>
+          <div className="cw-draft-options" role="group" aria-label={`Selection for ${event.name}`}>
+            {pickSides(event.league).map(option => (
+              <button type="button" key={option} aria-pressed={side===option} disabled={pending || !current}
+                onClick={()=>{if (current && side!==option) onChoose(current,option);}}>
+                {pickName(event,option)}
+              </button>
+            ))}
+          </div>
           <p><time dateTime={event.startsAt}>{scheduleTime(event.startsAt,zone)}</time></p>
           <button className="cw-clear" disabled={pending} aria-label={`Remove selection for ${event.name}`}
-            onClick={()=>onRemove(selection)}>Remove selection</button>
+            onClick={()=>{setConfirmClear(false);onRemove(selection);}}>Remove selection</button>
         </div>;
       })}
+      {count > 1 && <div className="cw-draft-clear">
+        {confirmClear && <p role="status">Clear all {count} draft picks?</p>}
+        <button type="button" className="cw-clear" disabled={pending} onClick={()=>setConfirmClear(value=>!value)}>
+          {confirmClear?'Keep drafts':'Clear draft picks'}
+        </button>
+        {confirmClear && <button type="button" className="cw-clear" disabled={pending}
+          onClick={()=>{setConfirmClear(false);onClear();}}>Clear all</button>}
+      </div>}
       {disabled && <p className="cw-form-error" role="status">A pick is paused or locked. Refresh the board or remove the unavailable pick.</p>}
       <button className="cw-primary" disabled={disabled||pending} onClick={user?onReview:onSignIn}>
         {user ? count === 1 ? 'Review free pick' : `Review ${count} free picks` : count === 1 ? 'Sign in to save pick' : 'Sign in to save picks'}

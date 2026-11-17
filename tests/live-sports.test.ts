@@ -520,7 +520,7 @@ test('deduplicates repeated provider records by league and actual competition id
   assert.equal(live.normalizeScoreboard('nfl', data).length, 1);
 });
 
-test('board coalesces refreshes, bounds outbound concurrency, and caches for fifteen seconds', async () => {
+test('board coalesces requests and refreshes active leagues ahead of idle leagues', async () => {
   let clock = Date.parse('2026-11-15T19:00:00Z');
   let calls = 0;
   let active = 0;
@@ -543,7 +543,7 @@ test('board coalesces refreshes, bounds outbound concurrency, and caches for fif
   assert.equal(calls, live.LIVE_LEAGUES.length);
   assert.ok(maximum <= 4 && maximum > 1);
   assert.equal(first.source, 'ESPN');
-  assert.equal(first.refreshAfterMs, 15_000);
+  assert.equal(first.refreshAfterMs, 5_000);
   assert.equal(first.stale, false);
   assert.equal(first.leagues.filter(l => l.status === 'ok').length, live.LIVE_LEAGUES.length);
   assert.ok(first.golf?.length);
@@ -551,14 +551,62 @@ test('board coalesces refreshes, bounds outbound concurrency, and caches for fif
   assert.ok((await client.getLiveBoard()).golf?.length, 'callers cannot mutate the golf cache');
   first.events.length = 0;
   assert.ok((await client.getLiveBoard()).events.length > 0, 'callers cannot mutate cache');
-  clock += 14_999;
+  const activeLeagues = new Set(concurrent.events.filter(event=>event.status==='live').map(event=>event.league));
+  if (concurrent.golf?.some(tournament=>tournament.state==='in')) activeLeagues.add('pga');
+  assert.ok(activeLeagues.size > 0 && activeLeagues.size < live.LIVE_LEAGUES.length);
+  clock += 4_999;
   await client.getLiveBoard();
   assert.equal(calls, live.LIVE_LEAGUES.length);
   clock++;
   await client.getLiveBoard();
-  assert.equal(calls, live.LIVE_LEAGUES.length * 2);
+  assert.equal(calls, live.LIVE_LEAGUES.length + activeLeagues.size);
+  clock += 10_000;
+  await client.getLiveBoard();
+  assert.equal(calls, live.LIVE_LEAGUES.length * 2 + activeLeagues.size);
 });
 
+test('the event route falls back to the same scoreboard event while pick verification fails closed', async () => {
+  const {createSportsHandlers} = await import('../app/api/sports/handlers');
+  let clock = Date.parse('2026-11-15T19:00:00Z');
+  const game = live.normalizeScoreboard('nfl',fixtures.nfl)[0];
+  const client = live.createLiveSportsClient({now:()=>clock,fetch:async input=>{
+    const url = String(input);
+    if (url.includes('/summary?')) return new Response(null,{status:503});
+    return Response.json(url.includes('/football/nfl/') ? fixtures.nfl : {events:[]});
+  }});
+  const handlers = createSportsHandlers(client);
+  const request = (id:string) => new Request(`http://localhost/api/sports/event?league=nfl&id=${id}`);
+  await client.getLiveBoard();
+  assert.equal((await handlers.event(request('999999999'))).status,502);
+  const res = await handlers.event(request(game.id));
+  assert.equal(res.status,200);
+  assert.deepEqual(await res.json(),{
+    event:game, lastSuccessAt:new Date(clock).toISOString(), stale:true, fallback:'scoreboard',
+  });
+  await assert.rejects(client.getLiveEvent('nfl',game.id), /HTTP 503/);
+  clock += 300_001;
+  assert.equal((await handlers.event(request(game.id))).status,502);
+});
+
+test('a rate-limited league backs off automatic checks and manual retries', async () => {
+  let clock = 10_000;
+  let requests = 0;
+  const client = live.createLiveSportsClient({now:()=>clock,fetch:async input=>{
+    if (!String(input).includes('/football/nfl/')) return Response.json({events:[]});
+    requests++;
+    return requests===1 ? new Response(null,{status:429}) : Response.json(fixtures.nfl);
+  }});
+  await client.getLiveBoard();
+  await client.getLiveBoard('nfl');
+  clock += 15_000;
+  await client.getLiveBoard();
+  await client.getLiveBoard('nfl');
+  assert.equal(requests,1);
+  clock += 15_000;
+  const board = await client.getLiveBoard();
+  assert.equal(requests,2);
+  assert.equal(board.leagues.find(league=>league.id==='nfl')?.status,'ok');
+});
 test('outbound concurrency is shared between board and concurrent event requests', async () => {
   let active = 0;
   let maximum = 0;

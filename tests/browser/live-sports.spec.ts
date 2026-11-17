@@ -633,7 +633,7 @@ test('an open Game Center refreshes play-by-play, pauses while hidden and stops 
     eventCalls++;
     if (eventCalls===2) {
       await new Promise<void>(resolve=>{keepRouting=resolve;});
-      return route.fulfill({status:502,json:{error:'Summary unavailable'}});
+      return route.fulfill({json:{event:game,stale:true,fallback:'scoreboard',lastSuccessAt:board.fetchedAt}});
     }
     const final=eventCalls===4;
     return route.fulfill({json:{
@@ -654,12 +654,12 @@ test('an open Game Center refreshes play-by-play, pauses while hidden and stops 
   const field=gameCenter.getByRole('region',{name:'Football field position'});
   await expect(field).toContainText('1st & 10 at BAL 20');
   await expect(field.locator('.cw-football-pitch')).toHaveCSS('--ball-position','80%');
-  await page.clock.fastForward(15_500);
+  await page.clock.fastForward(5_500);
   await expect.poll(()=>eventCalls).toBe(2);
   await page.clock.fastForward(30_000);
   expect(eventCalls).toBe(2);
   keepRouting?.();
-  await expect(gameCenter.getByText('Could not refresh event details.',{exact:false})).toBeVisible();
+  await expect(gameCenter.getByText('Game summary unavailable. Showing the last scoreboard update.')).toBeVisible();
   await expect(field).toHaveCount(0);
   await expect(gameCenter.getByText('Opening drive')).toBeVisible();
   await page.evaluate(()=>{
@@ -674,8 +674,8 @@ test('an open Game Center refreshes play-by-play, pauses while hidden and stops 
   });
   await expect(gameCenter.getByText('Touchdown update')).toBeVisible();
   await expect(field).toContainText('2nd & 5 at BAL 40');
-  await expect(gameCenter.getByText('Could not refresh event details.',{exact:false})).toHaveCount(0);
-  await page.clock.fastForward(15_500);
+  await expect(gameCenter.getByText('Game summary unavailable. Showing the last scoreboard update.')).toHaveCount(0);
+  await page.clock.fastForward(5_500);
   await expect(gameCenter.getByText('Final whistle')).toBeVisible();
   await expect(gameCenter.locator('.cw-game-status')).toContainText('Final');
   await expect(field).toHaveCount(0);
@@ -851,7 +851,7 @@ test('Game Center follows the address bar, Back, Forward and pasted links', asyn
   await expect(page).toHaveURL(/\/$/);
 });
 
-test('multiple draft picks survive reload, support removal and submit as separately tracked entries', async ({page}) => {
+test('multiple drafts support switching, removal and clearing before separate submission', async ({page}) => {
   const second = {
     ...event, id:'401023', name:'Toronto Raptors at Chicago Bulls',
     away:{id:'tor',name:'Toronto Raptors',shortName:'TOR',score:null},
@@ -874,16 +874,35 @@ test('multiple draft picks survive reload, support removal and submit as separat
   await page.reload();
   await expect(firstPick).toHaveAttribute('aria-pressed','true');
   await expect(secondPick).toHaveAttribute('aria-pressed','true');
+  const firstDraft = page.getByRole('group',{name:`Selection for ${event.name}`,exact:true});
+  const switchSide = firstDraft.getByRole('button',{name:event.home.name,exact:true});
+  await switchSide.click();
+  await expect(switchSide).toBeFocused();
+  await expect(switchSide).toHaveAttribute('aria-pressed','true');
+  await expect(firstPick).toHaveAttribute('aria-pressed','false');
+  await expect(secondPick).toHaveAttribute('aria-pressed','true');
+  await page.getByRole('button',{name:'Clear draft picks',exact:true}).click();
+  await page.getByRole('button',{name:'Keep drafts',exact:true}).click();
+  await expect(secondPick).toHaveAttribute('aria-pressed','true');
+  await page.getByRole('button',{name:'Clear draft picks',exact:true}).click();
+  await page.getByRole('button',{name:'Clear all',exact:true}).click();
+  await expect(firstDraft).toHaveCount(0);
+  await expect(secondPick).toHaveAttribute('aria-pressed','false');
+  await page.reload();
+  await expect(secondPick).toHaveAttribute('aria-pressed','false');
+  await firstPick.click();
+  await secondPick.click();
+  await switchSide.click();
   await page.getByRole('button',{name:`Remove selection for ${second.name}`,exact:true}).click();
   await expect(secondPick).toHaveAttribute('aria-pressed','false');
   await secondPick.click();
   await page.getByRole('button',{name:'Review 2 free picks',exact:true}).click();
   const dialog=page.getByRole('dialog',{name:'Review your free picks'});
-  await expect(dialog).toContainText('Boston Celtics');
+  await expect(dialog).toContainText(event.home.name);
   await expect(dialog).toContainText('Chicago Bulls');
   await dialog.getByRole('button',{name:'Confirm 2 free picks',exact:true}).click();
   await expect(page.getByRole('status').filter({hasText:'2 free picks saved'})).toBeVisible();
-  expect(submitted.map(pick=>[pick.eventId,pick.side])).toEqual([[event.id,'away'],[second.id,'home']]);
+  expect(submitted.map(pick=>[pick.eventId,pick.side])).toEqual([[event.id,'home'],[second.id,'home']]);
   await expect(firstPick).toHaveAttribute('aria-pressed','false');
 });
 

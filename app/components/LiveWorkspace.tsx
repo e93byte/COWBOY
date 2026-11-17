@@ -21,6 +21,7 @@ import { useAccountFollows } from './AccountFollows';
 
 import type { LiveBoard, LiveEvent } from '../lib/live-sports';
 import { LIVE_LEAGUES } from '../lib/sports-leagues';
+import { LIVE_SCORE_REFRESH_MS, SCHEDULE_REFRESH_MS } from '../lib/score-refresh';
 import { pickName, pickSides, supportsDrawPick, type PickSide } from '../lib/pick-outcomes';
 export type { LiveEvent } from '../lib/live-sports';
 const spotlightOptions = [
@@ -127,7 +128,7 @@ function useLiveBoard() {
   const refresh=useRef<(league?: string)=>void>(()=>{});
   useEffect(()=>{
     let disposed=false, running=false, timer:ReturnType<typeof setTimeout>|undefined, controller:AbortController|undefined;
-    let delay=15000;
+    let delay=LIVE_SCORE_REFRESH_MS;
     const load=async(league?: string)=>{
       if(disposed||running||document.hidden)return;
       clearTimeout(timer);running=true;setBusy(true);controller=new AbortController();
@@ -137,7 +138,7 @@ function useLiveBoard() {
         if(!res.ok) throw new Error('Sports source is unavailable. Please try again.');
         const data:LiveBoard=await res.json();
         if(!Array.isArray(data.events)||!Array.isArray(data.leagues))throw new Error('Sports source returned an invalid response.');
-        if(!disposed){setBoard(data);setError('');delay=Math.max(1000,data.refreshAfterMs||15000);}
+        if(!disposed){setBoard(data);setError('');delay=Math.max(1000,data.refreshAfterMs||SCHEDULE_REFRESH_MS);}
       }catch(e){if(!disposed && (e as Error).name!=='AbortError')setError((e as Error).message);}
       finally {running=false;if(!disposed){setBusy(false);if(!document.hidden)timer=setTimeout(() => void load(),delay);}}
     };
@@ -319,8 +320,13 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
   const selectionsByGame = new Map(selections.map(pick => [eventKey(pick.event), pick]));
   const eligiblePick = (event: LiveEvent | undefined) => !!event && canPick(event,now) && !error && !board?.stale &&
     board?.leagues.find(league => league.id === event.league)?.status === 'ok';
-  const selectionDisabled = selections.some(pick =>
-    !eligiblePick(board?.events.find(event => eventKey(event) === eventKey(pick.event))));
+  const draftEvents = new Map<string, LiveEvent>();
+  for (const pick of selections) {
+    const key = eventKey(pick.event);
+    const event = board?.events.find(event => eventKey(event) === key);
+    if (event && eligiblePick(event)) draftEvents.set(key,event);
+  }
+  const selectionDisabled = draftEvents.size !== selections.length;
   const togglePick = (event: LiveEvent, side: PickSide) => {
     const key = eventKey(event);
     const {id,league,leagueName,name,startsAt,home,away} = event;
@@ -358,6 +364,7 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
   };
   const pickPanel = <PickPanel selections={selections} user={account.user} disabled={selectionDisabled} pending={pending}
     onReview={()=>{setReview(true);setDrawer(false);}}
+    draftEvents={draftEvents} onChoose={togglePick} onClear={()=>setSelections([])}
     onRemove={pick=>setSelections(previous=>previous.filter(item=>item.requestId!==pick.requestId))}
     onSignIn={()=>{setAccountOpen(true);setDrawer(false);}}/>;
   const todayKey = scheduleDay(now,zone);
@@ -764,7 +771,7 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
           ? <GameMomentList moments={visibleMoments.slice(0,12)} onGame={moment=>openMoment(moment.event)}/>
           : <p>Updates for this view will appear here as scores and statuses change.</p>}
       </section>}
-      <p className="cw-feed-note">Source: ESPN public scoreboards. Refreshes about every {Math.round((board?.refreshAfterMs||15000)/1000)} seconds while visible; not a real-time or betting-odds feed. Availability varies by league.</p></>:<PicksHistory key={account.user?.id ?? 'guest'} tickets={account.tickets} onUpdate={account.updateTicket} busy={account.ticketsBusy} error={account.ticketsError} onRefresh={()=>void account.loadTickets(true)} user={account.user} onSignIn={()=>setAccountOpen(true)} events={board?.events??[]} onGame={(ticket,event)=>event ? openGame(event) : openSavedGame(ticket.eventId,ticket.league)} onBrowse={openBoard} feedCurrent={!!board&&!board.stale&&!error}/>}
+      <p className="cw-feed-note">ESPN public scoreboards · Live leagues checked about every 5 seconds while visible. Scores appear when ESPN publishes them.</p></>:<PicksHistory key={account.user?.id ?? 'guest'} tickets={account.tickets} onUpdate={account.updateTicket} busy={account.ticketsBusy} error={account.ticketsError} onRefresh={()=>void account.loadTickets(true)} user={account.user} onSignIn={()=>setAccountOpen(true)} events={board?.events??[]} onGame={(ticket,event)=>event ? openGame(event) : openSavedGame(ticket.eventId,ticket.league)} onBrowse={openBoard} feedCurrent={!!board&&!board.stale&&!error}/>}
       <footer className="cw-footer"><b>ALL GAME. NO GAMBLING.</b><p>Free-to-play predictions only. No money, purchase, cash prizes or wagering. Picks close at scheduled start or when the source marks an event live. Results depend on source confirmation.</p><div className="cw-footer-actions"><button className="cw-terms" aria-current={helpView ? "page" : undefined} onClick={()=>navigate('help')}>Help &amp; rules</button><button className="cw-terms" aria-current={preferencesView ? "page" : undefined} onClick={()=>navigate('preferences')}>Preferences</button><PwaControls/></div></footer>
     </main>{view==='board'&&<aside className="cw-picks-rail">{pickPanel}</aside>}</div>
     <nav className="cw-mobile-nav" aria-label="Mobile navigation"><button aria-pressed={view==='board'} onClick={openBoard}><SportIcon sport="all"/>Sports</button><button aria-pressed={liveView} onClick={openLive}><span aria-hidden="true">●</span>Live</button><button aria-pressed={view==='board'&&filter==='watchlist'} onClick={openWatchlist}><StarIcon/>Watchlist</button><button aria-pressed={view==='picks'} onClick={openPicks}><span aria-hidden="true">☷</span>My picks</button></nav>
@@ -784,7 +791,7 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
     </Modal>}
     {detail&&<EventDetail event={detail} games={allEvents} onGame={event=>openGame(event,true)}
       boardEvent={board?.events.find(e=>e.id===detail.id&&e.league===detail.league)}
-      boardFetchedAt={board?.fetchedAt}
+      boardFetchedAt={board?.leagues.find(item=>item.id===detail.league)?.lastSuccessAt ?? board?.fetchedAt}
       ticket={detailTicket || undefined}
       ticketsLoading={account.ticketsBusy}
       ticketsError={account.ticketsError}

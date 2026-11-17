@@ -1,6 +1,10 @@
-import { getLiveBoard, getLiveEvent, LIVE_LEAGUES, LiveSportsError } from '../../lib/live-sports';
+import { getCachedScoreboardEvent, getLiveBoard, getLiveEvent, LIVE_LEAGUES, LiveSportsError } from '../../lib/live-sports';
 
-type SportsClient = { getLiveBoard: typeof getLiveBoard; getLiveEvent: typeof getLiveEvent };
+type SportsClient = {
+  getLiveBoard: typeof getLiveBoard;
+  getLiveEvent: typeof getLiveEvent;
+  getCachedScoreboardEvent?: typeof getCachedScoreboardEvent;
+};
 const headers = { 'Cache-Control': 'no-store' };
 
 function failure(error: unknown) {
@@ -11,7 +15,7 @@ function failure(error: unknown) {
   }, { status: known ? error.status : 502, headers });
 }
 
-export function createSportsHandlers(client: SportsClient = { getLiveBoard, getLiveEvent }) {
+export function createSportsHandlers(client: SportsClient = { getLiveBoard, getLiveEvent, getCachedScoreboardEvent }) {
   return {
     async board(request?: Request) {
       try {
@@ -32,8 +36,18 @@ export function createSportsHandlers(client: SportsClient = { getLiveBoard, getL
             !/^[0-9]{1,16}(?:-[0-9]{1,16})?$/.test(id)) {
           throw new LiveSportsError('Supply one supported league key and one valid event id', 400);
         }
-        const event = await client.getLiveEvent(league, id);
-        return event ? Response.json(event, { headers }) : Response.json({ error: 'Event not found on the available ESPN schedule', source: 'ESPN' }, { status: 404, headers });
+        let unavailable: unknown;
+        try {
+          const event = await client.getLiveEvent(league, id);
+          if (event) return Response.json(event, { headers });
+        } catch (error) {
+          if (error instanceof LiveSportsError && error.status === 400) throw error;
+          unavailable = error;
+        }
+        const fallback = client.getCachedScoreboardEvent?.(league, id);
+        if (fallback) return Response.json({...fallback, stale: true, fallback: 'scoreboard'}, {headers});
+        if (unavailable) throw unavailable;
+        return Response.json({ error: 'Event not found on the available ESPN schedule', source: 'ESPN' }, { status: 404, headers });
       } catch (error) { return failure(error); }
     },
   };
