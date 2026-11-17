@@ -287,10 +287,12 @@ test('tennis Game Center shows games per set and preserves source tiebreaks with
   }}));
   await page.route('**/api/sports/event?**',route=>route.fulfill({json:tennis}));
   await page.goto('/live');
+  const card = page.getByRole('region',{name:'Live scores'}).getByRole('button',{name:`Explore ${tennis.name}`});
+  await expect(card.locator('.cw-set-scores sup')).toHaveText(['7','9']);
   await page.getByRole('button',{name:'Game center',exact:true}).click();
   const center=page.getByRole('dialog',{name:'Game details'});
-  await expect(center.locator('.cw-game-away .cw-set-scores b')).toHaveText(['6','3']);
-  await expect(center.locator('.cw-game-home .cw-set-scores b')).toHaveText(['7','0']);
+  await expect(center.locator('.cw-game-away .cw-set-scores')).toHaveAttribute('aria-label','Set 1: 6, tiebreak points: 7, Set 2: 3');
+  await expect(center.locator('.cw-game-home .cw-set-scores')).toHaveAttribute('aria-label','Set 1: 7, tiebreak points: 9, Set 2: 0');
   await center.getByRole('button',{name:'Score',exact:true}).click();
   const scores=center.getByRole('table',{name:'Score by set'});
   await expect(scores.getByRole('columnheader',{name:'Set 2 (in progress)'})).toBeVisible();

@@ -652,6 +652,7 @@
 .cw-match-line > strong { min-width: 0; overflow-wrap: anywhere; }
 .cw-match-line b { color: var(--tan); font-variant-numeric: tabular-nums; }
 .cw-match-line .cw-set-scores { flex-wrap: wrap; justify-content: flex-end; max-width: 66px; }
+.cw-set-scores sup { font-size: .65em; line-height: 1; margin-inline-start: 1px; }
 .cw-match-meta .cw-live-label { color: var(--tan); }
 .cw-live-scorecards { margin-bottom: 16px; }
 .cw-live-scorecards .cw-section-heading { flex-wrap: wrap; }

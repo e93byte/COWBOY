@@ -7,7 +7,7 @@ import {ScheduleTimeZone} from './ScheduleTimeZone';
 import {SportIcon} from './SportIcon';
 import {TeamMark} from './TeamMark';
 
-function SourceScore({score}:{score:number|null}) {
+function SourceScore({score,tiebreak}:{score:number|null;tiebreak?:number|null}) {
   const previous=useRef(score);
   const [changed,setChanged]=useState(false);
   useEffect(()=>{
@@ -18,15 +18,19 @@ function SourceScore({score}:{score:number|null}) {
     const timer=setTimeout(()=>setChanged(false),1600);
     return()=>clearTimeout(timer);
   },[score]);
-  return <b className={changed?'cw-scores-updated':undefined}>{score??'—'}</b>;
+  return <b className={changed?'cw-scores-updated':undefined}>
+    {score??'—'}{tiebreak!=null && <sup aria-hidden="true">{tiebreak}</sup>}
+  </b>;
 }
 
 export function BoardScore({event, side}: {event: LiveEvent; side: 'home' | 'away'}) {
   const team = event[side];
   if (event.fight) return event.completed && event.winner === side ? <b className="cw-result-winner">Won</b> : null;
   if ((event.status === 'live' || event.completed) && event.sport === 'tennis' && team.linescores?.length) {
-    return <span className="cw-set-scores" aria-label={team.linescores.map((value, index) => `Set ${index + 1}: ${value ?? 'unavailable'}`).join(', ')}>
-      {team.linescores.map((value, index) => <SourceScore key={index} score={value}/>)}
+    const sets = team.linescores.map((score,index)=>({score,tiebreak:team.tennisSetDetails?.[index]?.tiebreak}));
+    return <span className="cw-set-scores" aria-label={sets.map(({score,tiebreak},index)=>
+      `Set ${index+1}: ${score??'unavailable'}${tiebreak!=null ? `, tiebreak points: ${tiebreak}` : ''}`).join(', ')}>
+      {sets.map(({score,tiebreak},index)=><SourceScore key={index} score={score} tiebreak={tiebreak}/>)}
     </span>;
   }
   return <SourceScore score={event.status === 'scheduled' ? null : team.score}/>;
