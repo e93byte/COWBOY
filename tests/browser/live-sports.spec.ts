@@ -1374,3 +1374,19 @@ test('Live compares four selected games and retains the latest score when a matc
   await expect(page.getByRole('button',{name:'Compare Match 5',exact:true})).toBeEnabled();
   await expect.poll(()=>page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
 });
+
+test('score increases, corrections and game-status changes use distinct visible cues', async ({page})=>{
+  const source = board.events[1];
+  let game = {...source};
+  await page.route('**/api/sports',route=>route.fulfill({json:{...board,events:[game],refreshAfterMs:60_000}}));
+  await page.goto('/');
+  const row = page.getByRole('region',{name:'Games',exact:true}).getByRole('article');
+  await expect(row.locator('[data-game-state=live] svg')).toBeVisible();
+  game = {...game, home:{...game.home,score:21}};
+  await page.getByRole('button',{name:'Refresh sports'}).click();
+  await expect(row.locator('[data-score-change=up]')).toHaveText('21');
+  game = {...game, home:{...game.home,score:20},status:'final',statusText:'Final',completed:true};
+  await page.getByRole('button',{name:'Refresh sports'}).click();
+  await expect(row.locator('[data-score-change=correction]')).toHaveText('20');
+  await expect(row.locator('[data-game-state=final][data-status-change=true]')).toHaveText('Final');
+});

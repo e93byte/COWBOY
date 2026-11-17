@@ -1,7 +1,8 @@
 import { LIVE_LEAGUES, hasRecordStandings } from './sports-leagues';
 import { supportsDrawPick } from './pick-outcomes';
 import { LIVE_SCORE_REFRESH_MS, SCHEDULE_REFRESH_MS, SCORE_RETRY_MS } from './score-refresh';
-import { applyNhlScores, nhlScoreDate } from './nhl-score-fallback';
+import { applyNhlScores, easternScoreDate } from './nhl-score-fallback';
+import { applyMlbScores } from './mlb-score-fallback';
 
 export { LIVE_LEAGUES } from './sports-leagues';
 
@@ -158,7 +159,7 @@ export type LiveEvent = {
   recordStandings?: {title:string; rows:RecordStanding[]}[];
   fight?: FightCard;
   providerUrl?: string;
-  scoreSource?: 'NHL';
+  scoreSource?: 'NHL' | 'MLB' | 'ESPN summary';
   winner: 'home' | 'away' | 'draw' | null;
   completed: boolean;
 };
@@ -166,7 +167,7 @@ export type LiveEvent = {
 export type LiveBoard = {
   events: LiveEvent[];
   golf?: GolfTournament[];
-  leagues: { id: string; sport: string; name: string; status: 'ok' | 'stale' | 'error'; lastSuccessAt?: string; scoresUpdatedAt?: string; error?: string }[];
+  leagues: { id: string; sport: string; name: string; status: 'ok' | 'stale' | 'error'; lastSuccessAt?: string; scoresUpdatedAt?: string; backupSource?:LiveEvent['scoreSource']; error?: string }[];
   fetchedAt: string;
   source: 'ESPN';
   refreshAfterMs: number;
@@ -1002,7 +1003,7 @@ export function createLiveSportsClient(options: ClientOptions = {}) {
   const espnBackoffUntil = new Map<string, number>();
   const summaryBackoffUntil = new Map<string, number>();
   const leagueLoads = new Map<string, Promise<void>>();
-  let nhlBackoffUntil = 0;
+  const backupBackoffUntil = new Map<string,number>();
   const details = new Map<string, { event: LiveEvent | null; expires: number }>();
   const detailRequests = new Map<string, Promise<LiveEvent | null>>();
   const leagueRequests = new Map<string, Promise<LiveEvent[]>>();
@@ -1014,7 +1015,7 @@ export function createLiveSportsClient(options: ClientOptions = {}) {
     return requestJson(`https://site.api.espn.com/apis/site/v2/sports/${path}`, 'ESPN', allowMissing);
   }
 
-  async function requestJson(url: string, provider: 'ESPN' | 'NHL', allowMissing = false): Promise<unknown> {
+  async function requestJson(url: string, provider: 'ESPN' | 'NHL' | 'MLB', allowMissing = false): Promise<unknown> {
     if (requestQueue.length >= 64) throw new LiveSportsError('Sports request queue is full; retry shortly', 503);
     if (activeRequests >= 4) await new Promise<void>(resolve => requestQueue.push(resolve));
     else activeRequests++;
@@ -1091,28 +1092,48 @@ export function createLiveSportsClient(options: ClientOptions = {}) {
       const retained = previous && now() - previous.at <= 300_000;
       let events = retained ? previous.events : [];
       let scoresUpdatedAt: string | undefined;
-      let backupRefreshed = false;
-      if (config.id === 'nhl' && retained) {
-        const candidate = events.find(event => event.status === 'live') ??
-          events.find(event => event.status === 'scheduled' && Math.abs(Date.parse(event.startsAt) - now()) <= 60_000);
-        if (candidate && now() >= nhlBackoffUntil) {
-          try {
-            const date = nhlScoreDate(Date.parse(candidate.startsAt));
-            const payload = await requestJson(`https://api-web.nhle.com/v1/score/${date}`, 'NHL');
-            events = applyNhlScores(events, payload);
-            backupRefreshed = events.some(event => event.scoreSource === 'NHL');
-            if (backupRefreshed) scoresUpdatedAt = new Date(now()).toISOString();
-          } catch (backupError) {
-            if (backupError instanceof LiveSportsError && backupError.status === 429) {
-              nhlBackoffUntil = now() + 30_000;
-            }
+      let backupSource: LiveEvent['scoreSource'];
+      const candidate = events.find(event => event.status === 'live') ??
+        events.find(event => event.status === 'scheduled' && Math.abs(Date.parse(event.startsAt) - now()) <= 60_000);
+      if (candidate && (config.id === 'nhl' || config.id === 'mlb') &&
+          now() >= (backupBackoffUntil.get(config.id) ?? 0)) {
+        try {
+          const date = easternScoreDate(Date.parse(candidate.startsAt));
+          if (config.id === 'nhl') {
+            events = applyNhlScores(events, await requestJson(`https://api-web.nhle.com/v1/score/${date}`, 'NHL'));
+          } else {
+            events = applyMlbScores(events, await requestJson(`https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=${date}&hydrate=team,linescore`, 'MLB'));
+          }
+          backupSource = events.find(event=>event.scoreSource)?.scoreSource;
+        } catch (backupError) {
+          if (backupError instanceof LiveSportsError && backupError.status === 429) {
+            backupBackoffUntil.set(config.id,now() + 30_000);
           }
         }
-        const previousBackup = leagueResults.get(config.id);
-        if (!scoresUpdatedAt && previousBackup?.league.scoresUpdatedAt) {
-          events = previousBackup.events;
-          scoresUpdatedAt = previousBackup.league.scoresUpdatedAt;
+      }
+      if (!backupSource && !rateLimited && !['golf','mma','tennis'].includes(config.sport)) {
+        const active = events.filter(event=>event.status==='live').slice(0,2);
+        const fallback = await Promise.all(active.map(async event => {
+          try {
+            const latest = await getLiveEvent(config.id,event.id);
+            if (!latest || (latest.status!=='live' && latest.status!=='final') || latest.startsAt!==event.startsAt ||
+              latest.home.id!==event.home.id || latest.away.id!==event.away.id) return;
+            return {...latest,completed:false,winner:null,scoreSource:'ESPN summary' as const};
+          } catch { return; }
+        }));
+        const updates = new Map(fallback.flatMap(event=>event ? [[event.id,event]] : []));
+        if (updates.size) {
+          events = events.map(event=>updates.get(event.id)??event);
+          backupSource = 'ESPN summary';
         }
+      }
+      const backupRefreshed = Boolean(backupSource);
+      if (backupRefreshed) scoresUpdatedAt = new Date(now()).toISOString();
+      const previousBackup = leagueResults.get(config.id);
+      if (retained && !backupRefreshed && previousBackup?.league.scoresUpdatedAt) {
+        events = previousBackup.events;
+        scoresUpdatedAt = previousBackup.league.scoresUpdatedAt;
+        backupSource = previousBackup.league.backupSource;
       }
       if (!retained) lastGood.delete(config.id);
       leagueDueAt.set(config.id, backupRefreshed
@@ -1121,7 +1142,7 @@ export function createLiveSportsClient(options: ClientOptions = {}) {
       leagueResults.set(config.id, {
         events,
         golf: retained ? previous.golf : undefined,
-        league: {...metadata, status: retained ? 'stale' : 'error', error: message, lastSuccessAt, scoresUpdatedAt},
+        league: {...metadata, status: retained ? 'stale' : 'error', error: message, lastSuccessAt, scoresUpdatedAt, backupSource},
       });
     }
   }
@@ -1265,7 +1286,7 @@ export function createLiveSportsClient(options: ClientOptions = {}) {
     if (!cached || now() - cached.at > 300_000) return null;
     const backup = leagueResults.get(league);
     const scoresUpdatedAt = backup?.league.scoresUpdatedAt;
-    const event = scoresUpdatedAt ? backup?.events.find(event => event.id === id && event.scoreSource === 'NHL') : undefined;
+    const event = scoresUpdatedAt ? backup?.events.find(event => event.id === id && event.scoreSource) : undefined;
     if (event) return {event: structuredClone(event), lastSuccessAt: scoresUpdatedAt!};
     const primary = cached.events.find(event => event.id === id);
     return primary ? {event: structuredClone(primary), lastSuccessAt: new Date(cached.at).toISOString()} : null;

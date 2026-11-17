@@ -673,7 +673,7 @@ test('board coalesces requests and refreshes active leagues ahead of idle league
   assert.equal(calls, live.LIVE_LEAGUES.length);
   assert.ok(maximum <= 4 && maximum > 1);
   assert.equal(first.source, 'ESPN');
-  assert.equal(first.refreshAfterMs, 2_000);
+  assert.equal(first.refreshAfterMs, 1_500);
   assert.equal(first.stale, false);
   assert.equal(first.leagues.filter(l => l.status === 'ok').length, live.LIVE_LEAGUES.length);
   assert.ok(first.golf?.length);
@@ -684,13 +684,13 @@ test('board coalesces requests and refreshes active leagues ahead of idle league
   const activeLeagues = new Set(concurrent.events.filter(event=>event.status==='live').map(event=>event.league));
   if (concurrent.golf?.some(tournament=>tournament.state==='in')) activeLeagues.add('pga');
   assert.ok(activeLeagues.size > 0 && activeLeagues.size < live.LIVE_LEAGUES.length);
-  clock += 1_999;
+  clock += 1_499;
   await client.getLiveBoard();
   assert.equal(calls, live.LIVE_LEAGUES.length);
   clock++;
   await client.getLiveBoard();
   assert.equal(calls, live.LIVE_LEAGUES.length + activeLeagues.size);
-  clock += 6_000;
+  clock += 6_500;
   await client.getLiveBoard();
   assert.equal(calls, live.LIVE_LEAGUES.length * 2 + activeLeagues.size);
 });
@@ -1041,4 +1041,61 @@ test('NHL backup updates an exact game, survives a second outage and keeps ESPN 
   const restored = await client.getLiveBoard();
   assert.equal(restored.leagues.find(league => league.id === 'nhl')?.status, 'ok');
   assert.equal(restored.events.find(event => event.id === game.id)?.scoreSource, undefined);
+});
+
+test('MLB backup uses both teams and kickoff to disambiguate doubleheaders', async () => {
+  const fixture = structuredClone(fixtures.mlb);
+  const raw = fixture.events[0].competitions[0];
+  raw.status.type = {name:'STATUS_IN_PROGRESS',state:'in',completed:false};
+  const [game] = live.normalizeScoreboard('mlb',fixture);
+  let clock = Date.parse(game.startsAt);
+  let down = false;
+  const providerGame = {
+    gameDate:game.startsAt,status:{abstractGameState:'Live',detailedState:'In Progress'},
+    teams:{away:{team:{abbreviation:game.away.shortName},score:3},home:{team:{abbreviation:game.home.shortName},score:5}},
+    linescore:{currentInning:6,inningState:'Bottom'},
+  };
+  const client = live.createLiveSportsClient({now:()=>clock,fetch:async input=>{
+    const url = String(input);
+    if (url.startsWith('https://statsapi.mlb.com/')) return Response.json({dates:[{games:[
+      {...providerGame,gameDate:new Date(clock+3600_000).toISOString()},
+      providerGame,
+    ]}]});
+    if (url.includes('/baseball/mlb/')) return down ? new Response(null,{status:503}) : Response.json(fixture);
+    return Response.json({events:[]});
+  }});
+  await client.getLiveBoard();
+  clock += 2_000;
+  down = true;
+  const result = await client.getLiveBoard();
+  const updated = result.events.find(event=>event.id===game.id);
+  assert.equal(updated?.scoreSource,'MLB');
+  assert.equal(updated?.home.score,5);
+  assert.equal(updated?.statusText,'Bottom 6');
+  assert.equal(result.leagues.find(league=>league.id==='mlb')?.backupSource,'MLB');
+});
+
+test('a failed team scoreboard can recover a matching active game from ESPN summary', async () => {
+  const fixture = structuredClone(fixtures.nfl);
+  const game = live.normalizeScoreboard('nfl',fixture).find(event=>event.status==='live');
+  assert.ok(game);
+  let clock=Date.parse(game.startsAt);
+  let down=false;
+  const header=structuredClone(fixture.events.find((item:{id:string})=>item.id===game.id));
+  assert.ok(header);
+  header.competitions[0].competitors.find((side:{homeAway:string})=>side.homeAway==='home').score='24';
+  const client=live.createLiveSportsClient({now:()=>clock,fetch:async input=>{
+    const url = String(input);
+    if (url.endsWith('summary?event='+game.id))return Response.json({header});
+    if (url.includes('/football/nfl/'))return down ? new Response(null,{status:503}) : Response.json(fixture);
+    return Response.json({events:[]});
+  }});
+  await client.getLiveBoard();
+  down=true;
+  clock+=2_000;
+  const result=await client.getLiveBoard();
+  assert.equal(result.events.find(event=>event.id===game.id)?.scoreSource,'ESPN summary');
+  assert.equal(result.events.find(event=>event.id===game.id)?.home.score,24);
+  assert.equal(result.leagues.find(league=>league.id==='nfl')?.status,'stale');
+  assert.equal((await client.getLiveEvent('nfl',game.id))?.scoreSource,undefined);
 });

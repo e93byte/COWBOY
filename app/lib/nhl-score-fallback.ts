@@ -4,7 +4,7 @@ const easternDate = new Intl.DateTimeFormat('en-CA', {
   timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit',
 });
 
-export function nhlScoreDate(time: number): string {
+export function easternScoreDate(time: number): string {
   return easternDate.format(time);
 }
 

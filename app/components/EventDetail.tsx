@@ -11,7 +11,7 @@ import { ScheduleTimeZone } from './ScheduleTimeZone';
 import { ScoreProgression } from './ScoreProgression';
 import { SoccerLineups } from './SoccerLineups';
 import { scheduleTime } from '../lib/schedule-time';
-import { BoardScore } from './MatchCard';
+import { BoardScore, GameStatus } from './MatchCard';
 import { hasRecordStandings } from '../lib/sports-leagues';
 import { LIVE_SCORE_REFRESH_MS } from '../lib/score-refresh';
 
@@ -725,7 +725,7 @@ function EventDetailContent({
   const shareable = /^[0-9]{1,16}(?:-[0-9]{1,16})?$/.test(event.id);
   const [section, setSection] = useState<GameSection>(()=>readGameSection(event));
   const [refresh, setRefresh] = useState(0);
-  const boardStatus = boardDelayed && boardEvent?.scoreSource !== 'NHL' ? undefined : boardEvent?.status;
+  const boardStatus = boardDelayed && !boardEvent?.scoreSource ? undefined : boardEvent?.status;
 
   function selectSection(next: GameSection) {
     setSection(next);
@@ -815,7 +815,7 @@ function EventDetailContent({
     };
   }, [event.id, event.league, event.status, boardStatus, refresh]);
 
-  const newerBoard = (!boardDelayed || boardEvent?.scoreSource === 'NHL') && boardFetchedAt &&
+  const newerBoard = (!boardDelayed || boardEvent?.scoreSource) && boardFetchedAt &&
     Date.parse(boardFetchedAt) > requestedAt ? boardEvent : undefined;
   const usesSummary = section === 'timeline' || section === 'drives' || section === 'players' || section === 'stats' ||
     section === 'score' || section === 'lineups' || section === 'standings';
@@ -857,11 +857,11 @@ function EventDetailContent({
           </div>
         ))}
         <div className="cw-game-status">
-          <strong className={detail.status === 'live' ? 'cw-live-label' : undefined}>{detail.status === 'scheduled' ? 'Upcoming' : detail.winner === 'draw' ? 'Full-time draw' : detail.statusText}</strong>
+          <GameStatus status={detail.status}>{detail.status === 'scheduled' ? 'Upcoming' : detail.winner === 'draw' ? 'Full-time draw' : detail.statusText}</GameStatus>
           <span>{detail.status === 'scheduled'
             ? scheduleTime(detail.startsAt,zone)
             : detail.clock}</span>
-          {detail.scoreSource === 'NHL' && <span>NHL backup score</span>}
+          {detail.scoreSource && <span>{detail.scoreSource} backup score</span>}
           {detail.shootoutScores && <span>Penalties {detail.shootoutScores.away}–{detail.shootoutScores.home}</span>}
           {detail.soccerAggregate && <span>Aggregate {detail.soccerAggregate.away}–{detail.soccerAggregate.home} · Leg {detail.soccerAggregate.leg} of {detail.soccerAggregate.totalLegs}</span>}
         </div>

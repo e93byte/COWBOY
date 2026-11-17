@@ -4,23 +4,43 @@ import {useContext, useEffect, useRef, useState} from 'react';
 import type {LiveEvent} from '../lib/live-sports';
 import {scheduleTime} from '../lib/schedule-time';
 import {ScheduleTimeZone} from './ScheduleTimeZone';
-import {SportIcon} from './SportIcon';
+import {ActionIcon, SportIcon, StatusIcon} from './SportIcon';
 import {TeamMark} from './TeamMark';
 
 function SourceScore({score,tiebreak}:{score:number|null;tiebreak?:number|null}) {
-  const previous=useRef(score);
-  const [changed,setChanged]=useState(false);
+  const previous = useRef({score,tiebreak});
+  const [changed,setChanged] = useState<'up'|'correction'|null>(null);
   useEffect(()=>{
-    const was=previous.current;
-    previous.current=score;
-    if(was===null||score===null||was===score)return;
-    setChanged(true);
-    const timer=setTimeout(()=>setChanged(false),1600);
-    return()=>clearTimeout(timer);
-  },[score]);
-  return <b className={changed?'cw-scores-updated':undefined}>
+    const was = previous.current;
+    previous.current = {score,tiebreak};
+    const before = score !== was.score ? was.score : was.tiebreak;
+    const after = score !== was.score ? score : tiebreak;
+    if (before == null || after == null || before === after) {
+      setChanged(null);
+      return;
+    }
+    setChanged(after > before ? 'up' : 'correction');
+    const timer = setTimeout(()=>setChanged(null),1600);
+    return ()=>clearTimeout(timer);
+  },[score,tiebreak]);
+  return <b className={changed?'cw-scores-updated':undefined} data-score-change={changed??undefined}>
     {score??'—'}{tiebreak!=null && <sup aria-hidden="true">{tiebreak}</sup>}
   </b>;
+}
+
+export function GameStatus({status,children}:{status:LiveEvent['status'];children:React.ReactNode}) {
+  const previous = useRef(status);
+  const [changed,setChanged] = useState(false);
+  useEffect(()=>{
+    if (previous.current === status) return;
+    previous.current = status;
+    setChanged(true);
+    const timer = setTimeout(()=>setChanged(false),2200);
+    return ()=>clearTimeout(timer);
+  },[status]);
+  return <span className="cw-game-state" data-game-state={status} data-status-change={changed || undefined}>
+    <StatusIcon status={status}/><span>{children}</span>
+  </span>;
 }
 
 export function BoardScore({event, side}: {event: LiveEvent; side: 'home' | 'away'}) {
@@ -41,9 +61,9 @@ export function MatchCard({event, onOpen, label}: {event: LiveEvent; onOpen: (ev
   return <button className="cw-match-card" aria-label={label ?? `Explore ${event.name}`} onClick={() => onOpen(event)}>
     <span className="cw-match-meta">
       <span><SportIcon sport={event.sport}/>{event.leagueName}</span>
-      <strong className={event.status === 'live' ? 'cw-live-label' : undefined}>
+      <GameStatus status={event.status}>
         {event.status === 'scheduled' ? scheduleTime(event.startsAt,zone) : event.status === 'live' ? `Live · ${event.clock || event.statusText}` : event.statusText}
-      </strong>
+      </GameStatus>
     </span>
     <span className="cw-match-lines">
       {(['away','home'] as const).map(side => (
@@ -54,6 +74,6 @@ export function MatchCard({event, onOpen, label}: {event: LiveEvent; onOpen: (ev
         </span>
       ))}
     </span>
-    <span className="cw-match-link">Game center <span aria-hidden="true">→</span></span>
+    <span className="cw-match-link">Game center <ActionIcon action="details"/></span>
   </button>;
 }

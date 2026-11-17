@@ -19,3 +19,26 @@ export function StarIcon({filled=false}:{filled?:boolean}) {
 }
 export function RefreshIcon(){return <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M20 10a8 8 0 1 0-1 7M20 4v6h-6"/></svg>;}
 export function CloseIcon(){return <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><path d="m6 6 12 12M18 6 6 18"/></svg>;}
+
+export function StatusIcon({status}:{status:string}) {
+  const paths:Record<string,React.ReactNode> = {
+    live:<><circle cx="12" cy="12" r="2" fill="currentColor"/><path d="M7 7a7 7 0 0 0 0 10m10-10a7 7 0 0 1 0 10M4 4a11 11 0 0 0 0 16m16-16a11 11 0 0 1 0 16"/></>,
+    scheduled:<><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></>,
+    final:<><circle cx="12" cy="12" r="9"/><path d="m8 12 3 3 5-6"/></>,
+    postponed:<><circle cx="12" cy="12" r="9"/><path d="M10 8v8m4-8v8"/></>,
+    cancelled:<><circle cx="12" cy="12" r="9"/><path d="m9 9 6 6m0-6-6 6"/></>,
+    unknown:<><circle cx="12" cy="12" r="9"/><path d="M12 7v6m0 3v.1"/></>,
+  };
+  return <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">{paths[status] ?? paths.unknown}</svg>;
+}
+
+export function ActionIcon({action}:{action:'compare'|'details'|'search'|'alerts'|'picks'}) {
+  const paths = {
+    compare:<><rect x="3" y="5" width="7" height="14" rx="2"/><rect x="14" y="5" width="7" height="14" rx="2"/></>,
+    details:<path d="M5 12h14m-6-6 6 6-6 6"/>,
+    search:<><circle cx="10.5" cy="10.5" r="5.5"/><path d="m15 15 4 4"/></>,
+    picks:<><path d="M4 6h16v4a2 2 0 0 0 0 4v4H4v-4a2 2 0 0 0 0-4Z"/><path d="m9 12 2 2 4-4"/></>,
+    alerts:<path d="M6 10a6 6 0 0 1 12 0c0 4 2 4 2 6H4c0-2 2-2 2-6Zm4 9a2 2 0 0 0 4 0"/>,
+  };
+  return <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">{paths[action]}</svg>;
+}

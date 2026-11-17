@@ -1459,3 +1459,36 @@
 }
 .cw-player-sort span { color: var(--dim); }
 .cw-player-table-scroll th[aria-sort] .cw-player-sort span { color: var(--tan); }
+
+.cw-game-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  border-radius: 4px;
+  color: var(--dim);
+  font-weight: 600;
+  transition: background-color 140ms, color 140ms;
+}
+.cowboy-live .cw-game-state svg { width: 13px; height: 13px; }
+.cw-game-state[data-game-state="live"] { color: #a9dcb9; }
+.cw-game-state[data-game-state="final"] { color: #d9c6ad; }
+.cw-game-state:is([data-game-state="postponed"],[data-game-state="cancelled"]) { color: #efb77f; }
+.cw-game-state[data-status-change="true"] { background: #414230; box-shadow: 0 0 0 3px #414230; }
+.cowboy-live [data-score-change] { padding-inline: 3px; border-radius: 3px; }
+.cowboy-live b.cw-scores-updated[data-score-change="up"] { background: #264438; color: #b6f5cd; box-shadow: 0 0 0 2px #264438; }
+.cowboy-live b.cw-scores-updated[data-score-change="correction"] { background: #593e28; color: #ffd0a6; box-shadow: 0 0 0 2px #593e28; }
+.cowboy-live :is(.cw-live-open,.cw-compare-toggle,.cw-compare-jump) { display: inline-flex; align-items: center; justify-content: center; gap: 4px; }
+.cowboy-live :is(.cw-live-open,.cw-compare-toggle,.cw-compare-jump,.cw-match-link) svg { width: 14px; height: 14px; }
+
+.cowboy-live .cw-updates-button { display: inline-flex; align-items: center; gap: 5px; }
+.cowboy-live .cw-updates-button svg { width: 14px; height: 14px; }
+@media (max-width: 390px) {
+  .cowboy-live .cw-updates-button svg { display: none; }
+}
+
+.cowboy-live .cw-header nav button { display: inline-flex; align-items: center; gap: 6px; }
+.cowboy-live .cw-header nav svg { width: 15px; height: 15px; }
+@media (max-width: 700px) {
+  .cowboy-live .cw-header nav { display: none; }
+}

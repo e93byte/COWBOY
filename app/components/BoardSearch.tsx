@@ -1,5 +1,6 @@
 'use client';
 
+import {ActionIcon} from './SportIcon';
 import { useId, useMemo, useRef, useState } from 'react';
 import type { KeyboardEvent } from 'react';
 import type { LiveBoard, LiveEvent } from '../lib/live-sports';
@@ -106,7 +107,7 @@ export function BoardSearch({events, leagues, query, onChange, onSelect}: {
   }}>
     <label className="cw-search">
       <span className="sr-only">Search teams, leagues or games</span>
-      <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="10" cy="10" r="6"/><path d="m15 15 5 5"/></svg>
+      <ActionIcon action="search"/>
       <input ref={input} type="search" placeholder="Find a team, league or game" value={query}
         aria-controls={visible ? listId : undefined} autoComplete="off"
         onFocus={()=>setOpen(true)} onChange={event=>{onChange(event.target.value);setOpen(true);}}/>
