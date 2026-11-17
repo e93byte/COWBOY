@@ -665,7 +665,7 @@ function EventDetailContent({
   const shareable = /^[0-9]{1,16}(?:-[0-9]{1,16})?$/.test(event.id);
   const [section, setSection] = useState<GameSection>(()=>readGameSection(event));
   const [refresh, setRefresh] = useState(0);
-  const boardStatus = boardDelayed ? undefined : boardEvent?.status;
+  const boardStatus = boardDelayed && boardEvent?.scoreSource !== 'NHL' ? undefined : boardEvent?.status;
 
   function selectSection(next: GameSection) {
     setSection(next);
@@ -717,7 +717,7 @@ function EventDetailContent({
         const next = result.event || (result.id ? result as LiveEvent : null);
         if (!next || next.id !== event.id || next.league !== event.league) throw new Error('Event details unavailable.');
         const fallback = result.fallback === 'scoreboard';
-        if (!fallback) status = next.status;
+        if (!fallback || next.status === 'live') status = next.status;
         const readAt = Date.parse(result.lastSuccessAt ?? '');
         setSnapshot(previous => fallback ? {...previous,...next} : next);
         setRequestedAt(fallback && Number.isFinite(readAt) ? readAt : startedAt);
@@ -755,7 +755,8 @@ function EventDetailContent({
     };
   }, [event.id, event.league, event.status, boardStatus, refresh]);
 
-  const newerBoard = !boardDelayed && boardFetchedAt && Date.parse(boardFetchedAt) > requestedAt ? boardEvent : undefined;
+  const newerBoard = (!boardDelayed || boardEvent?.scoreSource === 'NHL') && boardFetchedAt &&
+    Date.parse(boardFetchedAt) > requestedAt ? boardEvent : undefined;
   const usesSummary = section === 'timeline' || section === 'drives' || section === 'players' || section === 'stats' ||
     section === 'score' || section === 'lineups' || section === 'standings';
   const detail = usesSummary && snapshot ? snapshot : newerBoard ?? snapshot ?? event;
@@ -799,6 +800,7 @@ function EventDetailContent({
           <span>{detail.status === 'scheduled'
             ? scheduleTime(detail.startsAt,zone)
             : detail.clock}</span>
+          {detail.scoreSource === 'NHL' && <span>NHL backup score</span>}
           {detail.shootoutScores && <span>Penalties {detail.shootoutScores.away}–{detail.shootoutScores.home}</span>}
           {detail.soccerAggregate && <span>Aggregate {detail.soccerAggregate.away}–{detail.soccerAggregate.home} · Leg {detail.soccerAggregate.leg} of {detail.soccerAggregate.totalLegs}</span>}
         </div>

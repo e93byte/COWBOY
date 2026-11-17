@@ -6,7 +6,7 @@ COWBOY is a free-picks sports web app built with Next.js. Browse real fixtures, 
 
 ## Quick start
 
-Use Node.js 22 and npm. No API key is required for local sports data.
+Use Node.js 22 and npm. The sample runs locally with public scores and a file-backed account store. No API key is required.
 
 ```sh
 git clone https://github.com/e93byte/COWBOY.git
@@ -27,13 +27,16 @@ Open [COWBOY on port 3213](http://127.0.0.1:3213). Create a local test account, 
 | My Picks | Review accuracy, the last five decided picks, and your current run. Change an eligible pick before its game starts. |
 | Preferences | Set your schedule timezone and followed-game alerts. |
 
-## Live data and recovery
+## Scores and availability
 
-- Active leagues and open live games are checked about every **5 seconds** while the app is visible. Idle leagues are checked about every **15 seconds**. ESPN controls when it publishes updates, and request time adds to these intervals.
-- Concurrent requests share the server cache. A rate-limited scoreboard league backs off for at least 30 seconds. The scoreboard can retain the last successful league response for up to five minutes and labels its original timestamp.
-- Game updates use each league’s last successful refresh. A delayed league resumes from its first successful response, while healthy leagues keep producing score updates.
-- If the ESPN event summary fails, Game Center can show the last scoreboard response for that exact league and event and retain details it already received. The app labels the fallback. Pick verification still requires current source data.
-- The installed web app can show the last saved scoreboard offline. Coverage varies by league, and both the scoreboard and summary come from ESPN.
+| Condition | Behavior |
+| --- | --- |
+| Game live or near its scheduled start | The foreground app checks about every 2 seconds. An idle league is checked about every 8 seconds. |
+| Game Center summary unavailable | COWBOY tries that league's scoreboard, even on a direct game link, and retains already loaded details. |
+| ESPN hockey scoreboard unavailable | NHL scores can update games from the last ESPN schedule when both teams and the start time match. The interface labels the backup and shows its last check. |
+| Both feeds unavailable | The server can retain the last successful ESPN league response for up to 5 minutes, with the original timestamp. The installed PWA can also show its last saved scoreboard offline. |
+
+These intervals are polling targets. Provider publishing cadence, request latency, and retry backoff affect how soon a change reaches the screen. The API shares requests across users in one server process and backs off for at least 30 seconds on HTTP 429. Backup or cached scores are for display. Pick entry and settlement require ESPN verification.
 
 ## Verification
 
@@ -45,7 +48,7 @@ npx playwright install chromium
 npm run test:e2e
 ```
 
-Playwright starts a development server on port 3210 by default. To run the browser tests against the preview on port 3213, use `PLAYWRIGHT_BASE_URL=http://127.0.0.1:3213 npm run test:e2e`. GitHub Actions checks the production build and runs the browser suite against it.
+Playwright starts a development server on port 3210 by default. To run the browser tests against the preview on port 3213, use `PLAYWRIGHT_BASE_URL=http://127.0.0.1:3213 npm run test:e2e`. GitHub Actions installs locked dependencies, audits them, runs type checks and unit tests, builds for production, and runs browser tests against that build.
 
 To serve the built app, run `npm run start -- --hostname 127.0.0.1 --port 3213` after `npm run build`.
 
@@ -57,6 +60,7 @@ To serve the built app, run `npm run start -- --hostname 127.0.0.1 --port 3213` 
 | `app/components/EventDetail.tsx` | Game Center, summary polling and fallback display |
 | `app/components/AccountPicks.tsx` | Accounts, draft slip and My Picks |
 | `app/lib/live-sports.ts` | ESPN adapter, normalization, cache and request limits |
+| `app/lib/nhl-score-fallback.ts` | NHL score matching for ESPN outages |
 | `app/api/` | Sports, account and pick APIs |
 | `public/sw.js` | Offline scoreboard support |
 | `tests/` | Unit tests, fixtures and browser journeys |

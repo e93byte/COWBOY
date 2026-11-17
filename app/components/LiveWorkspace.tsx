@@ -611,6 +611,8 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
     setFilter('upcoming');
     document.getElementById('games-board')?.scrollIntoView({block: 'start'});
   };
+  const detailBoardEvent = detail ? allEvents.find(event => eventKey(event) === eventKey(detail)) : undefined;
+  const detailLeague = detail ? board?.leagues.find(league => league.id === detail.league) : undefined;
   const detailTicket = detail && account.user
     ? account.tickets.find(ticket => ticket.eventId === detail.id && ticket.league === detail.league && ticket.status !== 'cancelled')
     : undefined;
@@ -760,11 +762,12 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
         </button>)}
       </div>}
       {error&&<div className="cw-alert" role="alert">{error} {board&&'Last received games are shown; new picks are paused.'}<button disabled={busy} onClick={refresh}>Try again</button></div>}
-      {board?.stale&&<div className="cw-alert" role="status">Delayed source data. Affected leagues show their last received scores and pause new picks.</div>}
+      {board?.stale&&<div className="cw-alert" role="status">Delayed source data. Affected leagues show backup or last received scores, and new picks are paused.</div>}
       {board?.leagues.filter(l=>l.status!=='ok').map(l=><div className="cw-league-error cw-league-health" key={l.id}>
         <div>
-          <span>{l.name}: {l.status==='error'?'source unavailable':'delayed'}{l.error?` · ${l.error}`:''}</span>
-          {l.lastSuccessAt && <small>Last successful update <time dateTime={l.lastSuccessAt}>{time(l.lastSuccessAt)}</time></small>}
+          <span>{l.name}: {l.scoresUpdatedAt?'NHL backup scores':l.status==='error'?'source unavailable':'delayed'}{l.error?` · ${l.error}`:''}</span>
+          {l.scoresUpdatedAt && <small>Backup checked <time dateTime={l.scoresUpdatedAt}>{time(l.scoresUpdatedAt)}</time></small>}
+          {l.lastSuccessAt && <small>ESPN last checked <time dateTime={l.lastSuccessAt}>{time(l.lastSuccessAt)}</time></small>}
         </div>
         <button disabled={busy} onClick={()=>refreshLeague(l.id)} aria-label={`Retry ${l.name} feed`}>Retry</button>
       </div>)}
@@ -810,7 +813,7 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
           ? <GameMomentList moments={visibleMoments.slice(0,12)} onGame={moment=>openMoment(moment.event)}/>
           : <p>Updates for this view will appear here as scores and statuses change.</p>}
       </section>}
-      <p className="cw-feed-note">ESPN public scoreboards · Live leagues checked about every 5 seconds while visible. Scores appear when ESPN publishes them.</p></>:<PicksHistory key={account.user?.id ?? 'guest'} tickets={account.tickets} onUpdate={account.updateTicket} busy={account.ticketsBusy} error={account.ticketsError} onRefresh={()=>void account.loadTickets(true)} user={account.user} onSignIn={()=>setAccountOpen(true)} events={board?.events??[]} onGame={(ticket,event)=>event ? openGame(event) : openSavedGame(ticket.eventId,ticket.league)} onBrowse={openBoard} feedCurrent={!!board&&!board.stale&&!error}/>}
+      <p className="cw-feed-note">Live scores checked about every 2 seconds while visible. Game updates arrive when the source publishes them.</p></>:<PicksHistory key={account.user?.id ?? 'guest'} tickets={account.tickets} onUpdate={account.updateTicket} busy={account.ticketsBusy} error={account.ticketsError} onRefresh={()=>void account.loadTickets(true)} user={account.user} onSignIn={()=>setAccountOpen(true)} events={board?.events??[]} onGame={(ticket,event)=>event ? openGame(event) : openSavedGame(ticket.eventId,ticket.league)} onBrowse={openBoard} feedCurrent={!!board&&!board.stale&&!error}/>}
       <footer className="cw-footer"><b>ALL GAME. NO GAMBLING.</b><p>Free-to-play predictions only. No money, purchase, cash prizes or wagering. Picks close at scheduled start or when the source marks an event live. Results depend on source confirmation.</p><div className="cw-footer-actions"><button className="cw-terms" aria-current={helpView ? "page" : undefined} onClick={()=>navigate('help')}>Help &amp; rules</button><button className="cw-terms" aria-current={preferencesView ? "page" : undefined} onClick={()=>navigate('preferences')}>Preferences</button><PwaControls/></div></footer>
     </main>{view==='board'&&<aside className="cw-picks-rail">{pickPanel}</aside>}</div>
     <nav className="cw-mobile-nav" aria-label="Mobile navigation"><button aria-pressed={view==='board'} onClick={openBoard}><SportIcon sport="all"/>Sports</button><button aria-pressed={liveView} onClick={openLive}><span aria-hidden="true">●</span>Live</button><button aria-pressed={view==='board'&&filter==='watchlist'} onClick={openWatchlist}><StarIcon/>Watchlist</button><button aria-pressed={view==='picks'} onClick={openPicks}><span aria-hidden="true">☷</span>My picks</button></nav>
@@ -834,8 +837,8 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
       <button className={failedGame?'cw-clear':'cw-primary'} onClick={closeGame}>{view==='picks'?'Back to My picks':'Back to sports board'}</button>
     </Modal>}
     {detail&&<EventDetail event={detail} games={allEvents} onGame={event=>openGame(event,true)}
-      boardEvent={board?.events.find(e=>e.id===detail.id&&e.league===detail.league)}
-      boardFetchedAt={board?.leagues.find(item=>item.id===detail.league)?.lastSuccessAt ?? board?.fetchedAt}
+      boardEvent={detailBoardEvent}
+      boardFetchedAt={detailBoardEvent?.scoreSource === 'NHL' ? detailLeague?.scoresUpdatedAt : detailLeague?.lastSuccessAt ?? board?.fetchedAt}
       ticket={detailTicket || undefined}
       ticketsLoading={account.ticketsBusy}
       ticketsError={account.ticketsError}

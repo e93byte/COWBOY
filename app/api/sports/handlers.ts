@@ -1,9 +1,9 @@
-import { getCachedScoreboardEvent, getLiveBoard, getLiveEvent, LIVE_LEAGUES, LiveSportsError } from '../../lib/live-sports';
+import { getScoreboardEvent, getLiveBoard, getLiveEvent, LIVE_LEAGUES, LiveSportsError } from '../../lib/live-sports';
 
 type SportsClient = {
   getLiveBoard: typeof getLiveBoard;
   getLiveEvent: typeof getLiveEvent;
-  getCachedScoreboardEvent?: typeof getCachedScoreboardEvent;
+  getScoreboardEvent?: typeof getScoreboardEvent;
 };
 const headers = { 'Cache-Control': 'no-store' };
 
@@ -15,7 +15,7 @@ function failure(error: unknown) {
   }, { status: known ? error.status : 502, headers });
 }
 
-export function createSportsHandlers(client: SportsClient = { getLiveBoard, getLiveEvent, getCachedScoreboardEvent }) {
+export function createSportsHandlers(client: SportsClient = { getLiveBoard, getLiveEvent, getScoreboardEvent }) {
   return {
     async board(request?: Request) {
       try {
@@ -44,7 +44,7 @@ export function createSportsHandlers(client: SportsClient = { getLiveBoard, getL
           if (error instanceof LiveSportsError && error.status === 400) throw error;
           unavailable = error;
         }
-        const fallback = client.getCachedScoreboardEvent?.(league, id);
+        const fallback = await client.getScoreboardEvent?.(league, id);
         if (fallback) return Response.json({...fallback, stale: true, fallback: 'scoreboard'}, {headers});
         if (unavailable) throw unavailable;
         return Response.json({ error: 'Event not found on the available ESPN schedule', source: 'ESPN' }, { status: 404, headers });
