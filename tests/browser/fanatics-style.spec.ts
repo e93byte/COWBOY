@@ -63,7 +63,43 @@ test('long league boards start concise and expand on request', async ({ page }) 
   await expect(group.locator('.cw-event')).toHaveCount(5);
 });
 
+test('Home curates a large board and keeps every league one tap away', async ({ page }) => {
+  const startsAt = new Date(Date.now() + 86400000).toISOString();
+  const leagues = [
+    ['nfl','football','NFL'], ['nba','basketball','NBA'], ['nhl','hockey','NHL'],
+    ['mlb','baseball','MLB'], ['wnba','basketball','WNBA'], ['ncaab','basketball','NCAA Basketball'],
+    ['ncaaw','basketball','NCAA Women'], ['mls','soccer','MLS'], ['epl','soccer','Premier League'],
+    ['atp','tennis','ATP'],
+  ].map(([id,sport,name],index)=>({id,sport,name,status:'ok' as const,index}));
+  const events = leagues.map((league,index)=>({
+    league:league.id, sport:league.sport, leagueName:league.name,
+    id:`401900${index}`, name:`Away ${index} at Home ${index}`, startsAt,
+    status:'scheduled' as const, statusText:'Tomorrow', clock:null, period:null,
+    away:{id:`away-${index}`,name:`Away Team ${index}`,shortName:`A${index}`,score:null},
+    home:{id:`home-${index}`,name:`Home Team ${index}`,shortName:`H${index}`,score:null},
+    winner:null, completed:false,
+  }));
+  await page.route('**/api/sports', route=>route.fulfill({json:{events,leagues,fetchedAt:new Date().toISOString(),source:'Fixture',refreshAfterMs:15000,stale:false}}));
+  await page.route('**/api/account', route=>route.fulfill({json:{user:null}}));
+  await page.goto('/');
+  await expect(page.locator('.cw-league-group')).toHaveCount(6);
+  await expect(page.locator('.cw-event')).toHaveCount(6);
+  await expect(page.getByText('Featured from 10 games')).toBeVisible();
+  await page.getByRole('button',{name:'View all 10 leagues'}).click();
+  await expect(page.locator('.cw-league-group')).toHaveCount(10);
+  await page.getByRole('button',{name:'Show featured leagues'}).click();
+  await expect(page.locator('.cw-league-group')).toHaveCount(6);
+});
+
 test('tablet and mobile stay in bounds with persistent sports journeys', async ({ page }) => {
+  const startsAt = new Date(Date.now() + 86400000).toISOString();
+  await page.route('**/api/sports', route=>route.fulfill({json:{events:[{
+    league:'nba',sport:'basketball',leagueName:'NBA',id:'4019988',name:'Away at Home',startsAt,
+    status:'scheduled',statusText:'Tomorrow',clock:null,period:null,completed:false,winner:null,
+    away:{id:'away',name:'Away Team',shortName:'AWY',score:null},
+    home:{id:'home',name:'Home Team',shortName:'HME',score:null},
+  }],leagues:[{id:'nba',sport:'basketball',name:'NBA',status:'ok'}],fetchedAt:new Date().toISOString(),source:'Fixture',refreshAfterMs:15000,stale:false}}));
+  await page.route('**/api/account', route=>route.fulfill({json:{user:null}}));
   for (const width of [834, 390]) {
     await page.setViewportSize({ width, height: 844 });
     await page.goto('/');
@@ -75,7 +111,7 @@ test('tablet and mobile stay in bounds with persistent sports journeys', async (
   await expect(nav).toBeVisible();
   await nav.getByRole('button', { name: 'My picks' }).click();
   await expect(page.getByRole('heading', { name: 'My picks', exact: true }).first()).toBeVisible();
-  await nav.getByRole('button', { name: 'Sports' }).click();
+  await nav.getByRole('button', { name: 'Sports' }).evaluate(button=>(button as HTMLButtonElement).click());
   await expect(page.getByRole('heading', { name: 'Sports board', exact: true })).toBeVisible();
 });
 
