@@ -181,11 +181,13 @@ test('schedule links use the sender timezone without changing the recipient pref
     const phoneOpener=phone.getByRole('button',{name:'Details: '+game.name});
     await expect(phoneOpener).toBeVisible();
     await expect(phone.locator('.cw-event-time time')).toContainText('9:30 PM');
+    await phone.getByRole('button',{name:'Sort & timezone',exact:true}).click();
     await expect(phone.getByRole('combobox',{name:'Schedule timezone'})).toHaveValue('America/Los_Angeles');
     expect(await phone.evaluate(()=>localStorage.getItem('cowboy.scheduleZone'))).toBeNull();
     const brokenLink=new URL(scheduleLink);
     brokenLink.searchParams.append('tz','America/New_York');
     await phone.goto(brokenLink.href);
+    await phone.getByRole('button',{name:'Sort & timezone',exact:true}).click();
     await expect(phone.getByRole('combobox',{name:'Schedule timezone'})).toHaveValue('local');
     await expect(phoneOpener).toHaveCount(0);
   } finally {

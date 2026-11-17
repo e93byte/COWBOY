@@ -160,6 +160,32 @@ test('Game Center copies the selected public section and keeps one browser histo
   await expect(modal.getByRole('button',{name:'Overview',exact:true})).toHaveAttribute('aria-pressed','true');
 });
 
+test('the narrow board keeps date and search visible and can expand timezone and sorting', async ({page}) => {
+  await setup(page);
+  await page.setViewportSize({width:390,height:844});
+  await page.goto('/');
+  const toggle = page.getByRole('button',{name:'Sort & timezone',exact:true});
+  const zone = page.getByLabel('Schedule timezone');
+  const sort = page.getByLabel('Sort games');
+  const date = page.getByLabel('Choose a date from the schedule');
+  await expect(toggle).toHaveAttribute('aria-expanded','false');
+  await expect(date).toBeVisible();
+  await expect(page.getByRole('searchbox')).toBeVisible();
+  await expect(zone).toBeHidden();
+  await expect(sort).toBeHidden();
+  await toggle.click();
+  await zone.selectOption('America/Los_Angeles');
+  await sort.selectOption('start');
+  await toggle.click();
+  await expect(sort).toBeHidden();
+  await date.selectOption({index:1});
+  await expect(date).not.toHaveValue('all');
+  await toggle.click();
+  await expect(zone).toHaveValue('America/Los_Angeles');
+  await expect(sort).toHaveValue('start');
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+});
+
 test('Preferences shares schedule and update settings with the board and inbox', async ({page}) => {
   await setup(page);
   await page.goto('/live');

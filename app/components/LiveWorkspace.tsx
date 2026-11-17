@@ -161,6 +161,7 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
   const moments = useGameMoments(board, Boolean(error));
   const [spotlightMode, setSpotlightMode] = useState<SpotlightMode>('featured');
   const [highlightsExpanded, setHighlightsExpanded] = useState(false);
+  const [boardOptionsExpanded, setBoardOptionsExpanded] = useState(false);
   const [now,setNow]=useState(0);
   useEffect(()=>{setNow(Date.now());const timer=setInterval(()=>setNow(Date.now()),1000);return()=>clearInterval(timer);},[]);
   const [boardLeague,setBoardLeague]=useState('all');
@@ -757,7 +758,7 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
         </div>
         <button disabled={busy} onClick={()=>refreshLeague(l.id)} aria-label={`Retry ${l.name} feed`}>Retry</button>
       </div>)}
-      <div className="cw-board-meta" id="games-board" tabIndex={-1}>
+      <div className="cw-board-meta" id="games-board" tabIndex={-1} data-options-expanded={boardOptionsExpanded}>
         <div className="cw-board-context">
           <h2>{teamFilter?.name ?? pickedLeague?.name ?? sportLabel ?? (liveView ? liveScopeLabel : 'Around the leagues')}
             {!liveView && !golfView && <small className="cw-board-date">{dateName}</small>}
@@ -771,11 +772,17 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
         </div>
         <div className="cw-board-controls">
           <span aria-live="polite">{golfView ? `${golfEvents.length} tournaments` : `${events.length} games`}</span>
-          <ScheduleZoneSelect value={zone} onChange={changeZone}/>
-          {!golfView && <label><span className="sr-only">Sort games</span><select value={sort} onChange={e=>setSort(e.target.value)}>
-            <option value="status">{liveView ? (liveScope==='final'?'Most recent':'Board order') : 'Live & upcoming first'}</option>
-            <option value="start">Start time</option>
-          </select></label>}
+          {!liveView && <button type="button" className="cw-board-options-toggle" aria-expanded={boardOptionsExpanded}
+            aria-controls="cw-board-options" onClick={()=>setBoardOptionsExpanded(value=>!value)}>
+            {golfView ? 'Timezone' : 'Sort & timezone'}
+          </button>}
+          <div className="cw-board-options" id="cw-board-options">
+            <ScheduleZoneSelect value={zone} onChange={changeZone}/>
+            {!golfView && <label><span className="sr-only">Sort games</span><select value={sort} onChange={e=>setSort(e.target.value)}>
+              <option value="status">{liveView ? (liveScope==='final'?'Most recent':'Board order') : 'Live & upcoming first'}</option>
+              <option value="start">Start time</option>
+            </select></label>}
+          </div>
           {(query||(!liveView&&filter!=='all')||league!=='all'||dateFilter!=='all')&&<button onClick={resetFilters}>Clear filters</button>}
         </div>
       </div>
