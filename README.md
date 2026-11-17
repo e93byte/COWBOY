@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="https://raw.githubusercontent.com/e93byte/COWBOY/main/public/cowboy-mark.webp" alt="COWBOY mascot" width="120">
+  <img src="docs/screenshots/product-vision.png" alt="COWBOY premium product-suite showcase" width="100%">
   <h1>COWBOY</h1>
   <p><strong>Premium suite of products</strong></p>
   <p>
@@ -19,31 +19,27 @@ This repository currently delivers the COWBOY sports experience: live sports sco
 
 | Product area | Purpose | Status |
 | --- | --- | --- |
-| **COWBOY Sportsbook** | Live scores, match tracking, matchup insights, and free picks. | **Available in this repo** |
+| **COWBOY Sports** | Live scores, match tracking, matchup details, watchlists, and free picks. | **Available in this repo** |
 | **COWBOY Live TV & Sports** | Streaming, sports broadcasting, and live event viewing. | Vision only |
 | **COWBOY Casino** | Entertainment and table-game experiences. | Vision only |
 | **COWBOY Movies & Streaming** | Movie discovery and premium streaming content. | Vision only |
 | **Daily Fantasy & Predictions** | Leaderboards, free entries, and skill-based prediction play. | Vision only |
 | **Interactive Games** | Mini-games, live engagement, and entertainment features. | Vision only |
 
-> The broader product-suite imagery is best understood as a brand concept. The code in this repository is focused on the sports board, live updates, and free-pick experience. It does not include paid gaming, media streaming, or wagering features.
+> The top image is brand-concept artwork for the broader product vision. This repository focuses on the sports board, live score updates, game details, and free picks; it does not include streaming, casino, paid gaming, or wagering features.
 
-## Screenshots
+## COWBOY in action
+
+The product showcase above leads with the brand vision. The screenshots below highlight the sports experience that is actually available in this repository.
 
 <p align="center">
-  <img src="docs/screenshots/product-vision.png" alt="COWBOY premium product vision" width="100%">
+  <img src="docs/screenshots/sports-board.png" alt="COWBOY sports board with schedules and filters" width="48%">
+  <img src="docs/screenshots/game-details.png" alt="COWBOY game details and score breakdown" width="48%">
 </p>
 
 <p align="center">
-  <img src="docs/screenshots/sports-board.png" alt="COWBOY sports board" width="48%">
-  <img src="docs/screenshots/game-details.png" alt="COWBOY game details" width="48%">
+  <img src="docs/screenshots/free-picks.png" alt="COWBOY free-pick experience" width="70%">
 </p>
-
-<p align="center">
-  <img src="docs/screenshots/free-picks.png" alt="COWBOY free picks" width="70%">
-</p>
-
-These screenshots should live in `docs/screenshots/` and show the current COWBOY sports experience and the premium product direction.
 
 ## Try COWBOY locally
 
