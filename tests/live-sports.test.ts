@@ -222,6 +222,36 @@ test('soccer standings preserve provider rank and signed values for relevant gro
     [['League phase',[[1,'A club',-4,24],[7,'Home',-4,12],[11,'Away',-4,-1]]]]);
 });
 
+test('NBA standings keep ESPN order and only include divisions tied to the matchup', async () => {
+  const header = fixtures.nba.events[0];
+  const game = live.normalizeScoreboard('nba',{events:[header]})[0];
+  const entry = (id:string,team:string,record:Record<string,number>) => ({
+    id,team,stats:Object.entries(record).map(([name,value])=>({name,value})),
+  });
+  const standings = {groups:[
+    {header:'Pacific standings',standings:{entries:[
+      entry('9944','Division leader',{wins:12,losses:2,winPercent:.85714287,gamesBehind:0}),
+      entry(game.home.id,'Home team',{wins:8,losses:6,winPercent:.571,gamesBehind:4}),
+      entry(game.home.id,'Duplicate',{wins:90}),
+    ]}},
+    {header:'Northwest standings',standings:{entries:[
+      entry(game.away.id,'Away team',{wins:4,losses:1.5,winPercent:1.1,gamesBehind:1.5}),
+    ]}},
+    {header:'Unrelated standings',standings:{entries:[entry('9954','Another team',{wins:7})]}},
+  ]};
+  const client = live.createLiveSportsClient({fetch:async()=>Response.json({header,standings})});
+  const result = await client.getLiveEvent('nba',game.id);
+  assert.deepEqual(result?.nbaStandings,[
+    {title:'Pacific standings',rows:[
+      {teamId:'9944',name:'Division leader',wins:12,losses:2,winPercent:.85714287,gamesBehind:0},
+      {teamId:game.home.id,name:'Home team',wins:8,losses:6,winPercent:.571,gamesBehind:4},
+    ]},
+    {title:'Northwest standings',rows:[
+      {teamId:game.away.id,name:'Away team',wins:4,losses:null,winPercent:null,gamesBehind:1.5},
+    ]},
+  ]);
+});
+
 test('grouped baseball stats keep categories distinct and use scoring plays from play-by-play', async () => {
   const header = summaries.nfl.header;
   const game = live.normalizeScoreboard('mlb', {events: [header]})[0];

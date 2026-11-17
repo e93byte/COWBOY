@@ -242,12 +242,13 @@ function GameStats({event, summary, busy, onRefresh}: {
   </section>;
 }
 
-function SoccerStandings({event,busy,onRefresh}: {event:LiveEvent;busy:boolean;onRefresh:()=>void}) {
+function GameStandings({event,busy,onRefresh}: {event:LiveEvent;busy:boolean;onRefresh:()=>void}) {
   const [expanded,setExpanded] = useState(false);
-  const groups = event.soccerStandings ?? [];
+  const nba = event.league === 'nba';
+  const groups = (nba ? event.nbaStandings : event.soccerStandings) ?? [];
   const isMatchTeam = (id: string) => id === event.home.id || id === event.away.id;
   const canExpand = groups.some(group=>group.rows.slice(5).some(row=>!isMatchTeam(row.teamId)));
-  return <section className="cw-game-section cw-soccer-standings" aria-label="League standings">
+  return <section className="cw-game-section" aria-label="League standings">
     <div className="cw-game-stats-heading">
       <h3>Standings</h3>
       <button disabled={busy} onClick={onRefresh}>{busy ? 'Refreshing…' : 'Refresh standings'}</button>
@@ -257,18 +258,31 @@ function SoccerStandings({event,busy,onRefresh}: {event:LiveEvent;busy:boolean;o
       {groups.map((group,index) => <table className="cw-team-stats-table cw-standings-table" key={index}>
         <caption>{group.title}</caption>
         <thead><tr>
-          <th scope="col">Rank</th><th scope="col">Team</th>
-          <th scope="col"><abbr title="Played">P</abbr></th>
-          <th scope="col"><abbr title="Goal difference">GD</abbr></th>
-          <th scope="col"><abbr title="Points">Pts</abbr></th>
+          {!nba && <th scope="col">Rank</th>}<th scope="col" className="cw-standings-team">Team</th>
+          {nba ? <>
+            <th scope="col"><abbr title="Wins">W</abbr></th>
+            <th scope="col"><abbr title="Losses">L</abbr></th>
+            <th scope="col"><abbr title="Win percentage">PCT</abbr></th>
+            <th scope="col"><abbr title="Games behind">GB</abbr></th>
+          </> : <>
+            <th scope="col"><abbr title="Played">P</abbr></th>
+            <th scope="col"><abbr title="Goal difference">GD</abbr></th>
+            <th scope="col"><abbr title="Points">Pts</abbr></th>
+          </>}
         </tr></thead>
         <tbody>{group.rows.filter((row,index)=>expanded || index < 5 || isMatchTeam(row.teamId)).map(row => {
           const matchTeam = isMatchTeam(row.teamId);
           return <tr key={row.teamId} data-match-team={matchTeam}>
-            <td>{row.rank}</td><th scope="row">{row.name}{matchTeam && <span className="sr-only"> (playing this match)</span>}</th>
-            <td>{row.played ?? '—'}</td>
-            <td>{row.goalDifference === null ? '—' : row.goalDifference > 0 ? '+'+row.goalDifference : row.goalDifference}</td>
-            <td>{row.points ?? '—'}</td>
+            {'rank' in row && <td>{row.rank}</td>}
+            <th scope="row">{row.name}{matchTeam && <span className="sr-only"> (playing this match)</span>}</th>
+            {'wins' in row ? <>
+              <td>{row.wins ?? '—'}</td><td>{row.losses ?? '—'}</td>
+              <td>{row.winPercent?.toFixed(3).replace(/^0\./,'.') ?? '—'}</td><td>{row.gamesBehind ?? '—'}</td>
+            </> : <>
+              <td>{row.played ?? '—'}</td>
+              <td>{row.goalDifference === null ? '—' : row.goalDifference > 0 ? '+'+row.goalDifference : row.goalDifference}</td>
+              <td>{row.points ?? '—'}</td>
+            </>}
           </tr>;
         })}</tbody>
       </table>)}
@@ -619,17 +633,18 @@ const gameSections = [
 ] as const;
 type GameSection = (typeof gameSections)[number]['id'];
 
-function sectionAvailable(section: GameSection, sport: string) {
-  if (section === 'drives') return sport === 'football';
-  if (section === 'lineups' || section === 'standings') return sport === 'soccer';
+function sectionAvailable(section: GameSection, event: LiveEvent) {
+  if (section === 'drives') return event.sport === 'football';
+  if (section === 'lineups') return event.sport === 'soccer';
+  if (section === 'standings') return event.sport === 'soccer' || event.league === 'nba';
   return true;
 }
 
-function readGameSection(sport: string): GameSection {
+function readGameSection(event: LiveEvent): GameSection {
   const params = new URLSearchParams(window.location.search);
   const sections = params.getAll('section');
   return sections.length === 1
-    ? gameSections.find(({id}) => id === sections[0] && sectionAvailable(id,sport))?.id ?? 'overview'
+    ? gameSections.find(({id}) => id === sections[0] && sectionAvailable(id,event))?.id ?? 'overview'
     : 'overview';
 }
 
@@ -648,7 +663,7 @@ function EventDetailContent({
   const [shareLink, setShareLink] = useState('');
   const shareField = useRef<HTMLInputElement>(null);
   const shareable = /^[0-9]{1,16}(?:-[0-9]{1,16})?$/.test(event.id);
-  const [section, setSection] = useState<GameSection>(()=>readGameSection(event.sport));
+  const [section, setSection] = useState<GameSection>(()=>readGameSection(event));
   const [refresh, setRefresh] = useState(0);
   const boardStatus = boardDelayed ? undefined : boardEvent?.status;
 
@@ -741,7 +756,8 @@ function EventDetailContent({
   }, [event.id, event.league, event.status, boardStatus, refresh]);
 
   const newerBoard = !boardDelayed && boardFetchedAt && Date.parse(boardFetchedAt) > requestedAt ? boardEvent : undefined;
-  const usesSummary = section === 'timeline' || section === 'drives' || section === 'players' || section === 'stats' || section === 'score' || section === 'lineups';
+  const usesSummary = section === 'timeline' || section === 'drives' || section === 'players' || section === 'stats' ||
+    section === 'score' || section === 'lineups' || section === 'standings';
   const detail = usesSummary && snapshot ? snapshot : newerBoard ?? snapshot ?? event;
   const venue = snapshot?.venue ?? event.venue;
   const leaders = (snapshot ?? event).leaders ?? [];
@@ -804,7 +820,7 @@ function EventDetailContent({
     {error && <p className="cw-form-error" role="alert">{error}</p>}
     {delayed && <p className="cw-form-error" role="status">Source data is delayed. Scores may be out of date.</p>}
     <nav className="cw-game-tabs" aria-label="Game center sections">
-      {gameSections.filter(({id})=>sectionAvailable(id,detail.sport)).map(({id, label}) =>
+      {gameSections.filter(({id})=>sectionAvailable(id,detail)).map(({id, label}) =>
         <button key={id} aria-pressed={section===id} onClick={()=>selectSection(id)}>{detail.fight && id==='score' ? 'Result' : label}</button>
       )}
     </nav>
@@ -865,7 +881,7 @@ function EventDetailContent({
     {section==='drives' && <FootballDrives event={detail} busy={busy} onRefresh={()=>setRefresh(value=>value+1)}/>}
     {section==='matchup' && <Matchup event={detail} matchup={(snapshot ?? event).matchup} busy={busy} onRefresh={()=>setRefresh(value=>value+1)}/>}
     {section==='lineups' && <SoccerLineups event={snapshot ?? event} busy={busy} onRefresh={()=>setRefresh(value=>value+1)}/>}
-    {section==='standings' && <SoccerStandings event={snapshot ?? event} busy={busy} onRefresh={()=>setRefresh(value=>value+1)}/>}
+    {section==='standings' && <GameStandings event={snapshot ?? event} busy={busy} onRefresh={()=>setRefresh(value=>value+1)}/>}
     {section==='pick' && <section className="cw-game-section" aria-label="Saved free pick">
       <h3>My free pick</h3>
       {ticket ? <><p><strong>{ticket.selection}</strong></p><p className="cw-game-section-note">{

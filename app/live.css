@@ -1206,7 +1206,7 @@
   font-variant-numeric: tabular-nums;
 }
 .cw-standings-table abbr { text-decoration: none; }
-.cw-standings-table :is(thead,tbody) th:nth-child(2) { text-align: left; }
+.cw-standings-table :is(.cw-standings-team, th[scope="row"]) { text-align: left; }
 .cw-standings-table tr[data-match-team="true"] { background: #312721; }
 .cw-standings-table tr[data-match-team="true"] th { color: var(--tan); font-weight: 700; }
 

@@ -74,6 +74,15 @@ type SoccerStanding = {
   goalDifference: number | null; points: number | null;
 };
 
+type NbaStanding = {
+  teamId: string;
+  name: string;
+  wins: number | null;
+  losses: number | null;
+  winPercent: number | null;
+  gamesBehind: number | null;
+};
+
 type FootballPosition = {
   possession: 'away' | 'home';
   fieldPercent: number;
@@ -123,6 +132,7 @@ export type LiveEvent = {
   matchup?: { away: MatchupSide; home: MatchupSide; series: string; seriesGames?: SeriesGame[] };
   soccerLineups?: Partial<Record<'away'|'home',SoccerLineup>>;
   soccerStandings?: {title:string; rows:SoccerStanding[]}[];
+  nbaStandings?: {title:string; rows:NbaStanding[]}[];
   fight?: FightCard;
   providerUrl?: string;
   winner: 'home' | 'away' | 'draw' | null;
@@ -395,6 +405,40 @@ function normalizeSoccerStandings(data: Json, event: LiveEvent): NonNullable<Liv
     if (!rows.has(event.away.id) && !rows.has(event.home.id)) return [];
     const title = text(group.header || standings.header).trim().slice(0,120) || `${event.leagueName} standings`;
     return [{title,rows:[...rows.values()].sort((a,b)=>a.rank-b.rank)}];
+  });
+}
+
+function normalizeNbaStandings(data: Json, event: LiveEvent): NonNullable<LiveEvent['nbaStandings']> {
+  const standings = object(data.standings);
+  if (!Array.isArray(standings.groups)) return [];
+  return standings.groups.slice(0,6).flatMap((raw:unknown)=>{
+    const group = object(raw);
+    const entries = object(group.standings).entries;
+    if (!Array.isArray(entries)) return [];
+    const rows = new Map<string,NbaStanding>();
+    for (const rawEntry of entries.slice(0,30)) {
+      const entry = object(rawEntry);
+      const name = text(entry.team).trim();
+      if (!validId(entry.id) || !name || !Array.isArray(entry.stats) || rows.has(entry.id)) continue;
+      const stats = new Map<string,number>();
+      for (const rawStat of entry.stats) {
+        const {name,value} = object(rawStat);
+        if (typeof value === 'number' && Number.isFinite(value)) stats.set(text(name),value);
+      }
+      const winPercent = stats.get('winPercent');
+      const wins = stats.get('wins');
+      const losses = stats.get('losses');
+      rows.set(entry.id,{
+        teamId:entry.id, name:name.slice(0,100),
+        wins:wins!==undefined && Number.isSafeInteger(wins) && wins>=0 ? wins : null,
+        losses:losses!==undefined && Number.isSafeInteger(losses) && losses>=0 ? losses : null,
+        winPercent:winPercent!==undefined && winPercent>=0 && winPercent<=1 ? winPercent : null,
+        gamesBehind:stats.get('gamesBehind')??null,
+      });
+    }
+    if (!rows.has(event.away.id) && !rows.has(event.home.id)) return [];
+    const title = text(group.header || standings.header).trim().slice(0,120) || 'NBA standings';
+    return [{title,rows:[...rows.values()]}];
   });
 }
 
@@ -995,6 +1039,7 @@ export function createLiveSportsClient(options: ClientOptions = {}) {
     const matchup = normalizeMatchup(data, event);
     const soccerLineups = normalizeSoccerLineups(data,event);
     const soccerStandings = event.sport === 'soccer' ? normalizeSoccerStandings(data,event) : [];
+    const nbaStandings = league === 'nba' ? normalizeNbaStandings(data,event) : [];
     const footballPosition = normalizeDrivePosition(data,event);
     const footballDrives = hasStarted && event.sport === 'football' ? normalizeFootballDrives(data,event) : [];
     return {
@@ -1012,6 +1057,7 @@ export function createLiveSportsClient(options: ClientOptions = {}) {
       ...(matchup ? { matchup } : {}),
       ...(soccerLineups ? {soccerLineups} : {}),
       ...(soccerStandings.length ? {soccerStandings} : {}),
+      ...(nbaStandings.length ? {nbaStandings} : {}),
     };
   }
 

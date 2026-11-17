@@ -23,7 +23,7 @@ Open [COWBOY on port 3213](http://127.0.0.1:3213). Create a local test account, 
 | --- | --- |
 | Home | Filter the schedule by sport, league, and date. Follow a matchup or add up to five independent free picks to your draft. |
 | Live | Follow in-progress scores or browse recent finals. Filter to watched matchups. |
-| Game Center | Open a game for scores, play-by-play, lineups, and player stats where available. Share a link to a specific section. |
+| Game Center | Open a game for scores, play-by-play, lineups, player stats, and standings where available. Share a link to a specific section. |
 | My Picks | Review accuracy, the last five decided picks, and your current run. Change an eligible pick before its game starts. |
 | Preferences | Set your schedule timezone and followed-game alerts. |
 

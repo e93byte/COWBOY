@@ -305,6 +305,27 @@ test('tennis Game Center shows games per set and preserves source tiebreaks with
   await expect(playerB.getByRole('cell',{name:'1',exact:true})).toBeVisible();
 });
 
+test('NBA Game Center shows provider standings on a shareable tab', async ({page})=>{
+  await setup(page);
+  const game = {...event,id:'401910001'};
+  const standings = [{title:'Atlantic standings',rows:[
+    {teamId:game.away.id,name:game.away.name,wins:12,losses:2,winPercent:.85714287,gamesBehind:0},
+    {teamId:game.home.id,name:game.home.name,wins:10,losses:5,winPercent:.6667,gamesBehind:2.5},
+  ]}];
+  await page.setViewportSize({width:390,height:844});
+  await page.route('**/api/sports/event?**',route=>route.fulfill({json:{...game,nbaStandings:standings}}));
+  await page.goto('/?league=nba&game=401910001&section=standings');
+  const detail = page.getByRole('dialog',{name:'Game details'});
+  const table = detail.getByRole('table',{name:'Atlantic standings'});
+  await expect(table.getByRole('row',{name:/Boston Celtics/})).toContainText('.857');
+  await expect(table.getByRole('row',{name:/New York Knicks/})).toContainText('2.5');
+  await expect(table.getByRole('columnheader',{name:'Rank',exact:true})).toHaveCount(0);
+  await page.reload();
+  await expect(detail.getByRole('button',{name:'Standings',exact:true})).toHaveAttribute('aria-pressed','true');
+  await expect(table).toBeVisible();
+  expect(await detail.evaluate(el=>el.scrollWidth<=el.clientWidth)).toBe(true);
+});
+
 test('soccer Lineups opens from a shared URL and displays a refreshed provider lineup', async ({page})=>{
   const soccer:LiveEvent={...event,id:'401915399',league:'ucl',sport:'soccer',leagueName:'Champions League',
     name:'Barcelona at Paris Saint-Germain',away:{id:'83',name:'Barcelona',shortName:'BAR',score:null},
