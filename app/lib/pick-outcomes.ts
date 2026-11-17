@@ -1,6 +1,6 @@
 export type PickSide = 'home' | 'away' | 'draw';
 
-const drawLeagues = new Set(['epl', 'efl', 'laliga', 'bundesliga', 'seriea', 'ligue1', 'ligue2', 'brasileirao', 'ligamx', 'argentina', 'aleague', 'nationsleague', 'nwsl', 'wsl']);
+const drawLeagues = new Set(['epl', 'efl', 'laliga', 'bundesliga', 'seriea', 'ligue1', 'ligue2', 'brasileirao', 'ligamx', 'argentina', 'aleague', 'nationsleague', 'concacafnl', 'afconqual', 'nwsl', 'wsl']);
 const teamSides = ['away', 'home'] as const;
 const soccerSides = ['away', 'home', 'draw'] as const;
 

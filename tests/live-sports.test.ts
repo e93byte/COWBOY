@@ -29,7 +29,7 @@ test('GET /api/sports serves the normalized board without inventing a golf match
     assert.equal(body.golf[0].id, '401850980');
     assert.ok(body.golf[0].leaderboard.length > 2);
     assert.ok(!body.events.some((event: live.LiveEvent) => event.league === 'pga'));
-    for (const key of ['ncaab', 'ncaaw', 'mls', 'ucl', 'bundesliga', 'seriea', 'ligue1', 'ligue2', 'efl', 'facup', 'brasileirao', 'aleague', 'nationsleague', 'nwsl', 'wsl', 'ligamx', 'argentina', 'premrugby']) {
+    for (const key of ['ncaab', 'ncaaw', 'mls', 'ucl', 'bundesliga', 'seriea', 'ligue1', 'ligue2', 'efl', 'facup', 'brasileirao', 'aleague', 'nationsleague', 'nwsl', 'wsl', 'ligamx', 'argentina', 'premrugby', 'ncaah', 'ncaawh', 'concacafnl', 'afconqual']) {
       assert.equal(body.leagues.find((l: any) => l.id === key).status, 'ok');
       assert.ok(body.events.some((event: live.LiveEvent) => event.league === key));
     }
@@ -857,7 +857,7 @@ test('recognizes a regulation soccer draw only with full-time status, equal goal
   const competition = data.events[0].competitions[0];
   competition.status.type = {name:'STATUS_FULL_TIME',state:'post',completed:true,description:'Full Time'};
   for (const side of competition.competitors) {side.score = '1';side.winner = false;}
-  for (const league of ['epl','laliga','bundesliga','seriea','ligue1','brasileirao','aleague','nationsleague','nwsl','wsl']) {
+  for (const league of ['epl','laliga','bundesliga','seriea','ligue1','brasileirao','aleague','nationsleague','concacafnl','afconqual','nwsl','wsl']) {
     assert.equal(live.normalizeScoreboard(league,data)[0].winner,'draw');
   }
   assert.equal(live.normalizeScoreboard('ucl',data)[0].winner,null);

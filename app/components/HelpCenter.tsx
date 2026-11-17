@@ -15,7 +15,7 @@ const topics = [
     id:'results', title:'Results and settlement', link:{href:'/picks',label:'Open My picks'},
     articles:[
       {title:'How are results confirmed?', text:'Use Refresh results in My picks. A pick stays open until the feed confirms the exact event and its result. A confirmed cancellation voids the pick. A postponed game can stay open.'},
-      {title:'Which games allow a draw pick?', text:'Premier League, La Liga, and Bundesliga games offer a full-time draw pick when entry is open. Draw picks settle on a confirmed full-time result.'},
+      {title:'Which games allow a draw pick?', text:'Eligible soccer games show a Draw option before kickoff. Draw picks settle on a confirmed full-time result.'},
       {title:'What do the pick statuses mean?', text:'Open means a result is pending. Won and Lost reflect the confirmed result. Void means the game was cancelled. Cancelled means you cancelled the pick before the game started.'},
     ],
   },
