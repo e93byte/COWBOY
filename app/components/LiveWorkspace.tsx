@@ -32,6 +32,8 @@ const spotlightOptions = [
 ] as const;
 type SpotlightMode = typeof spotlightOptions[number]['id'];
 type WorkspaceView = 'board' | 'live' | 'picks' | 'preferences' | 'help';
+const boardStatuses = ['all','live','upcoming','watchlist'] as const;
+type BoardStatus = typeof boardStatuses[number];
 type LiveScope = 'all' | 'following' | 'final';
 type LiveFilters = {league: string; scope: LiveScope};
 const defaultLiveFilters: LiveFilters = {league:'all',scope:'all'};
@@ -49,6 +51,11 @@ function viewFromPath(pathname: string): WorkspaceView {
   if (pathname === workspacePaths.preferences) return 'preferences';
   if (pathname === workspacePaths.help) return 'help';
   return 'board';
+}
+
+function readBoardStatus(params: URLSearchParams): BoardStatus {
+  const values = params.getAll('status');
+  return values.length === 1 ? boardStatuses.find(status => status === values[0]) ?? 'all' : 'all';
 }
 
 function readLeagueFilter(params: URLSearchParams): string {
@@ -184,7 +191,7 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
   const [now,setNow]=useState(0);
   useEffect(()=>{setNow(Date.now());const timer=setInterval(()=>setNow(Date.now()),1000);return()=>clearInterval(timer);},[]);
   const [boardLeague,setBoardLeague]=useState('all');
-  const [filter,setFilter]=useState('all');
+  const [filter,setFilter]=useState<BoardStatus>('all');
   const [dateFilter,setDateFilter]=useState('all');
   const [preferenceZone,setPreferenceZone] = useState<ScheduleZone>('local');
   const [sharedZone,setSharedZone] = useState<string|null>(null);
@@ -255,6 +262,7 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
       if (workspace === 'board') {
         const selectedLeague = readLeagueFilter(params);
         setBoardLeague(selectedLeague);
+        setFilter(readBoardStatus(params));
         const date = selectedLeague === 'pga' || selectedLeague === 'sport-golf' ? 'all' : parseScheduleDate(params);
         setDateFilter(date);
         setSharedZone(date === 'all' ? null : parseSharedScheduleZone(params));
@@ -419,8 +427,8 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
     }
     setView(next);
   }
-  const openBoard = () => { clearTransientFilters(); navigate('board'); replaceBoardLeague('all'); changeScheduleDate('all'); };
-  const openWatchlist = () => { openBoard(); setFilter('watchlist'); };
+  const openBoard = () => { clearTransientFilters(); navigate('board'); replaceBoardLeague('all'); changeScheduleDate('all'); replaceBoardStatus('all'); };
+  const openWatchlist = () => { openBoard(); replaceBoardStatus('watchlist'); };
   const openLive = () => { clearTransientFilters(); navigate('live'); replaceLiveFilters(defaultLiveFilters); };
   const openPicks = () => navigate('picks');
   const [compared,setCompared] = useState<ComparedGame[]>([]);
@@ -518,6 +526,16 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
     if (url.href !== window.location.href) window.history.replaceState(window.history.state,'',url);
     setLiveFilters(next);
   }
+  function replaceBoardStatus(status: BoardStatus) {
+    const url = new URL(window.location.href);
+    if (viewFromPath(url.pathname) === 'board') {
+      if (status === 'all') url.searchParams.delete('status');
+      else url.searchParams.set('status',status);
+      if (url.href !== window.location.href) window.history.replaceState(window.history.state,'',url);
+    }
+    setFilter(status);
+  }
+
   function replaceBoardLeague(league: string) {
     const url = new URL(window.location.href);
     writeLeagueFilter(url.searchParams,league);
@@ -551,6 +569,7 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
   function resetFilters() {
     selectWorkspaceLeague('all');
     clearTransientFilters();
+    if (!liveView) replaceBoardStatus('all');
     changeScheduleDate('all');
   }
   function selectLeague(id: string) {
@@ -564,6 +583,7 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
       return;
     }
     clearTransientFilters();
+    if (!liveView) replaceBoardStatus('all');
     changeScheduleDate('all');
     selectWorkspaceLeague(item.kind==='league' ? item.id : item.league);
     if (item.kind==='team') setTeamFilter({id:item.id,name:item.name,league:item.league});
@@ -653,7 +673,7 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
   const showHighlights = view === 'board' && league === 'all' && ((onHome && !!board) || showSpotlight);
   const openUpcoming = () => {
     resetFilters();
-    setFilter('upcoming');
+    replaceBoardStatus('upcoming');
     document.getElementById('games-board')?.scrollIntoView({block: 'start'});
   };
   const detailBoardEvent = detail ? allEvents.find(event => eventKey(event) === eventKey(detail)) : undefined;
@@ -698,7 +718,7 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
     <main className="cw-main">
       <div className="cw-title">
         <h1 ref={informationView ? pageHeading : undefined} tabIndex={informationView ? -1 : undefined}>
-          {liveView?'Live board':view==='board'?'Sports board':preferencesView?'Preferences':helpView?'Help & rules':'My picks'}
+          {liveView?'Live board':view==='board'?(filter === 'watchlist' ? 'Watchlist' : 'Sports board'):preferencesView?'Preferences':helpView?'Help & rules':'My picks'}
         </h1>
         {view==='board'&&(!onHome||!board)&&<button className="cw-live-count" onClick={openLive}>{live} live games <span aria-hidden="true">→</span></button>}
         {showHighlights&&<button className="cw-highlights-toggle" type="button" aria-expanded={highlightsExpanded}
@@ -810,8 +830,8 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
         today={todayKey} tomorrow={tomorrowKey} onChange={changeScheduleDate}/>}
       {!golfView && <div className="cw-toolbar">
         {!liveView && <div role="group" aria-label="Event status">
-          {(['all','live','upcoming','watchlist'] as const).map(f=><button key={f} aria-pressed={filter===f}
-            onClick={()=>f==='watchlist' ? openWatchlist() : setFilter(f)}>
+          {boardStatuses.map(f=><button key={f} aria-pressed={filter===f}
+            onClick={()=>f==='watchlist' ? openWatchlist() : replaceBoardStatus(f)}>
             <TabIcon tab={f}/>{f==='all' ? 'All games' : f==='live' ? 'Live now' : f==='watchlist' ? 'Watchlist' : 'Upcoming'}
           </button>)}
         </div>}
@@ -893,7 +913,7 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
       </>:<PicksHistory key={account.user?.id ?? 'guest'} tickets={account.tickets} onUpdate={account.updateTicket} busy={account.ticketsBusy} error={account.ticketsError} onRefresh={()=>void account.loadTickets(true)} user={account.user} onSignIn={()=>setAccountOpen(true)} events={board?.events??[]} onGame={(ticket,event)=>event ? openGame(event) : openSavedGame(ticket.eventId,ticket.league)} onBrowse={openBoard} feedCurrent={!!board&&!board.stale&&!error}/>}
       <footer className="cw-footer"><b>ALL GAME. NO GAMBLING.</b><p>Free-to-play predictions only. No money, purchase, cash prizes or wagering. Picks close at scheduled start or when the source marks an event live. Results depend on source confirmation.</p><div className="cw-footer-actions"><button className="cw-terms" aria-current={helpView ? "page" : undefined} onClick={()=>navigate('help')}>Help &amp; rules</button><button className="cw-terms" aria-current={preferencesView ? "page" : undefined} onClick={()=>navigate('preferences')}>Preferences</button><PwaControls/></div></footer>
     </main>{view==='board'&&<aside className="cw-picks-rail">{pickPanel}</aside>}</div>
-    <nav className="cw-mobile-nav" aria-label="Mobile navigation"><button aria-pressed={view==='board'} onClick={openBoard}><SportIcon sport="all"/>Sports</button><button aria-pressed={liveView} onClick={openLive}><StatusIcon status="live"/>Live</button><button aria-pressed={view==='board'&&filter==='watchlist'} onClick={openWatchlist}><StarIcon/>Watchlist</button><button aria-pressed={view==='picks'} onClick={openPicks}><ActionIcon action="picks"/>My picks</button></nav>
+    <nav className="cw-mobile-nav" aria-label="Mobile navigation"><button aria-pressed={view==='board'&&filter!=='watchlist'} onClick={openBoard}><SportIcon sport="all"/>Sports</button><button aria-pressed={liveView} onClick={openLive}><StatusIcon status="live"/>Live</button><button aria-pressed={view==='board'&&filter==='watchlist'} onClick={openWatchlist}><StarIcon/>Watchlist</button><button aria-pressed={view==='picks'} onClick={openPicks}><ActionIcon action="picks"/>My picks</button></nav>
     {selections.length>0 && <button className="cw-mobile-pick" onClick={()=>setDrawer(true)}>
       {selections.length===1 ? `Your pick: ${pickName(selections[0].event,selections[0].side,'shortName')}` : `Your picks: ${selections.length}`} <span>Review →</span>
     </button>}

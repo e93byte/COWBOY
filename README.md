@@ -22,6 +22,7 @@ Open [COWBOY on port 3213](http://127.0.0.1:3213). Create a local test account, 
 | Page | What to try |
 | --- | --- |
 | Home | Filter the schedule by sport, league, and date, including college hockey, international soccer, and European club rugby. Follow a matchup or add up to five independent free picks to your draft. |
+| Watchlist | Reopen your filtered Watchlist through the address bar or refresh. Each browser shows its own follows or those of the signed-in account. |
 | Live | Follow in-progress scores or browse recent finals. Filter to watched matchups, or compare up to four selected games from the live board. Selections for games still on the board survive reloads in the same tab. |
 | Game Center | Open a game for scores, play-by-play, lineups, player stats, and standings where available. MLB includes probable pitchers, inning line scores, and confirmed pitching decisions when ESPN supplies them. Live NHL games can show the current on-ice lineup. Share a link to a specific section. |
 | My Picks | Review accuracy, the last five decided picks, and your current run. Change an eligible pick before its game starts. |

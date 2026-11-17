@@ -486,8 +486,13 @@ test('watchlist is reversible and persistent; detail uses source data; search an
   await page.getByRole('button',{name:`Watch ${event.name}`,exact:true}).click();
   await page.getByRole('button',{name:'Watchlist',exact:true}).click();
   await expect(page.getByRole('button',{name:'Pick Buffalo Bills'})).toHaveCount(0);
+  await expect(page).toHaveURL(/status=watchlist/);
   await page.reload();
-  await page.getByRole('button',{name:'Watchlist',exact:true}).click();
+  await expect(page.getByRole('heading',{name:'Watchlist',exact:true})).toBeVisible();
+  await expect(page.getByRole('button',{name:'Pick Buffalo Bills'})).toHaveCount(0);
+  await page.getByRole('navigation',{name:'Main navigation'}).getByRole('button',{name:'Live',exact:true}).click();
+  await page.goBack();
+  await expect(page.getByRole('heading',{name:'Watchlist',exact:true})).toBeVisible();
   await page.getByRole('button',{name:`Details: ${event.name}`,exact:true}).click();
   const dialog=page.getByRole('dialog',{name:'Game details'});
   await expect(dialog).toContainText(event.away.name);
