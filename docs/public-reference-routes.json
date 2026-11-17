@@ -1,54 +1,36 @@
 {
-  "recorded_at": "2026-11-17T07:16:49+00:00",
+  "recorded_at": "2026-11-17T07:30:19+00:00",
   "totals": {
     "routes": 745,
-    "exact": 692,
-    "exact_with_snapshot": 692,
-    "exact_with_screenshot": 692,
-    "exact_with_html": 596,
-    "exact_with_stylesheets": 692,
-    "exact_with_offline_view": 595,
-    "exact_with_capture_reader": 97
+    "exact": 694,
+    "exact_with_snapshot": 694,
+    "exact_with_screenshot": 694,
+    "exact_with_html": 598,
+    "exact_with_stylesheets": 694,
+    "exact_with_offline_view": 596,
+    "exact_with_capture_reader": 98
   },
   "original_gap_states": {
-    "game launch excluded": 2,
-    "rendered redirect": 16,
-    "shell": 4,
-    "not found": 25,
     "blocked": 1,
+    "game launch excluded": 2,
+    "not found": 25,
+    "page error": 1,
     "partial": 4,
-    "page error": 1
+    "rendered redirect": 16,
+    "shell": 2
   },
-  "styled_archive_size": 6349,
   "latest_offline_checks": [
     {
-      "url": "https://www.world.tennis/en/tournament/m15-santa-cruz/bol/2026/m-itf-bol-2026-002/draws-and-results/",
+      "url": "https://www.fanduel.com/leagues",
       "visible_content_verified": true,
-      "loaded_stylesheets": 3,
+      "loaded_stylesheets": 24,
       "network_requests": 0
     },
     {
-      "url": "https://www.uefa.com/uefanationsleague/news/02a2-1fea18abbcbc-456e846509e7-1000--2026-27-uefa-nations-league-all-the-league-phase-fixtures-f/",
+      "url": "https://www.fanduel.com/leagues/create",
       "visible_content_verified": true,
-      "loaded_stylesheets": 9,
-      "network_requests": 0
-    },
-    {
-      "url": "https://support.fanduel.com/s/predicts",
-      "visible_content_verified": true,
-      "loaded_stylesheets": 2,
-      "network_requests": 0
-    },
-    {
-      "url": "https://support.fanduel.com/s/article/What-is-FanDuel-Responsible-Gaming",
-      "visible_content_verified": true,
-      "loaded_stylesheets": 2,
-      "network_requests": 0
-    },
-    {
-      "url": "https://support.fanduel.com/s/article/What-is-Consumer-Protection-with-FanDuel-Predicts",
-      "visible_content_verified": true,
-      "loaded_stylesheets": 2,
+      "inert_form_controls_verified": true,
+      "loaded_stylesheets": 24,
       "network_requests": 0
     }
   ],
@@ -5186,15 +5168,27 @@
     },
     {
       "url": "https://www.fanduel.com/leagues",
-      "state": "shell",
-      "related_capture": "https://support.fanduel.com/s/article/How-do-I-make-a-Friends-Mode-league",
-      "historical_status": "historical shell or expected content unverified"
+      "state": "rendered",
+      "artifacts": {
+        "browser_snapshot": true,
+        "screenshot": true,
+        "html": true,
+        "stylesheets": 1,
+        "styled_offline_view": true,
+        "screenshot_and_transcript_reader": false
+      }
     },
     {
       "url": "https://www.fanduel.com/leagues/create",
-      "state": "shell",
-      "related_capture": "https://support.fanduel.com/s/article/How-do-I-make-a-Friends-Mode-league",
-      "historical_status": "historical shell or expected content unverified"
+      "state": "rendered",
+      "artifacts": {
+        "browser_snapshot": true,
+        "screenshot": true,
+        "html": true,
+        "stylesheets": 1,
+        "styled_offline_view": false,
+        "screenshot_and_transcript_reader": false
+      }
     },
     {
       "url": "https://www.fanduel.com/live",
@@ -7361,7 +7355,7 @@
         "html": true,
         "stylesheets": 3,
         "styled_offline_view": false,
-        "screenshot_and_transcript_reader": true
+        "screenshot_and_transcript_reader": false
       }
     },
     {

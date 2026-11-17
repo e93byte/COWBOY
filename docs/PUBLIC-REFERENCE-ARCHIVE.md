@@ -8,9 +8,9 @@ The full archive includes rendered HTML, screenshots, stylesheets, and other med
 
 ## November 17 checkpoint
 
-The original queue has **692 exact renders and 53 gaps**. All 692 exact captures have a browser transcript, screenshot, and saved styles. Among them, 596 have saved HTML, 595 have a styled offline replay, and the remaining 97 have a screenshot and transcript reader. The broader archive contains **6,349 styled views**, including references outside the original queue.
+The original queue has **694 exact renders and 51 gaps**. All 694 exact captures have a browser transcript, screenshot, and saved styles. Among them, 598 have saved HTML, 596 have a styled offline replay, and the remaining 98 have a screenshot and transcript reader. The broader archive contains **6,351 styled views**, including references outside the original queue.
 
-The original Predicts help category now renders with topic navigation and a saved first-party stylesheet. Two corrected help URLs provide the articles behind four malformed originals. The Santa Cruz qualifying draw and UEFA Nations League C results cover the corresponding competition gaps. All five newly saved views passed the offline content and stylesheet checks and made zero network requests. The archive records exact renders separately from corrected URLs and publisher references.
+The original Friends Mode league page and league-creation page now render at their exact URLs, replacing two shell-only captures. Their offline views preserve the public navigation, league options, sport selector, Name and Description controls, and first-party styling. The archived controls are inert. Both views passed content and stylesheet checks with 24 loaded stylesheets and zero network requests. The archive records exact renders separately from corrected URLs and publisher references.
 
 ## How this informs the app
 
