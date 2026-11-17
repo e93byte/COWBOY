@@ -1216,6 +1216,9 @@
 .cw-standings-table tr[data-match-team="true"] { background: #312721; }
 .cw-standings-table tr[data-match-team="true"] th { color: var(--tan); font-weight: 700; }
 
+.cw-on-ice .cw-pregame-team li { display: block; padding: 6px 10px; }
+.cw-on-ice .cw-pregame-team li small { display: block; color: var(--dim); }
+
 .cw-pitching-preview { margin: 0 0 14px; }
 .cw-pitching-preview > h4 { margin: 6px 0; }
 .cw-pitcher-identity { display: flex; align-items: center; gap: 8px; padding: 10px; }

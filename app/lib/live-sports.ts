@@ -27,6 +27,8 @@ type FightCard = {
   scorecards?: {away: number[]; home: number[]};
 };
 
+type OnIcePlayer = {id:string; name:string; jersey?:string; position?:string};
+
 type ProbablePitcher = {
   id: string;
   name: string;
@@ -139,6 +141,7 @@ export type LiveEvent = {
   footballDrives?: FootballDrive[];
   teamStats?: TeamStat[];
   playerStats?: { away: PlayerStatGroup[]; home: PlayerStatGroup[] };
+  onIce?: {away:OnIcePlayer[]; home:OnIcePlayer[]};
   leaders?: GameLeaderCategory[];
   pregameLeaders?: GameLeaderCategory[];
   probablePitchers?: Partial<Record<'away'|'home',ProbablePitcher>>;
@@ -268,6 +271,43 @@ function normalizeBoxScore(data: Json, event: LiveEvent) {
     }
   }
   return [...stats.values()];
+}
+
+function normalizeOnIce(data: Json, event: LiveEvent): LiveEvent['onIce'] {
+  if (event.league !== 'nhl' || event.status !== 'live' || !Array.isArray(data.onIce)) return;
+  const teams = Array.isArray(object(data.boxscore).players) ? data.boxscore.players.slice(0,4).map(object) : [];
+  const states = data.onIce.slice(0,4).map(object);
+  const players = (teamId: string) => {
+    const team = teams.find((row:Json) => object(row.team).id === teamId);
+    const lineup = states.find((row:Json) => row.teamId === teamId);
+    if (!Array.isArray(team?.statistics) || !Array.isArray(lineup?.entries)) return [];
+    const roster = new Map<string,OnIcePlayer>();
+    for (const rawGroup of team.statistics.slice(0,12)) {
+      const group = object(rawGroup);
+      if (!Array.isArray(group.athletes)) continue;
+      for (const raw of group.athletes.slice(0,40)) {
+        const athlete = object(object(raw).athlete);
+        const name = text(athlete.displayName).trim();
+        if (!validId(athlete.id) || !name) continue;
+        const jersey = text(athlete.jersey);
+        const position = text(object(athlete.position).abbreviation);
+        roster.set(athlete.id, {
+          id:athlete.id, name:name.slice(0,120),
+          ...(/^\d{1,3}$/.test(jersey) ? {jersey} : {}),
+          ...(/^[A-Z]{1,3}$/.test(position) ? {position} : {}),
+        });
+      }
+    }
+    const ids = new Set<string>();
+    for (const raw of lineup.entries.slice(0,20)) {
+      const row = object(raw);
+      if (validId(row.athleteid) && object(row.whereabouts).name === 'ROSTER_WHEREABOUTS_IN_PLAY') ids.add(row.athleteid);
+    }
+    return [...ids].map(id=>roster.get(id)).filter((player): player is OnIcePlayer=>!!player);
+  };
+  const away = players(event.away.id);
+  const home = players(event.home.id);
+  return away.length || home.length ? {away,home} : undefined;
 }
 
 function normalizePlayerStats(data: Json, event: LiveEvent): LiveEvent['playerStats'] {
@@ -1168,6 +1208,7 @@ export function createLiveSportsClient(options: ClientOptions = {}) {
     const venue = text(object(object(data.gameInfo).venue).fullName).trim();
     const hasStarted = event.status === 'live' || event.completed;
     const teamStats = hasStarted ? normalizeBoxScore(data, event) : [];
+    const onIce = normalizeOnIce(data,event);
     const playerStats = hasStarted ? normalizePlayerStats(data, event) : undefined;
     const publishedLeaders = normalizeGameLeaders(data,event);
     const leaders = hasStarted ? publishedLeaders : [];
@@ -1190,6 +1231,7 @@ export function createLiveSportsClient(options: ClientOptions = {}) {
       ...(footballDrives.length ? {footballDrives} : {}),
       ...(teamStats.length ? { teamStats } : {}),
       ...(playerStats ? { playerStats } : {}),
+      ...(onIce ? {onIce} : {}),
       ...(leaders.length ? {leaders} : {}),
       ...(pregameLeaders.length ? {pregameLeaders} : {}),
       ...(scoringPlays.length ? { scoringPlays } : {}),

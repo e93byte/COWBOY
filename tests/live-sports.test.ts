@@ -252,6 +252,34 @@ test('NBA standings keep ESPN order and only include divisions tied to the match
   ]);
 });
 
+test('NHL live lineup joins active athlete IDs only to the matching team roster', async () => {
+  const header = structuredClone(fixtures.nhl.events[0]);
+  const competition = header.competitions[0];
+  competition.status.type = {name:'STATUS_IN_PROGRESS',state:'in',completed:false};
+  const [game] = live.normalizeScoreboard('nhl',{events:[header]});
+  const active = (athleteid:string) => ({athleteid,whereabouts:{name:'ROSTER_WHEREABOUTS_IN_PLAY'}});
+  const data = {header,onIce:[
+    {teamId:game.away.id,entries:[active('101'),active('101'),active('302'),{athleteid:'303',whereabouts:{name:'ON_BENCH'}}]},
+    {teamId:game.home.id,entries:[active('302')]},
+  ],boxscore:{players:[
+    {team:{id:game.away.id},statistics:[{athletes:[
+      {athlete:{id:'101',displayName:'Away center',jersey:'0',position:{abbreviation:'C'}}},
+      {athlete:{id:'303',displayName:'Benched player'}},
+    ]}]},
+    {team:{id:game.home.id},statistics:[{athletes:[
+      {athlete:{id:'302',displayName:'Home goalie',position:{abbreviation:'G'}}},
+    ]}]},
+  ]}};
+  const client = () => live.createLiveSportsClient({fetch:async()=>Response.json(data)});
+  const result = await client().getLiveEvent('nhl',game.id);
+  assert.deepEqual(result?.onIce,{
+    away:[{id:'101',name:'Away center',jersey:'0',position:'C'}],
+    home:[{id:'302',name:'Home goalie',position:'G'}],
+  });
+  competition.status.type = {name:'STATUS_FINAL',state:'post',completed:true};
+  assert.equal((await client().getLiveEvent('nhl',game.id))?.onIce,undefined);
+});
+
 test('NFL and NHL standings validate their league-specific columns', async () => {
   for (const [league, stats, expected] of [
     ['nfl', {wins:8, losses:2, ties:0, pointsFor:251, pointsAgainst:-1}, {ties:0, pointsFor:251, pointsAgainst:null}],

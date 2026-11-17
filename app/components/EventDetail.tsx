@@ -451,6 +451,22 @@ function GameTimeline({event, busy, onRefresh}: {
   </section>;
 }
 
+function OnIce({event, players}: {event:LiveEvent; players:NonNullable<LiveEvent['onIce']>}) {
+  return <section className="cw-game-section cw-on-ice" aria-label="On ice">
+    <h3>On ice</h3>
+    <p className="cw-game-section-note">ESPN lineup · {event.statusText}</p>
+    <div className="cw-pregame-players">
+      {(['away','home'] as const).map(side=><section key={side} className="cw-pregame-team" aria-label={event[side].name}>
+        <h4><TeamMark team={event[side]} small/>{event[side].name}</h4>
+        {players[side].length ? <ul>{players[side].map(player=><li key={player.id}>
+          <strong>{player.name}</strong>
+          {(player.jersey || player.position) && <small>{[player.jersey && '#'+player.jersey,player.position].filter(Boolean).join(' · ')}</small>}
+        </li>)}</ul> : <p>Lineup pending</p>}
+      </section>)}
+    </div>
+  </section>;
+}
+
 function ProbablePitchers({event, pitchers}: {event:LiveEvent; pitchers:NonNullable<LiveEvent['probablePitchers']>}) {
   return <section className="cw-pitching-preview" aria-label="Probable starting pitchers">
     <h4>{event.status === 'scheduled' ? 'Probable starting pitchers' : 'Pregame probable pitchers'}</h4>
@@ -889,6 +905,8 @@ function EventDetailContent({
       <p>Free pick saved for <strong>{ticket.selection}</strong>.</p>
       <button onClick={()=>selectSection('pick')}>View saved pick</button>
     </div>}
+    {section==='overview' && detail.status==='live' && snapshot?.status==='live' &&
+      !stale && !error && snapshot.onIce && <OnIce event={snapshot} players={snapshot.onIce}/>}
     {section==='overview' && <button className="cw-game-info-toggle" aria-expanded={showInfo} aria-controls="cw-game-info" onClick={() => setShowInfo(!showInfo)}>
       Game information <span aria-hidden="true">{showInfo ? '−' : '+'}</span>
     </button>}
