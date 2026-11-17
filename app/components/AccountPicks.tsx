@@ -1,7 +1,7 @@
 'use client';
 import { useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import type { LiveEvent } from './LiveWorkspace';
-import {CloseIcon} from './SportIcon';
+import {CloseIcon, TabIcon} from './SportIcon';
 
 export type User = {id:string;username:string};
 import type { RealPickTicket as Ticket } from '../lib/pick-service';
@@ -357,7 +357,7 @@ export function PicksHistory({tickets,busy,error,onRefresh,onUpdate,user,onSignI
     {user && tickets.length > 0 && <div role="group" aria-label="Pick history filters" className="cw-history-tabs">
       {historyFilters.map(value => (
         <button key={value} aria-pressed={filter===value} onClick={()=>setFilter(value)}>
-          {value[0].toUpperCase()+value.slice(1)} ({counts[value]})
+          <TabIcon tab={value}/>{value[0].toUpperCase()+value.slice(1)} ({counts[value]})
         </button>
       ))}
     </div>}

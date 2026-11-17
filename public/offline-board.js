@@ -16,7 +16,7 @@
   const timestamp = document.createElement("time");
   timestamp.dateTime = board.fetchedAt;
   timestamp.textContent = new Date(board.fetchedAt).toLocaleString();
-  source.replaceChildren("ESPN snapshot saved ", timestamp, ". Scores and game status may have changed.");
+  source.replaceChildren("Scoreboard saved ", timestamp, ". Scores and game status may have changed.");
   if (!games.length) return;
 
   document.getElementById("controls").hidden = false;

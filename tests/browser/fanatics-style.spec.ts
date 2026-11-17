@@ -5,10 +5,13 @@ test('real-feed spotlight opens details and continues to a free selection', asyn
   await page.getByRole('button', { name: 'Upcoming', exact: true }).click();
   const spotlight = page.getByRole('region', { name: 'In the spotlight' });
   await expect(spotlight).toBeVisible();
+  await expect(page.locator("body")).not.toContainText(/ESPN|FanDuel|BetMGM/);
+  await expect(spotlight.getByRole("button", {name: "Featured", exact: true}).locator("svg")).toBeVisible();
   await spotlight.getByRole('button', { name: /Explore/ }).first().click();
   const dialog = page.getByRole('dialog', { name: 'Game details' });
   await expect(dialog).toBeVisible();
-  await expect(dialog.getByText('Scores and status provided by ESPN.', { exact: false })).toBeVisible();
+  await expect(dialog.getByRole('button', { name: 'Overview', exact: true }).locator('svg')).toBeVisible();
+  await expect(dialog).not.toContainText('ESPN');
   await expect(dialog.getByRole('link', { name: /Open original ESPN event/ })).toHaveCount(0);
   await dialog.getByRole('button', { name: 'Watch game' }).click();
   await expect(dialog.getByRole('button', { name: 'Watching' })).toHaveAttribute('aria-pressed', 'true');

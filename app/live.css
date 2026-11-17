@@ -93,7 +93,6 @@
 .cw-game-status span { color: var(--dim); }
 .cowboy-live .cw-game-info-toggle { width: 100%; display: flex; justify-content: space-between; text-align: left; }
 .cw-game-dialog .cw-detail-facts { margin: 0 0 12px; }
-.cowboy-live .cw-game-source { margin-top: 12px; color: var(--dim); font-size: 11px; }
 
 @media (max-width: 1190px) {
   .cw-match-shelf { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; padding: 2px 4px 6px; }
@@ -1326,12 +1325,13 @@
   background: #211f22;
   color: var(--paper);
   border: 1px solid var(--edge);
-  border-radius: 7px;
+  border-radius: 999px;
   font: inherit;
   cursor: pointer;
 }
 .cw-sport-categories button[aria-pressed="true"] {
-  color: var(--tan);
+  color: #26180d;
+  background: var(--tan);
   border-color: var(--tan);
 }
 
@@ -1491,4 +1491,21 @@
 .cowboy-live .cw-header nav svg { width: 15px; height: 15px; }
 @media (max-width: 700px) {
   .cowboy-live .cw-header nav { display: none; }
+}
+
+/* Shared tab treatment across the board, game center, and picks. */
+.cowboy-live :is(.cw-toolbar [aria-label="Event status"], .cw-game-tabs, .cw-history-tabs, .cw-spotlight-options, .cw-date-tabs) button,
+.cw-live-switcher button > span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+}
+.cowboy-live :is(.cw-toolbar [aria-label="Event status"], .cw-game-tabs, .cw-history-tabs, .cw-live-switcher, .cw-spotlight-options, .cw-date-tabs) button svg {
+  width: 15px;
+  height: 15px;
+  flex: 0 0 15px;
+}
+@media (max-width: 540px) {
+  .cowboy-live .cw-game-tabs button { flex-direction: column; gap: 3px; }
 }

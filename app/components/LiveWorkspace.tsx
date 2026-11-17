@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import '../live.css';
 import { AccountDialog, Modal, PickPanel, PicksHistory, api, useAccount, type Selection } from './AccountPicks';
-import { ActionIcon, SportIcon, StatusIcon, StarIcon, RefreshIcon, CloseIcon } from './SportIcon';
+import { ActionIcon, SportIcon, StatusIcon, StarIcon, TabIcon, RefreshIcon, CloseIcon } from './SportIcon';
 import { TeamMark } from './TeamMark';
 import { EventDetail } from './EventDetail';
 import { GolfLeaderboard } from './GolfLeaderboard';
@@ -672,7 +672,7 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
         aria-label={unreadAlerts ? `Game updates, ${unreadAlerts} unread` : 'Game updates'}>
         <ActionIcon action="alerts"/>Updates {unreadAlerts > 0 && <span aria-hidden="true">{unreadAlerts}</span>}
       </button><button className="cw-account" disabled={account.accountLoading} aria-label={account.user?`Account: ${account.user.username}`:undefined} onClick={()=>setAccountOpen(true)}>{account.accountLoading?'Checking session…':account.user?account.user.username:'Sign in'}</button></div></header>
-    <div className="cw-source"><span><i className={error||board?.stale?'warning-dot':'source-dot'}/><b>{board?.source||'ESPN'}</b> <span>{error?'Connection interrupted':board?.stale?'Delayed data':busy?'Syncing scores…':'Sports data'}</span></span><span>{board?`Updated ${new Date(board.fetchedAt).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'})}`:'Connecting to source'}<button disabled={busy} onClick={refresh} aria-label="Refresh sports"><RefreshIcon/></button></span></div>
+    <div className="cw-source"><span><i className={error||board?.stale?'warning-dot':'source-dot'}/><b>Scores</b> <span>{error?'Connection interrupted':board?.stale?'Delayed data':busy?'Syncing scores…':'Sports data'}</span></span><span>{board?`${error || board.stale ? 'Last received' : 'Updated'} ${new Date(board.fetchedAt).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'})}`:'Connecting…'}<button disabled={busy} onClick={refresh} aria-label="Refresh sports"><RefreshIcon/></button></span></div>
     <div className="cw-grid">
     {!informationView && <aside className="cw-sports">
       <p className="cw-kicker">{liveView ? 'Live by league' : 'Browse by league'}</p>
@@ -708,7 +708,7 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
         {liveView&&<span className="cw-live-count">{selectedLiveCount} live{error||board?.stale?' · Last received':''}</span>}
       </div>
       {!informationView && view !== 'picks' && board && <nav className="cw-sport-categories" aria-label="Sports">
-        <button aria-pressed={league==='all'} onClick={()=>selectLeague('all')}>All</button>
+        <button aria-pressed={league==='all'} onClick={()=>selectLeague('all')}> <SportIcon sport="all"/>All</button>
         {sportCategories.filter(([sport])=>availableLeagues.some(item=>item.sport===sport)).map(([sport,label])=>
           <button key={sport} aria-pressed={(selectedSport ?? pickedLeague?.sport)===sport}
             onClick={()=>selectLeague(sport==='golf' ? 'pga' : 'sport-'+sport)}>
@@ -742,7 +742,7 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
             setSort('status');
             replaceLiveFilters({...liveFilters,scope:scope.key});
           }}>
-            <span>{scope.label}</span><strong>{scope.count}</strong>
+            <span><TabIcon tab={scope.key === 'all' ? 'live' : scope.key}/>{scope.label}</span><strong>{scope.count}</strong>
           </button>
         ))}
       </div>}
@@ -760,7 +760,7 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
             return <article key={key} className="cw-comparison-card" aria-label={event.name}>
               <MatchCard event={event} onOpen={openGame} label={`Open compared game: ${event.name}`}/>
               <div className="cw-comparison-meta">
-                <span>{delayed ? event.scoreSource ? `${event.scoreSource} backup` : 'Last reported' : 'Updated'}
+                <span>{delayed ? event.scoreSource ? 'Backup score' : 'Last reported' : 'Updated'}
                   {reportedAt && <> <time dateTime={reportedAt}>{time(reportedAt)}</time></>}</span>
                 <button onClick={()=>{
                   toggleComparison(event);
@@ -794,9 +794,9 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
               </div>
               <div className="cw-spotlight-options" role="group" aria-label="Featured game views">
                 {spotlightOptions.map(option=><button key={option.id} aria-pressed={spotlightMode===option.id}
-                  onClick={()=>setSpotlightMode(option.id)}>{option.label}</button>)}
+                  onClick={()=>setSpotlightMode(option.id)}><TabIcon tab={option.id === 'soon' ? 'upcoming' : option.id}/>{option.label}</button>)}
               </div>
-              {board && <p className="cw-spotlight-source">{board.source} · {error || board.stale ? 'Last received' : 'Updated'} {time(board.fetchedAt)}</p>}
+              {board && <p className="cw-spotlight-source">{error || board.stale ? 'Last received' : 'Updated'} {time(board.fetchedAt)}</p>}
               {!spotlight.length && <p className="cw-spotlight-empty">{spotlightEmpty}</p>}
               <div className="cw-match-shelf">
                 {spotlight.map(e => (
@@ -810,9 +810,9 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
         today={todayKey} tomorrow={tomorrowKey} onChange={changeScheduleDate}/>}
       {!golfView && <div className="cw-toolbar">
         {!liveView && <div role="group" aria-label="Event status">
-          {['all','live','upcoming','watchlist'].map(f=><button key={f} aria-pressed={filter===f}
+          {(['all','live','upcoming','watchlist'] as const).map(f=><button key={f} aria-pressed={filter===f}
             onClick={()=>f==='watchlist' ? openWatchlist() : setFilter(f)}>
-            {f==='all' ? 'All games' : f==='live' ? 'Live now' : f==='watchlist' ? 'Watchlist' : 'Upcoming'}
+            <TabIcon tab={f}/>{f==='all' ? 'All games' : f==='live' ? 'Live now' : f==='watchlist' ? 'Watchlist' : 'Upcoming'}
           </button>)}
         </div>}
         <BoardSearch events={leagueEvents} leagues={availableLeagues} query={query} onChange={setQuery} onSelect={selectSuggestion}/>
@@ -831,13 +831,13 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
           <StarIcon filled/>{item.name}<CloseIcon/>
         </button>)}
       </div>}
-      {error&&<div className="cw-alert" role="alert">{error} {board&&'Last received games are shown; new picks are paused.'}<button disabled={busy} onClick={refresh}>Try again</button></div>}
+      {error&&<div className="cw-alert" role="alert">Could not refresh scores. {board&&'Last received games are shown; new picks are paused.'}<button disabled={busy} onClick={refresh}>Try again</button></div>}
       {board?.stale&&<div className="cw-alert" role="status">Delayed source data. Affected leagues show backup or last received scores, and new picks are paused.</div>}
       {board?.leagues.filter(l=>l.status!=='ok').map(l=><div className="cw-league-error cw-league-health" key={l.id}>
         <div>
-          <span>{l.name}: {l.backupSource?`${l.backupSource} backup scores`:l.status==='error'?'source unavailable':'delayed'}{l.error?` · ${l.error}`:''}</span>
+          <span>{l.name}: {l.backupSource?'backup scores':l.status==='error'?'scores unavailable':'delayed'}</span>
           {l.scoresUpdatedAt && <small>Backup checked <time dateTime={l.scoresUpdatedAt}>{time(l.scoresUpdatedAt)}</time></small>}
-          {l.lastSuccessAt && <small>ESPN last checked <time dateTime={l.lastSuccessAt}>{time(l.lastSuccessAt)}</time></small>}
+          {l.lastSuccessAt && <small>Last primary update <time dateTime={l.lastSuccessAt}>{time(l.lastSuccessAt)}</time></small>}
         </div>
         <button disabled={busy} onClick={()=>refreshLeague(l.id)} aria-label={`Retry ${l.name} feed`}>Retry</button>
       </div>)}
@@ -871,7 +871,7 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
           {(query||(!liveView&&filter!=='all')||league!=='all'||dateFilter!=='all')&&<button onClick={resetFilters}>Clear filters</button>}
         </div>
       </div>
-      {golfView ? <GolfLeaderboard events={golfEvents}/> : !board&&busy?<div role="status" className="cw-empty">Loading games from ESPN…</div>:events.length===0?<div className="cw-empty"><h3>{error?'No games available':liveView?liveEmpty[0]:'No games in this view'}</h3><p>{error?'Refresh the sports feed to try again.':liveView?liveEmpty[1]:filter==='watchlist'?'Follow a team or league, or star a game to add it here.':dateFilter!=='all'?'Choose another schedule date or clear the filters.':'Try another league, status, or search.'}</p></div>:<section className="cw-events" aria-label="Games"><div className="cw-event-head"><span>EVENT / SCORE</span>{!liveView&&<span>FREE WINNER PICK</span>}</div>{groups.map(group=><section className="cw-league-group" key={group.id} aria-label={`${group.name} ${group.sport==='mma'?'bouts':'games'}`}><button className="cw-league-toggle" aria-expanded={!collapsed.includes(group.id)} aria-label={`${collapsed.includes(group.id)?'Expand':'Collapse'} ${group.name}`} onClick={()=>setCollapsed(old=>old.includes(group.id)?old.filter(id=>id!==group.id):[...old,group.id])}><SportIcon sport={group.sport}/><strong>{group.name}</strong><small>{group.events.length} {group.sport==='mma'?'bouts':'games'}</small><span aria-hidden="true">{collapsed.includes(group.id)?'+':'−'}</span></button>{!collapsed.includes(group.id)&&group.events.slice(0,showAllGroups.includes(group.id) || (league==='ufc' && group.sport==='mma') ? undefined : 5).map(e=><article key={e.league+e.id} className="cw-event" data-event-status={e.status}>
+      {golfView ? <GolfLeaderboard events={golfEvents}/> : !board&&busy?<div role="status" className="cw-empty">Loading games…</div>:events.length===0?<div className="cw-empty"><h3>{error?'No games available':liveView?liveEmpty[0]:'No games in this view'}</h3><p>{error?'Refresh the sports feed to try again.':liveView?liveEmpty[1]:filter==='watchlist'?'Follow a team or league, or star a game to add it here.':dateFilter!=='all'?'Choose another schedule date or clear the filters.':'Try another league, status, or search.'}</p></div>:<section className="cw-events" aria-label="Games"><div className="cw-event-head"><span>EVENT / SCORE</span>{!liveView&&<span>FREE WINNER PICK</span>}</div>{groups.map(group=><section className="cw-league-group" key={group.id} aria-label={`${group.name} ${group.sport==='mma'?'bouts':'games'}`}><button className="cw-league-toggle" aria-expanded={!collapsed.includes(group.id)} aria-label={`${collapsed.includes(group.id)?'Expand':'Collapse'} ${group.name}`} onClick={()=>setCollapsed(old=>old.includes(group.id)?old.filter(id=>id!==group.id):[...old,group.id])}><SportIcon sport={group.sport}/><strong>{group.name}</strong><small>{group.events.length} {group.sport==='mma'?'bouts':'games'}</small><span aria-hidden="true">{collapsed.includes(group.id)?'+':'−'}</span></button>{!collapsed.includes(group.id)&&group.events.slice(0,showAllGroups.includes(group.id) || (league==='ufc' && group.sport==='mma') ? undefined : 5).map(e=><article key={e.league+e.id} className="cw-event" data-event-status={e.status}>
         <div className="cw-event-info">
           <div className="cw-event-meta"><SportIcon sport={e.sport}/><b>{e.leagueName}</b>{e.fight?.weightClass && <span>{e.fight.weightClass}</span>}<GameStatus status={e.status}>{e.status==='live'?'LIVE · ':''}{e.statusText}{e.shootoutScores&&` · Penalties ${e.shootoutScores.away}–${e.shootoutScores.home}`}{e.status==='live'&&e.clock&&!e.statusText.includes(e.clock)?` · ${e.clock}`:''}</GameStatus><button className="cw-watch" disabled={subscriptions.disabled} aria-label={`${watched.includes(e.league+':'+e.id)?'Unwatch':'Watch'} ${e.name}`} aria-pressed={watched.includes(e.league+':'+e.id)} onClick={()=>toggleWatch(e)}><StarIcon filled={watched.includes(e.league+':'+e.id)}/></button></div>
           <button className="cw-event-detail" aria-label={`Details: ${e.name}`} onClick={()=>openGame(e)}><div className="cw-team"><span className="cw-team-identity"><TeamMark team={e.away}/><span>{e.away.name}</span></span><BoardScore event={e} side="away"/></div><div className="cw-team"><span className="cw-team-identity"><TeamMark team={e.home}/><span>{e.home.name}</span></span><BoardScore event={e} side="home"/></div></button>
@@ -890,7 +890,7 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
           ? <GameMomentList moments={visibleMoments.slice(0,12)} onGame={moment=>openMoment(moment.event)}/>
           : <p>Updates for this view will appear here as scores and statuses change.</p>}
       </section>}
-      <p className="cw-feed-note">Live scores checked about every 1.5 seconds while visible. Game updates arrive when the source publishes them.</p></>:<PicksHistory key={account.user?.id ?? 'guest'} tickets={account.tickets} onUpdate={account.updateTicket} busy={account.ticketsBusy} error={account.ticketsError} onRefresh={()=>void account.loadTickets(true)} user={account.user} onSignIn={()=>setAccountOpen(true)} events={board?.events??[]} onGame={(ticket,event)=>event ? openGame(event) : openSavedGame(ticket.eventId,ticket.league)} onBrowse={openBoard} feedCurrent={!!board&&!board.stale&&!error}/>}
+      </>:<PicksHistory key={account.user?.id ?? 'guest'} tickets={account.tickets} onUpdate={account.updateTicket} busy={account.ticketsBusy} error={account.ticketsError} onRefresh={()=>void account.loadTickets(true)} user={account.user} onSignIn={()=>setAccountOpen(true)} events={board?.events??[]} onGame={(ticket,event)=>event ? openGame(event) : openSavedGame(ticket.eventId,ticket.league)} onBrowse={openBoard} feedCurrent={!!board&&!board.stale&&!error}/>}
       <footer className="cw-footer"><b>ALL GAME. NO GAMBLING.</b><p>Free-to-play predictions only. No money, purchase, cash prizes or wagering. Picks close at scheduled start or when the source marks an event live. Results depend on source confirmation.</p><div className="cw-footer-actions"><button className="cw-terms" aria-current={helpView ? "page" : undefined} onClick={()=>navigate('help')}>Help &amp; rules</button><button className="cw-terms" aria-current={preferencesView ? "page" : undefined} onClick={()=>navigate('preferences')}>Preferences</button><PwaControls/></div></footer>
     </main>{view==='board'&&<aside className="cw-picks-rail">{pickPanel}</aside>}</div>
     <nav className="cw-mobile-nav" aria-label="Mobile navigation"><button aria-pressed={view==='board'} onClick={openBoard}><SportIcon sport="all"/>Sports</button><button aria-pressed={liveView} onClick={openLive}><StatusIcon status="live"/>Live</button><button aria-pressed={view==='board'&&filter==='watchlist'} onClick={openWatchlist}><StarIcon/>Watchlist</button><button aria-pressed={view==='picks'} onClick={openPicks}><ActionIcon action="picks"/>My picks</button></nav>

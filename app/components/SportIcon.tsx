@@ -42,3 +42,39 @@ export function ActionIcon({action}:{action:'compare'|'details'|'search'|'alerts
   };
   return <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">{paths[action]}</svg>;
 }
+
+const tabStatusIcons = {
+  live: 'live',
+  upcoming: 'scheduled',
+  open: 'scheduled',
+  final: 'final',
+  settled: 'final',
+  won: 'final',
+  lost: 'cancelled',
+  void: 'postponed',
+  cancelled: 'cancelled',
+} as const;
+
+const tabSymbols = {
+  featured: <path d="m12 3 2.1 6.9L21 12l-6.9 2.1L12 21l-2.1-6.9L3 12l6.9-2.1Z"/>,
+  calendar: <><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M8 3v4m8-4v4M4 10h16m-12 5h2m4 0h2"/></>,
+  overview: <><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 10h16M10 10v10"/></>,
+  score: <><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M12 9v6M7 10v4m9-4a1 1 0 0 1 2 0v3a1 1 0 0 1-2 0Z"/></>,
+  stats: <path d="M4 20h16M7 16v-4m5 4V7m5 9V4"/>,
+  players: <><circle cx="10" cy="8" r="3"/><path d="M4 20v-2a6 6 0 0 1 12 0v2M16 5a3 3 0 0 1 0 6m2 3a4 4 0 0 1 2 4v2"/></>,
+  timeline: <><path d="M7 4v16m5-14h7m-7 6h7m-7 6h7"/><circle cx="7" cy="6" r="1.5" fill="currentColor"/><circle cx="7" cy="12" r="1.5" fill="currentColor"/><circle cx="7" cy="18" r="1.5" fill="currentColor"/></>,
+  drives: <><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 5v14m10-14v14M8 12h8m-3-3 3 3-3 3"/></>,
+  matchup: <path d="M4 7h16m-4-4 4 4-4 4m4 6H4m4-4-4 4 4 4"/>,
+  lineups: <><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M4 12h16"/><circle cx="12" cy="12" r="3"/></>,
+  standings: <path d="M4 20h16M5 20v-7h5v7m0-11h5v11m0-4h4v4"/>,
+} satisfies Record<string, React.ReactNode>;
+
+type Tab = keyof typeof tabStatusIcons | keyof typeof tabSymbols | 'all' | 'following' | 'watchlist' | 'pick';
+
+export function TabIcon({tab}: {tab: Tab}) {
+  if (tab === 'all') return <SportIcon sport="all"/>;
+  if (tab === 'following' || tab === 'watchlist') return <StarIcon/>;
+  if (tab === 'pick') return <ActionIcon action="picks"/>;
+  if (tab in tabStatusIcons) return <StatusIcon status={tabStatusIcons[tab as keyof typeof tabStatusIcons]}/>;
+  return <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">{tabSymbols[tab as keyof typeof tabSymbols]}</svg>;
+}

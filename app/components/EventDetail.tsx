@@ -3,7 +3,7 @@
 import {useContext, useEffect, useRef, useState, type CSSProperties} from 'react';
 import {matchesSearchText} from './BoardSearch';
 import {Modal, api, type Ticket} from './AccountPicks';
-import {SportIcon, StarIcon} from './SportIcon';
+import {SportIcon, StarIcon, TabIcon} from './SportIcon';
 import {TeamMark} from './TeamMark';
 import type {LiveEvent} from './LiveWorkspace';
 import { pickName, pickSides, supportsDrawPick, type PickSide } from '../lib/pick-outcomes';
@@ -62,7 +62,7 @@ function FootballDrives({event, busy, onRefresh}: {event: LiveEvent; busy: boole
           </div>
         </li>;
       })}
-    </ol> : <p>{event.status==='scheduled' ? 'Drives appear after kickoff.' : 'ESPN has not published drive data for this game.'}</p>}
+    </ol> : <p>{event.status==='scheduled' ? 'Drives appear after kickoff.' : 'Drive data is unavailable for this game.'}</p>}
     {drives.length > limit && <button onClick={()=>setLimit(value=>value+12)}>Show earlier drives</button>}
   </section>;
 }
@@ -228,8 +228,8 @@ function GameStats({event, summary, busy, onRefresh}: {
       </button>}
     </> : <p className="cw-game-section-note">{
       busy ? 'Loading team statistics…' : event.status === 'scheduled'
-        ? 'Team statistics appear after the game starts when ESPN provides them.'
-        : 'ESPN has not provided team statistics for this event.'
+        ? 'Team statistics appear after the game starts, when available.'
+        : 'Team statistics are unavailable for this event.'
     }</p>}
     {!!summary?.leaders?.length && <GameLeaders event={event} leaders={summary.leaders}/>}
     {plays.length > 0 && <section className="cw-scoring-plays" aria-label="Scoring plays">
@@ -273,7 +273,7 @@ function GameStandings({event,busy,onRefresh}: {event:LiveEvent;busy:boolean;onR
       <button disabled={busy} onClick={onRefresh}>{busy ? 'Refreshing…' : 'Refresh standings'}</button>
     </div>
     {groups.length ? <>
-      <p className="cw-game-section-note">Latest table included in the ESPN game summary.</p>
+      <p className="cw-game-section-note">Latest available standings.</p>
       {groups.map((group,index) => <table className="cw-team-stats-table cw-standings-table" key={index}>
         <caption>{group.title}</caption>
         <thead><tr>
@@ -302,7 +302,7 @@ function GameStandings({event,busy,onRefresh}: {event:LiveEvent;busy:boolean;onR
       {canExpand && <button aria-expanded={expanded} onClick={()=>setExpanded(value=>!value)}>
         {expanded ? 'Show fewer teams' : 'Show full standings'}
       </button>}
-    </> : <p className="cw-game-section-note">{busy ? 'Loading standings…' : 'ESPN has not supplied standings for this matchup.'}</p>}
+    </> : <p className="cw-game-section-note">{busy ? 'Loading standings…' : 'Standings are unavailable for this matchup.'}</p>}
   </section>;
 }
 
@@ -325,7 +325,7 @@ function Matchup({event, matchup, pitchers, busy, onRefresh}: {
     </div>
     {pitchers && <ProbablePitchers event={event} pitchers={pitchers}/>}
     {!matchup ? <p className="cw-game-section-note">{
-      busy ? 'Loading matchup information…' : 'ESPN has not provided matchup information for this event.'
+      busy ? 'Loading matchup information…' : 'Matchup information is unavailable for this event.'
     }</p> : <>
       {matchup.series && <p className="cw-series-result">{matchup.series}</p>}
       {!!matchup.seriesGames?.length && <section className="cw-season-series" aria-label="Head-to-head games">
@@ -375,7 +375,7 @@ function Matchup({event, matchup, pitchers, busy, onRefresh}: {
                   <span>{player.status}{player.injury && ` · ${player.injury}`}</span>
                   {player.reportedAt && <time dateTime={player.reportedAt}>Reported {dateLabel(player.reportedAt)}</time>}
                 </li>)}
-              </ul> : <p className="cw-game-section-note">ESPN supplied no report for this team.</p>}
+              </ul> : <p className="cw-game-section-note">No report is available for this team.</p>}
             </>}
           </div>;
         })}
@@ -432,7 +432,7 @@ function GameTimeline({event, busy, onRefresh}: {
         </select>
         <span>{filtered.length} {entryLabel}{filtered.length === 1 ? '' : 's'} · Newest first</span>
       </div>
-      {!event.timeline?.length && !scoringOnly && <p className="cw-game-section-note">ESPN supplied only scoring plays for this game.</p>}
+      {!event.timeline?.length && !scoringOnly && <p className="cw-game-section-note">Only scoring plays are available for this game.</p>}
       {filtered.length > 0 ? <div className="cw-scoring-plays cw-timeline-plays">
         <ol aria-label={soccer ? 'Key match events' : 'Play-by-play'}>
           {filtered.slice(0, visible).map(play=><li key={play.id}>
@@ -446,15 +446,15 @@ function GameTimeline({event, busy, onRefresh}: {
         {filtered.length > visible && <button onClick={()=>setVisible(count=>count+20)}>Show more plays</button>}
       </div> : <p className="cw-game-section-note">No {entryLabel}s match this filter.</p>}
     </> : <p className="cw-game-section-note">{busy ? 'Loading plays…' : event.status === 'scheduled'
-      ? 'Play-by-play appears after the game starts when ESPN provides it.'
-      : 'ESPN has not provided play-by-play for this game.'}</p>}
+      ? 'Play-by-play appears after the game starts, when available.'
+      : 'Play-by-play is unavailable for this game.'}</p>}
   </section>;
 }
 
 function OnIce({event, players}: {event:LiveEvent; players:NonNullable<LiveEvent['onIce']>}) {
   return <section className="cw-game-section cw-on-ice" aria-label="On ice">
     <h3>On ice</h3>
-    <p className="cw-game-section-note">ESPN lineup · {event.statusText}</p>
+    <p className="cw-game-section-note">On-ice lineup · {event.statusText}</p>
     <div className="cw-pregame-players">
       {(['away','home'] as const).map(side=><section key={side} className="cw-pregame-team" aria-label={event[side].name}>
         <h4><TeamMark team={event[side]} small/>{event[side].name}</h4>
@@ -470,7 +470,7 @@ function OnIce({event, players}: {event:LiveEvent; players:NonNullable<LiveEvent
 function ProbablePitchers({event, pitchers}: {event:LiveEvent; pitchers:NonNullable<LiveEvent['probablePitchers']>}) {
   return <section className="cw-pitching-preview" aria-label="Probable starting pitchers">
     <h4>{event.status === 'scheduled' ? 'Probable starting pitchers' : 'Pregame probable pitchers'}</h4>
-    <p className="cw-game-section-note">ESPN’s pregame listing. Probable starters can change.</p>
+    <p className="cw-game-section-note">Probable starters can change before the game.</p>
     <div className="cw-pregame-players">
       {(['away','home'] as const).map(side=>{
         const pitcher = pitchers[side];
@@ -504,9 +504,9 @@ function PregamePlayers({event}: {event:LiveEvent}) {
   });
   const selected = ordered.find(group=>group.key===category) ?? ordered[0];
   if (event.probablePitchers) return <ProbablePitchers event={event} pitchers={event.probablePitchers}/>;
-  if (!selected) return <p className="cw-game-section-note">ESPN hasn’t supplied a pregame player preview for this matchup.</p>;
+  if (!selected) return <p className="cw-game-section-note">No pregame player preview is available for this matchup.</p>;
   return <>
-    <p className="cw-game-section-note">Season averages per game from ESPN.</p>
+    <p className="cw-game-section-note">Season averages per game.</p>
     <div className="cw-timeline-controls cw-player-controls" role="group" aria-label="Player stat category">
       {ordered.map(stat=><button key={stat.key} aria-pressed={stat.key===selected.key} onClick={()=>setCategory(stat.key)}>{stat.label}</button>)}
     </div>
@@ -624,7 +624,7 @@ function PlayerBoxScore({event, busy, scheduled, onRefresh}: {
         </table>
       </div>
       {players.length === 0 && <p role="status">No players match this search.</p>}
-    </> : <p className="cw-game-section-note">{busy ? 'Loading player statistics…' : 'ESPN hasn’t supplied a player box score for this matchup yet.'}</p>}
+    </> : <p className="cw-game-section-note">{busy ? 'Loading player statistics…' : 'A player box score is unavailable for this matchup.'}</p>}
   </section>;
 }
 
@@ -861,7 +861,7 @@ function EventDetailContent({
           <span>{detail.status === 'scheduled'
             ? scheduleTime(detail.startsAt,zone)
             : detail.clock}</span>
-          {detail.scoreSource && <span>{detail.scoreSource} backup score</span>}
+          {detail.scoreSource && <span>Backup score</span>}
           {detail.shootoutScores && <span>Penalties {detail.shootoutScores.away}–{detail.shootoutScores.home}</span>}
           {detail.soccerAggregate && <span>Aggregate {detail.soccerAggregate.away}–{detail.soccerAggregate.home} · Leg {detail.soccerAggregate.leg} of {detail.soccerAggregate.totalLegs}</span>}
         </div>
@@ -879,12 +879,12 @@ function EventDetailContent({
       Game link
       <input ref={shareField} readOnly value={shareLink} />
     </label>}
-    {busy && <p className="cw-field-hint" role="status">Refreshing from source…</p>}
+    {busy && <p className="cw-field-hint" role="status">Refreshing game…</p>}
     {error && <p className="cw-form-error" role="alert">{error}</p>}
-    {delayed && <p className="cw-form-error" role="status">Source data is delayed. Scores may be out of date.</p>}
+    {delayed && <p className="cw-form-error" role="status">Game data is delayed. Scores may be out of date.</p>}
     <nav className="cw-game-tabs" aria-label="Game center sections">
       {gameSections.filter(({id})=>sectionAvailable(id,detail)).map(({id, label}) =>
-        <button key={id} aria-pressed={section===id} onClick={()=>selectSection(id)}>{detail.fight && id==='score' ? 'Result' : label}</button>
+        <button key={id} aria-pressed={section===id} onClick={()=>selectSection(id)}><TabIcon tab={id}/>{detail.fight && id==='score' ? 'Result' : label}</button>
       )}
     </nav>
     {section === 'overview' && hasPeriodScores && !showTennisScores && <PeriodScores event={detail}/>}
@@ -920,7 +920,7 @@ function EventDetailContent({
       <h3>Bout result</h3>
       {detail.completed && (detail.winner==='away' || detail.winner==='home')
         ? <p><strong>{detail[detail.winner].name}</strong> won.</p>
-        : <p>{detail.status==='scheduled' ? 'This bout has not started.' : 'No winner confirmed by ESPN.'}</p>}
+        : <p>{detail.status==='scheduled' ? 'This bout has not started.' : 'No winner has been confirmed.'}</p>}
       <p className="cw-game-section-note">
         {detail.statusText}{detail.period ? ` · Round ${detail.period}` : ''}{detail.clock ? ` · ${detail.clock}` : ''}
       </p>
@@ -964,12 +964,6 @@ function EventDetailContent({
         : ticketsError ? <p role="alert">Could not load your picks.</p>
         : <p>No saved pick for this game.</p>}
     </section>}
-    <p className="cw-game-source">Scores and status provided by ESPN.{
-      section === 'stats' ? ' Statistics are from the last game summary.' :
-      section === 'players' ? ' Player data comes from the latest available game summary.' :
-      section === 'timeline' ? ' Plays and scores are from the last game summary.' :
-      section === 'matchup' ? ' Matchup information is from the last game summary.' : ''
-    }</p>
     </div>
   </div>;
 }

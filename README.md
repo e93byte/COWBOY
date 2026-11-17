@@ -34,10 +34,12 @@ Open [COWBOY on port 3213](http://127.0.0.1:3213). Create a local test account, 
 | Game live or near its scheduled start | The foreground app checks about every 1.5 seconds. An idle league is checked about every 8 seconds. |
 | Game Center summary unavailable | COWBOY tries that league's scoreboard, even on a direct game link, and retains already loaded details. |
 | ESPN hockey or baseball scoreboard unavailable | The NHL or MLB feed can update games when both teams and the start time match the last ESPN schedule. |
-| Another ESPN team scoreboard fails | Game-summary checks can recover scores for up to two known live games per affected league when that endpoint is available. The board labels the source and last check. |
+| Another ESPN team scoreboard fails | Game-summary checks can recover scores for up to two known live games per affected league when that endpoint is available. The board labels backup scores and shows when they were last checked. |
 | Both feeds unavailable | The server can retain the last successful ESPN league response for up to 5 minutes, with the original timestamp. The installed PWA can also show its last saved scoreboard offline. |
 
 These intervals are polling targets. Provider publishing cadence, request latency, and retry backoff affect how soon a change reaches the screen. The API shares requests across users in one server process and backs off for at least 30 seconds on HTTP 429. Backup or cached scores are for display. Pick entry and settlement require ESPN verification.
+
+See [Score endpoint and interface reference](docs/SCORE-ENDPOINTS-AND-ICONS.md) for endpoint URLs, measured response times, coverage gaps, and the FanDuel and BetMGM tab references.
 
 ## Verification
 

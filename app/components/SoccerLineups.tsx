@@ -46,7 +46,7 @@ function formationRows(lineup?: Lineup) {
 }
 
 function Pitch({rows}: {rows: Lineup['starters'][]}) {
-  return <div className="cw-lineup-pitch" aria-label="Starting positions from ESPN" role="group">
+  return <div className="cw-lineup-pitch" aria-label="Starting positions" role="group">
     {rows.map((row, index) => <ul key={index} className="cw-pitch-row">
       {row.map(player => <li key={player.id} title={player.position}>
         <span aria-hidden="true">{player.jersey || '—'}</span>
@@ -76,7 +76,7 @@ export function SoccerLineups({event,busy,onRefresh}: {event:LiveEvent;busy:bool
       <h3>Lineups</h3>
       <button disabled={busy} onClick={onRefresh}>{busy ? 'Refreshing…' : 'Refresh lineups'}</button>
     </div>
-    {!lineups ? <p className="cw-game-section-note">{busy ? 'Loading lineups…' : 'ESPN has not published a lineup for this match.'}</p> :
+    {!lineups ? <p className="cw-game-section-note">{busy ? 'Loading lineups…' : 'No lineup is available for this match.'}</p> :
       <>
       {canShowFormation && <div className="cw-lineup-view">
         <button type="button" aria-pressed={showFormation} onClick={() => setShowFormation(!showFormation)}>
@@ -95,7 +95,7 @@ export function SoccerLineups({event,busy,onRefresh}: {event:LiveEvent;busy:bool
               <h4>{team.name}</h4>
               {lineup?.formation && <strong className="cw-formation">{lineup.formation}</strong>}
             </div>
-            {!lineup ? <p>ESPN has not published starters for this team.</p> : <>
+            {!lineup ? <p>No starters are available for this team.</p> : <>
               <h5>{lineup.starters.length===11 ? 'Starting XI' : `Listed starters (${lineup.starters.length})`}</h5>
               {showFormation && rows ? <Pitch rows={rows}/> : <Roster players={lineup.starters}/>}
               {!!lineup.bench.length && <details>

@@ -12,7 +12,7 @@ async function setup(page: Page) {
 test('real board shows source, real teams, locks live entry and filters leagues', async ({page}) => {
   await setup(page); await page.goto('/');
   await expect(page.getByRole('heading',{name:'Sports board'})).toBeVisible();
-  await expect(page.getByText('ESPN', {exact:true}).first()).toBeVisible();
+  await expect(page.getByText('Scores', {exact:true}).first()).toBeVisible();
   await expect(page.getByRole('button',{name:'Pick Boston Celtics'})).toBeEnabled();
   await expect(page.getByRole('button',{name:'Pick Buffalo Bills'})).toBeDisabled();
   await page.getByRole('button',{name:'NBA',exact:true}).click();
@@ -354,17 +354,17 @@ test('soccer Lineups opens from a shared URL and displays a refreshed provider l
   await page.goto('/?game=401915399&league=ucl&section=lineups');
   const game=page.getByRole('dialog',{name:'Game details'});
   await expect(game.getByRole('button',{name:'Lineups',exact:true})).toHaveAttribute('aria-pressed','true');
-  await expect(game.getByText('ESPN has not published a lineup for this match.')).toBeVisible();
+  await expect(game.getByText('No lineup is available for this match.')).toBeVisible();
   ready=true;
   await game.getByRole('button',{name:'Refresh lineups'}).click();
   const barcelona=game.getByRole('region',{name:'Barcelona lineup'});
   await expect(barcelona.getByText('4-2-3-1')).toBeVisible();
   await expect(barcelona.getByText('Listed starters (1)')).toBeVisible();
   await expect(barcelona.getByText('Joan García')).toBeVisible();
-  await expect(game.getByText('Source data is delayed.',{exact:false})).toHaveCount(0);
+  await expect(game.getByText('Game data is delayed.',{exact:false})).toHaveCount(0);
   await barcelona.getByText('Substitutes (1) · 1 played').click();
   await expect(barcelona.getByText('Substitute Player')).toBeVisible();
-  await expect(game.getByRole('region',{name:'Paris Saint-Germain lineup'})).toContainText('ESPN has not published starters');
+  await expect(game.getByRole('region',{name:'Paris Saint-Germain lineup'})).toContainText('No starters are available');
   await expect(game.getByRole('button',{name:'Formation view'})).toHaveCount(0);
   confirmed=true;
   await game.getByRole('button',{name:'Refresh lineups'}).click();
@@ -449,7 +449,7 @@ test('feed outages lock affected picks while healthy leagues stay available', as
   await setup(page);
   await page.route('**/api/sports',route=>route.fulfill({status:502,json:{error:'UPSTREAM_UNAVAILABLE',message:'ESPN unavailable'}}));
   await page.goto('/');
-  await expect(page.locator('.cw-alert[role="alert"]')).toContainText('unavailable');
+  await expect(page.locator('.cw-alert[role="alert"]')).toContainText('Could not refresh scores.');
   await expect(page.getByRole('button',{name:'Pick Boston Celtics'})).toHaveCount(0);
   await page.route('**/api/sports',route=>route.fulfill({json:{...board,stale:true,leagues:board.leagues.map(l=>({...l,status:'stale'}))}}));
   await page.getByRole('button',{name:'Try again'}).click();
@@ -467,7 +467,8 @@ test('feed outages lock affected picks while healthy leagues stay available', as
   await expect(page.getByRole('button',{name:'Sign in to save pick',exact:true})).toBeEnabled();
   await page.route('**/api/sports',route=>route.fulfill({json:{...board,leagues:[board.leagues[0],{...board.leagues[1],status:'error',error:'Timed out'}]}}));
   await page.getByRole('button',{name:'Refresh sports'}).click();
-  await expect(page.getByText('NFL: source unavailable · Timed out')).toBeVisible();
+  await expect(page.getByText('NFL: scores unavailable')).toBeVisible();
+  await expect(page.locator('.cw-league-health')).not.toContainText(/ESPN|Timed out/);
   await page.route(/\/api\/sports\?league=nfl$/, route=>route.fulfill({json:board}));
   await page.getByRole('button',{name:'Retry NFL feed'}).click();
   await expect(page.getByRole('button',{name:'Retry NFL feed'})).toHaveCount(0);
@@ -490,7 +491,8 @@ test('watchlist is reversible and persistent; detail uses source data; search an
   await page.getByRole('button',{name:`Details: ${event.name}`,exact:true}).click();
   const dialog=page.getByRole('dialog',{name:'Game details'});
   await expect(dialog).toContainText(event.away.name);
-  await expect(dialog).toContainText('ESPN');
+  await expect(dialog).not.toContainText('ESPN');
+  await expect(dialog.getByRole('button',{name:'Overview',exact:true}).locator('svg')).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(dialog).toHaveCount(0);
   await page.getByRole('button',{name:`Unwatch ${event.name}`,exact:true}).click();
@@ -1125,7 +1127,7 @@ test.describe('pregame reminders', () => {
   });
 });
 
-test('offline reload shows the last ESPN slate and skips account and pick caches', async ({page,context}) => {
+test('offline reload shows the last saved slate and skips account and pick caches', async ({page,context}) => {
   await setup(page);
   await page.goto('/');
   await expect(page.getByRole('button',{name:'Install COWBOY app'})).toBeVisible();
@@ -1140,7 +1142,7 @@ test('offline reload shows the last ESPN slate and skips account and pick caches
   try {
     await page.reload();
     await expect(page.getByRole('heading',{name:'Last saved scoreboard'})).toBeVisible();
-    await expect(page.getByText(/ESPN snapshot saved/)).toBeVisible();
+    await expect(page.getByText(/Scoreboard saved/)).toBeVisible();
     await expect(page.getByText('Boston Celtics',{exact:true})).toBeVisible();
     await page.getByRole('combobox',{name:'League'}).selectOption('NFL');
     await expect(page.getByText('Boston Celtics',{exact:true})).toHaveCount(0);

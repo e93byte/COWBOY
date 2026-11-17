@@ -99,10 +99,10 @@ export function GameMomentList({moments, onGame, read}: {
     <button onClick={()=>onGame(moment)}>
       <strong>{moment.label}</strong>
       <span>{moment.event.name}</span>
-      {moment.type === 'reminder' ? <small>ESPN kickoff · <time dateTime={moment.event.startsAt}>{scheduleTime(moment.event.startsAt,zone)}</time></small> : <small>
+      {moment.type === 'reminder' ? <small>Kickoff · <time dateTime={moment.event.startsAt}>{scheduleTime(moment.event.startsAt,zone)}</time></small> : <small>
         {moment.event.away.score !== null && moment.event.home.score !== null &&
           `${moment.event.away.shortName} ${moment.event.away.score} · ${moment.event.home.shortName} ${moment.event.home.score} · `}
-        ESPN · <time dateTime={moment.observedAt}>{new Date(moment.observedAt).toLocaleString([], {
+        <time dateTime={moment.observedAt}>{new Date(moment.observedAt).toLocaleString([], {
           month:'short',day:'numeric',hour:'numeric',minute:'2-digit',
         })}</time>
       </small>}

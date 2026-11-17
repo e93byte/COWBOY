@@ -22,9 +22,9 @@ const topics = [
   {
     id:'live-data', title:'Live scores and data', link:{href:'/live',label:'Open Live'},
     articles:[
-      {title:'How often do scores update?', text:'While COWBOY is visible, it checks active leagues and open live games about every 1.5 seconds. Idle leagues are checked about every 8 seconds. Scores, clocks and plays update when the source publishes them. Coverage varies by sport.'},
+      {title:'How often do scores update?', text:'Scores refresh automatically while COWBOY is visible. The latest update time and any delays appear on the scoreboard. Coverage varies by sport.'},
       {title:'What happens if the game summary fails?', text:'Game Center can show the latest available scoreboard for that matchup while the detailed feed recovers. For matched hockey games, it can use backup scores from the NHL. The page labels the fallback and pauses picks when current game data is unavailable.'},
-      {title:'Why are scores or games missing?', text:'Check the source timestamp and the league’s status. A delayed feed can show the last received data. Use Refresh sports or retry the affected league. Some sports supply a scoreboard without a play-by-play feed.'},
+      {title:'Why are scores or games missing?', text:'Check the last update time and the league’s status. A delayed feed can show the last received data. Use Refresh sports or retry the affected league. Some sports supply a scoreboard without a play-by-play feed.'},
     ],
   },
   {

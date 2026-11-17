@@ -1,4 +1,4 @@
-const VERSION = "cowboy-live-shell-v4";
+const VERSION = "cowboy-live-shell-v5";
 const PRECACHE = ["/offline.html", "/offline-board.js", "/icon-192.png", "/icon-512.png", "/icon-maskable-512.png"];
 
 self.addEventListener("install", (event) => {

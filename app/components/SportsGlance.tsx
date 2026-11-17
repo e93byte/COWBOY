@@ -20,7 +20,7 @@ export function SportsGlance({
   return <section className="cw-glance" aria-label="Sports at a glance">
     <div className="cw-glance-overview">
       <h2>At a glance</h2>
-      <p>ESPN · {delayed ? 'Last received' : 'Updated'} <time dateTime={fetchedAt}>
+      <p>{delayed ? 'Last received' : 'Updated'} <time dateTime={fetchedAt}>
         {new Date(fetchedAt).toLocaleTimeString([], {hour:'numeric',minute:'2-digit'})}
       </time></p>
       <div className="cw-glance-actions">

@@ -1,3 +1,5 @@
+import { TabIcon } from './SportIcon';
+
 export function scheduleDateLabel(day: string, today: string, tomorrow: string) {
   if (day === 'all') return 'All dates';
   if (day === today) return 'Today';
@@ -22,7 +24,7 @@ export function ScheduleDates({value, counts, today, tomorrow, onChange}: {
     <div className="cw-date-tabs" role="group" aria-label="Game date">
       {quick.map(day => (
         <button key={day} aria-pressed={value === day} onClick={() => onChange(day)}>
-          {scheduleDateLabel(day, today, tomorrow)}
+          <TabIcon tab="calendar"/>{scheduleDateLabel(day, today, tomorrow)}
         </button>
       ))}
     </div>
