@@ -45,7 +45,7 @@ test('ranked teams keep their scoreboard badge in Game Center when the summary o
 test('Game Center schedules switch teams and open the exact listed fixture', async ({page}) => {
   const chosen = {...event,id:'401922001',away:{...event.away,id:'2'},home:{...event.home,id:'18'}};
   const third = {id:'phi',name:'Philadelphia 76ers',shortName:'PHI',score:null};
-  const awayNext = {...chosen,id:'401922002',name:'Boston Celtics at Philadelphia 76ers',home:third};
+  const awayNext = {...chosen,id:'401922002',name:'Boston Celtics at Philadelphia 76ers',home:third,broadcasts:[{name:'TNT',region:'US'}]};
   const homeFinal:LiveEvent = {...chosen,id:'401922003',name:'Philadelphia 76ers at New York Knicks',away:{...third,score:101},
     home:{...chosen.home,score:107},startsAt:'2026-11-16T05:00:00Z',status:'final',statusText:'Final',completed:true,winner:'home'};
   const unrelated = {...chosen,id:'401922004',name:'Chicago Bulls at Philadelphia 76ers',home:third,away:{...third,id:'chi',name:'Chicago Bulls'}};
@@ -63,7 +63,7 @@ test('Game Center schedules switch teams and open the exact listed fixture', asy
   await page.goto('/?game=401922001&league=nba&section=schedule');
   const detail = page.getByRole('dialog',{name:'Game details'});
   const schedule = detail.getByRole('region',{name:'Team schedules'});
-  await expect(schedule.getByRole('button',{name:'Open Boston Celtics at Philadelphia 76ers'})).toBeVisible();
+  await expect(schedule.getByRole('button',{name:'Open Boston Celtics at Philadelphia 76ers'})).toContainText('Coverage · TNT (US)');
   await expect(schedule.getByRole('button',{name:'Open Chicago Bulls at Philadelphia 76ers'})).toHaveCount(0);
   await schedule.getByRole('button',{name:'New York Knicks',exact:true}).click();
   await expect(schedule.getByText('No live or upcoming games are available.')).toBeVisible();

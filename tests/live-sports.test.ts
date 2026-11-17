@@ -458,6 +458,20 @@ test('PGA normalizes an actual multi-player leaderboard without inventing home/a
   assert.throws(() => live.normalizeGolfScoreboard({}), /Invalid ESPN/);
 });
 
+test('scheduled fixtures keep available broadcast listings with regions and exclude radio', () => {
+  const game = structuredClone(fixtures.nfl.events[0]);
+  const contest = game.competitions[0];
+  contest.status = {type:{name:'STATUS_SCHEDULED',state:'pre',completed:false}};
+  contest.broadcasts = [{names:['  Fox  ', 'FOX', 'NFL Network']}];
+  contest.geoBroadcasts = [
+    {media:{shortName:'Fox'},type:{shortName:'TV'},region:'us'},
+    {media:{shortName:'Westwood One'},type:{shortName:'Radio'},region:'us'},
+    {media:{shortName:'TSN'},type:{shortName:'Streaming'},region:'ca'},
+  ];
+  const [scheduled] = live.normalizeScoreboard('nfl',{events:[game]});
+  assert.deepEqual(scheduled.broadcasts,[{name:'Fox',region:'US'},{name:'TSN',region:'CA'},{name:'NFL Network'}]);
+});
+
 test('team schedules validate identity and reuse a coalesced successful response', async () => {
   const match = structuredClone(fixtures.nfl.events[0]);
   const team = match.competitions[0].competitors[0].id;

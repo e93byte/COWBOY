@@ -1542,3 +1542,11 @@
 @media (max-width: 540px) {
   .cw-team-schedule-games { grid-template-columns: minmax(0, 1fr); }
 }
+
+.cw-match-broadcast {
+  display: block;
+  font-size: 11px;
+  text-align: left;
+  overflow-wrap: anywhere;
+  color: var(--dim);
+}

@@ -139,6 +139,7 @@ export type LiveEvent = {
   home: LiveTeam;
   away: LiveTeam;
   venue?: string;
+  broadcasts?: {name:string; region?:string}[];
   footballPosition?: FootballPosition;
   footballDrives?: FootballDrive[];
   teamStats?: TeamStat[];
@@ -797,6 +798,27 @@ function normalizeProbablePitcher(competitor: Json | undefined): ProbablePitcher
   };
 }
 
+function normalizeBroadcasts(competition: Json): NonNullable<LiveEvent['broadcasts']> {
+  const broadcasts = new Map<string,{name:string;region?:string}>();
+  const coverage = [competition.geoBroadcasts,competition.broadcasts].flatMap(rows=>Array.isArray(rows) ? rows : []);
+  for (const raw of coverage.slice(0,40)) {
+    const row = object(raw);
+    const kind = text(object(row.type).shortName).toLowerCase();
+    if (kind && !['tv','streaming','subscription package'].includes(kind)) continue;
+    const regionCode = text(row.region).trim().toUpperCase();
+    const region = /^[A-Z]{2}$/.test(regionCode) ? regionCode : undefined;
+    const names = [object(row.media).shortName,...(Array.isArray(row.names) ? row.names.slice(0,8) : [])];
+    for (const label of names) {
+      const name = text(label).trim().replace(/\s+/g,' ');
+      if (!name || name.length>48) continue;
+      const key = name.toLowerCase()+':'+(region ?? '');
+      if (!broadcasts.has(key)) broadcasts.set(key,{name,...(region ? {region} : {})});
+    }
+  }
+  const knownRegions = new Set([...broadcasts.values()].filter(item=>item.region).map(item=>item.name.toLowerCase()));
+  return [...broadcasts.values()].filter(item=>item.region || !knownRegions.has(item.name.toLowerCase())).slice(0,8);
+}
+
 export function normalizeScoreboard(league: string, payload: unknown): LiveEvent[] {
   const config = leagueConfig(league);
   const data = object(payload);
@@ -906,6 +928,7 @@ export function normalizeScoreboard(league: string, payload: unknown): LiveEvent
         ? normalizePitchingDecisions(status, away.id, home.id, winner) : [];
       const probableAway = league === 'mlb' ? normalizeProbablePitcher(awayRaw) : undefined;
       const probableHome = league === 'mlb' ? normalizeProbablePitcher(homeRaw) : undefined;
+      const broadcasts = normalizedStatus === 'scheduled' || normalizedStatus === 'live' ? normalizeBroadcasts(competition) : [];
       const situation = object(competition.situation);
       const footballPosition = config.sport === 'football' && code === 'STATUS_IN_PROGRESS' && normalizedStatus === 'live'
         ? normalizeFootballPosition(situation, situation.possession, away, home)
@@ -918,6 +941,7 @@ export function normalizeScoreboard(league: string, payload: unknown): LiveEvent
         clock: neutral && text(status.displayClock) === '-' ? null : text(status.displayClock) || null,
         period: typeof status.period === 'number' && Number.isInteger(status.period) && status.period >= 0 ? status.period : null,
         home, away, ...(providerUrl ? { providerUrl } : {}), completed, winner,
+        ...(broadcasts.length ? {broadcasts} : {}),
         ...(shootoutScores ? {shootoutScores} : {}),
         ...(pitchingDecisions.length ? {pitchingDecisions} : {}),
         ...(probableAway || probableHome ? {probablePitchers:{

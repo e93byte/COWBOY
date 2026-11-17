@@ -24,7 +24,7 @@ Open [COWBOY on port 3213](http://127.0.0.1:3213). Create a local test account, 
 | Home | Filter the schedule by sport, league, and date, including college hockey, international soccer, and European club rugby. Follow a matchup or add up to five independent free picks to your draft. Ranked NCAA teams show their published top-25 position when available. |
 | Watchlist | Reopen your filtered Watchlist through the address bar or refresh. Each browser shows its own follows or those of the signed-in account. |
 | Live | Follow in-progress scores or browse recent finals. Filter to watched matchups, or compare up to four selected games from the live board. Selections for games still on the board survive reloads in the same tab. |
-| Game Center | Open a game for scores, play-by-play, lineups, player stats, and standings where available. MLB includes probable pitchers, inning line scores, and confirmed pitching decisions when ESPN supplies them. Live NHL games can show the current on-ice lineup. Browse each team’s recent finals and upcoming fixtures in Schedule and share a link to a specific section. |
+| Game Center | Open a game for scores, play-by-play, lineups, player stats, and standings where available. MLB includes probable pitchers, inning line scores, and confirmed pitching decisions when ESPN supplies them. Live NHL games can show the current on-ice lineup. Browse each team’s recent finals, upcoming fixtures, and available TV or streaming listings in Schedule and share a link to a specific section. |
 | My Picks | Review accuracy, the last five decided picks, and your current run. Change an eligible pick before its game starts. |
 | Preferences | Set your schedule timezone and followed-game alerts. |
 

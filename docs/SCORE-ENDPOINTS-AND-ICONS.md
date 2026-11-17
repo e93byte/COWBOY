@@ -13,7 +13,7 @@ Each range uses three direct GETs from the development machine. These measuremen
 
 ## Team schedules
 
-Game Center requests `/api/sports/team-schedule?league={league}&team={id}` when a viewer opens the Schedule tab. The server calls the [team schedule endpoint](https://site.api.espn.com/apis/site/v2/sports/basketball/nba/teams/2/schedule) using the league’s configured sport path and a numeric team ID. It verifies the returned team and game participants before caching the result for 60 seconds. The UI prefers current scoreboard data for games present in both responses and uses the scoreboard alone when the schedule is unavailable.
+Game Center requests `/api/sports/team-schedule?league={league}&team={id}` when a viewer opens the Schedule tab. The server calls the [team schedule endpoint](https://site.api.espn.com/apis/site/v2/sports/basketball/nba/teams/2/schedule) using the league’s configured sport path and a numeric team ID. It verifies the returned team and game participants before caching the result for 60 seconds. The UI prefers current scoreboard data for games present in both responses and uses the scoreboard alone when the schedule is unavailable. Schedule cards show published TV or streaming network names, with the reported region when present.
 
 ## Lower-latency option
 

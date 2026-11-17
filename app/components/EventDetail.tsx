@@ -703,7 +703,10 @@ function TeamSchedule({event, games, onGame}: {
   },[event.league,team.id,remoteSupported]);
   const teamSchedule = schedule?.teamId === team.id ? schedule : undefined;
   const visible = new Map((teamSchedule?.events ?? []).map(game=>[game.id,game]));
-  for (const game of games) visible.set(game.id,game);
+  for (const game of games) {
+    const coverage = visible.get(game.id)?.broadcasts;
+    visible.set(game.id,game.broadcasts || !coverage ? game : {...game,broadcasts:coverage});
+  }
   const teamGames = [...visible.values()].filter(game => game.id !== event.id &&
     (game.away.id === team.id || game.home.id === team.id))
     .sort((a,b)=>Date.parse(a.startsAt)-Date.parse(b.startsAt));
@@ -728,7 +731,7 @@ function TeamSchedule({event, games, onGame}: {
     ].map(group => <section key={group.label} aria-label={group.label}>
       <h4>{group.label}</h4>
       {group.games.length ? <div className="cw-team-schedule-games">
-        {group.games.map(game => <MatchCard key={game.id} event={game} label={`Open ${game.name}`} onOpen={onGame}/>)}
+        {group.games.map(game => <MatchCard key={game.id} event={game} label={`Open ${game.name}`} onOpen={onGame} showBroadcasts/>)}
       </div> : <p className="cw-game-section-note">{group.empty}</p>}
     </section>)}
   </section>;

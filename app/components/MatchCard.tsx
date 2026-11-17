@@ -56,8 +56,16 @@ export function BoardScore({event, side}: {event: LiveEvent; side: 'home' | 'awa
   return <SourceScore score={event.status === 'scheduled' ? null : team.score}/>;
 }
 
-export function MatchCard({event, onOpen, label}: {event: LiveEvent; onOpen: (event: LiveEvent) => void; label?: string}) {
+export function MatchCard({event, onOpen, label, showBroadcasts = false}: {
+  event: LiveEvent;
+  onOpen: (event: LiveEvent) => void;
+  label?: string;
+  showBroadcasts?: boolean;
+}) {
   const zone = useContext(ScheduleTimeZone);
+  const broadcasts = showBroadcasts && (event.status === 'scheduled' || event.status === 'live') && event.broadcasts?.length
+    ? event.broadcasts.map(({name,region})=>region ? `${name} (${region})` : name).join(' · ')
+    : undefined;
   return <button className="cw-match-card" aria-label={label ?? `Explore ${event.name}`} onClick={() => onOpen(event)}>
     <span className="cw-match-meta">
       <span><SportIcon sport={event.sport}/>{event.leagueName}</span>
@@ -74,6 +82,7 @@ export function MatchCard({event, onOpen, label}: {event: LiveEvent; onOpen: (ev
         </span>
       ))}
     </span>
+    {broadcasts && <span className="cw-match-broadcast">Coverage · {broadcasts}</span>}
     <span className="cw-match-link">Game center <ActionIcon action="details"/></span>
   </button>;
 }
