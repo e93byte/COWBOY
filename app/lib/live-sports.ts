@@ -1,4 +1,4 @@
-import { LIVE_LEAGUES } from './sports-leagues';
+import { LIVE_LEAGUES, hasRecordStandings } from './sports-leagues';
 import { supportsDrawPick } from './pick-outcomes';
 import { LIVE_SCORE_REFRESH_MS, SCHEDULE_REFRESH_MS, SCORE_RETRY_MS } from './score-refresh';
 import { applyNhlScores, nhlScoreDate } from './nhl-score-fallback';
@@ -75,13 +75,18 @@ type SoccerStanding = {
   goalDifference: number | null; points: number | null;
 };
 
-type NbaStanding = {
+type RecordStanding = {
   teamId: string;
   name: string;
   wins: number | null;
   losses: number | null;
   winPercent: number | null;
   gamesBehind: number | null;
+  ties?: number | null;
+  pointsFor?: number | null;
+  pointsAgainst?: number | null;
+  otLosses?: number | null;
+  points?: number | null;
 };
 
 type FootballPosition = {
@@ -133,7 +138,8 @@ export type LiveEvent = {
   matchup?: { away: MatchupSide; home: MatchupSide; series: string; seriesGames?: SeriesGame[] };
   soccerLineups?: Partial<Record<'away'|'home',SoccerLineup>>;
   soccerStandings?: {title:string; rows:SoccerStanding[]}[];
-  nbaStandings?: {title:string; rows:NbaStanding[]}[];
+  nbaStandings?: {title:string; rows:RecordStanding[]}[];
+  recordStandings?: {title:string; rows:RecordStanding[]}[];
   fight?: FightCard;
   providerUrl?: string;
   scoreSource?: 'NHL';
@@ -410,14 +416,14 @@ function normalizeSoccerStandings(data: Json, event: LiveEvent): NonNullable<Liv
   });
 }
 
-function normalizeNbaStandings(data: Json, event: LiveEvent): NonNullable<LiveEvent['nbaStandings']> {
+function normalizeRecordStandings(data: Json, event: LiveEvent): NonNullable<LiveEvent['recordStandings']> {
   const standings = object(data.standings);
   if (!Array.isArray(standings.groups)) return [];
   return standings.groups.slice(0,6).flatMap((raw:unknown)=>{
     const group = object(raw);
     const entries = object(group.standings).entries;
     if (!Array.isArray(entries)) return [];
-    const rows = new Map<string,NbaStanding>();
+    const rows = new Map<string,RecordStanding>();
     for (const rawEntry of entries.slice(0,30)) {
       const entry = object(rawEntry);
       const name = text(entry.team).trim();
@@ -428,18 +434,22 @@ function normalizeNbaStandings(data: Json, event: LiveEvent): NonNullable<LiveEv
         if (typeof value === 'number' && Number.isFinite(value)) stats.set(text(name),value);
       }
       const winPercent = stats.get('winPercent');
-      const wins = stats.get('wins');
-      const losses = stats.get('losses');
+      const count = (key: string) => {
+        const value = stats.get(key);
+        return value !== undefined && Number.isSafeInteger(value) && value >= 0 ? value : null;
+      };
       rows.set(entry.id,{
         teamId:entry.id, name:name.slice(0,100),
-        wins:wins!==undefined && Number.isSafeInteger(wins) && wins>=0 ? wins : null,
-        losses:losses!==undefined && Number.isSafeInteger(losses) && losses>=0 ? losses : null,
+        wins:count('wins'),
+        losses:count('losses'),
         winPercent:winPercent!==undefined && winPercent>=0 && winPercent<=1 ? winPercent : null,
         gamesBehind:stats.get('gamesBehind')??null,
+        ...(event.league === 'nfl' ? {ties:count('ties'), pointsFor:count('pointsFor'), pointsAgainst:count('pointsAgainst')} : {}),
+        ...(event.league === 'nhl' ? {otLosses:count('otLosses'), points:count('points')} : {}),
       });
     }
     if (!rows.has(event.away.id) && !rows.has(event.home.id)) return [];
-    const title = text(group.header || standings.header).trim().slice(0,120) || 'NBA standings';
+    const title = text(group.header || standings.header).trim().slice(0,120) || `${event.leagueName} standings`;
     return [{title,rows:[...rows.values()]}];
   });
 }
@@ -1097,7 +1107,7 @@ export function createLiveSportsClient(options: ClientOptions = {}) {
     const matchup = normalizeMatchup(data, event);
     const soccerLineups = normalizeSoccerLineups(data,event);
     const soccerStandings = event.sport === 'soccer' ? normalizeSoccerStandings(data,event) : [];
-    const nbaStandings = league === 'nba' ? normalizeNbaStandings(data,event) : [];
+    const recordStandings = hasRecordStandings(league) ? normalizeRecordStandings(data,event) : [];
     const footballPosition = normalizeDrivePosition(data,event);
     const footballDrives = hasStarted && event.sport === 'football' ? normalizeFootballDrives(data,event) : [];
     return {
@@ -1115,7 +1125,7 @@ export function createLiveSportsClient(options: ClientOptions = {}) {
       ...(matchup ? { matchup } : {}),
       ...(soccerLineups ? {soccerLineups} : {}),
       ...(soccerStandings.length ? {soccerStandings} : {}),
-      ...(nbaStandings.length ? {nbaStandings} : {}),
+      ...(recordStandings.length ? (league === 'nba' ? {nbaStandings: recordStandings} : {recordStandings}) : {}),
     };
   }
 

@@ -30,3 +30,7 @@ export const LIVE_LEAGUES = [
   { id: 'premrugby', sport: 'rugby', name: 'Premiership Rugby', path: 'rugby/267979' },
   { id: 'pga', sport: 'golf', name: 'PGA Tour', path: 'golf/pga' },
 ] as const;
+
+export function hasRecordStandings(league: string): boolean {
+  return ['nba', 'wnba', 'mlb', 'nfl', 'nhl'].includes(league);
+}

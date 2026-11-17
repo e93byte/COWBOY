@@ -12,6 +12,7 @@ import { ScoreProgression } from './ScoreProgression';
 import { SoccerLineups } from './SoccerLineups';
 import { scheduleTime } from '../lib/schedule-time';
 import { BoardScore } from './MatchCard';
+import { hasRecordStandings } from '../lib/sports-leagues';
 import { LIVE_SCORE_REFRESH_MS } from '../lib/score-refresh';
 
 function FootballField({event, position}: {event: LiveEvent; position: NonNullable<LiveEvent['footballPosition']>}) {
@@ -242,10 +243,20 @@ function GameStats({event, summary, busy, onRefresh}: {
   </section>;
 }
 
+const wins = ['wins','W','Wins'] as const;
+const losses = ['losses','L','Losses'] as const;
+const pct = ['winPercent','PCT','Win percentage'] as const;
+const recordColumns = {
+  default: [wins, losses, pct, ['gamesBehind','GB','Games behind']],
+  nfl: [wins, losses, ['ties','T','Ties'], pct, ['pointsFor','PF','Points for'], ['pointsAgainst','PA','Points against']],
+  nhl: [wins, losses, ['otLosses','OTL','Overtime losses'], ['points','Pts','Points']],
+} as const;
+
 function GameStandings({event,busy,onRefresh}: {event:LiveEvent;busy:boolean;onRefresh:()=>void}) {
   const [expanded,setExpanded] = useState(false);
-  const nba = event.league === 'nba';
-  const groups = (nba ? event.nbaStandings : event.soccerStandings) ?? [];
+  const record = hasRecordStandings(event.league);
+  const groups = (record ? event.nbaStandings ?? event.recordStandings : event.soccerStandings) ?? [];
+  const columns = event.league === 'nfl' ? recordColumns.nfl : event.league === 'nhl' ? recordColumns.nhl : recordColumns.default;
   const isMatchTeam = (id: string) => id === event.home.id || id === event.away.id;
   const canExpand = groups.some(group=>group.rows.slice(5).some(row=>!isMatchTeam(row.teamId)));
   return <section className="cw-game-section" aria-label="League standings">
@@ -258,13 +269,8 @@ function GameStandings({event,busy,onRefresh}: {event:LiveEvent;busy:boolean;onR
       {groups.map((group,index) => <table className="cw-team-stats-table cw-standings-table" key={index}>
         <caption>{group.title}</caption>
         <thead><tr>
-          {!nba && <th scope="col">Rank</th>}<th scope="col" className="cw-standings-team">Team</th>
-          {nba ? <>
-            <th scope="col"><abbr title="Wins">W</abbr></th>
-            <th scope="col"><abbr title="Losses">L</abbr></th>
-            <th scope="col"><abbr title="Win percentage">PCT</abbr></th>
-            <th scope="col"><abbr title="Games behind">GB</abbr></th>
-          </> : <>
+          {!record && <th scope="col">Rank</th>}<th scope="col" className="cw-standings-team">Team</th>
+          {record ? columns.map(([key,label,title])=><th key={key} scope="col"><abbr title={title}>{label}</abbr></th>) : <>
             <th scope="col"><abbr title="Played">P</abbr></th>
             <th scope="col"><abbr title="Goal difference">GD</abbr></th>
             <th scope="col"><abbr title="Points">Pts</abbr></th>
@@ -275,10 +281,9 @@ function GameStandings({event,busy,onRefresh}: {event:LiveEvent;busy:boolean;onR
           return <tr key={row.teamId} data-match-team={matchTeam}>
             {'rank' in row && <td>{row.rank}</td>}
             <th scope="row">{row.name}{matchTeam && <span className="sr-only"> (playing this match)</span>}</th>
-            {'wins' in row ? <>
-              <td>{row.wins ?? '—'}</td><td>{row.losses ?? '—'}</td>
-              <td>{row.winPercent?.toFixed(3).replace(/^0\./,'.') ?? '—'}</td><td>{row.gamesBehind ?? '—'}</td>
-            </> : <>
+            {'wins' in row ? columns.map(([key])=><td key={key}>
+              {key === 'winPercent' ? row.winPercent?.toFixed(3).replace(/^0\./,'.') ?? '—' : row[key] ?? '—'}
+            </td>) : <>
               <td>{row.played ?? '—'}</td>
               <td>{row.goalDifference === null ? '—' : row.goalDifference > 0 ? '+'+row.goalDifference : row.goalDifference}</td>
               <td>{row.points ?? '—'}</td>
@@ -636,7 +641,7 @@ type GameSection = (typeof gameSections)[number]['id'];
 function sectionAvailable(section: GameSection, event: LiveEvent) {
   if (section === 'drives') return event.sport === 'football';
   if (section === 'lineups') return event.sport === 'soccer';
-  if (section === 'standings') return event.sport === 'soccer' || event.league === 'nba';
+  if (section === 'standings') return event.sport === 'soccer' || hasRecordStandings(event.league);
   return true;
 }
 

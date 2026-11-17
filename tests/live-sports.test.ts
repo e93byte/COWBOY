@@ -252,6 +252,29 @@ test('NBA standings keep ESPN order and only include divisions tied to the match
   ]);
 });
 
+test('NFL and NHL standings validate their league-specific columns', async () => {
+  for (const [league, stats, expected] of [
+    ['nfl', {wins:8, losses:2, ties:0, pointsFor:251, pointsAgainst:-1}, {ties:0, pointsFor:251, pointsAgainst:null}],
+    ['nhl', {wins:8, losses:2, otLosses:2, points:18}, {otLosses:2, points:18}],
+  ] as const) {
+    const header = fixtures[league].events[0];
+    const game = live.normalizeScoreboard(league,{events:[header]})[0];
+    const entry = (id:string, team:string) => ({
+      id, team, stats:Object.entries(stats).map(([name,value])=>({name,value})),
+    });
+    const standings = {groups:[
+      {header:'Matchup division',standings:{entries:[entry(game.home.id,'Home'),entry(game.away.id,'Away')]}},
+      {header:'Unrelated',standings:{entries:[entry('9999','Other')]}},
+    ]};
+    const client = live.createLiveSportsClient({fetch:async()=>Response.json({header,standings})});
+    const result = await client.getLiveEvent(league,game.id);
+    assert.deepEqual(result?.recordStandings,[{title:'Matchup division',rows:[
+      {teamId:game.home.id,name:'Home',wins:8,losses:2,winPercent:null,gamesBehind:null,...expected},
+      {teamId:game.away.id,name:'Away',wins:8,losses:2,winPercent:null,gamesBehind:null,...expected},
+    ]}]);
+  }
+});
+
 test('grouped baseball stats keep categories distinct and use scoring plays from play-by-play', async () => {
   const header = summaries.nfl.header;
   const game = live.normalizeScoreboard('mlb', {events: [header]})[0];
