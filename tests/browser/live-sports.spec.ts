@@ -1354,6 +1354,10 @@ test('Live compares four selected games and retains the latest score when a matc
   const panel=page.getByRole('region',{name:'Score comparison'});
   await expect(panel.getByRole('article')).toHaveCount(4);
   await expect(page.getByRole('button',{name:'Compare Match 5',exact:true})).toBeDisabled();
+  await page.reload();
+  await expect(panel.getByRole('article')).toHaveCount(4);
+  await page.getByRole('button',{name:'View comparison',exact:true}).click();
+  await expect(panel).toBeFocused();
 
   const match=panel.getByRole('article',{name:'Match 1',exact:true});
   const updated={...games[0],home:{...games[0].home,score:24}};

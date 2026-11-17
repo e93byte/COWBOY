@@ -93,6 +93,7 @@ function readGameLink(params: URLSearchParams) {
 function eventKey(event: Pick<LiveEvent,'league'|'id'>) { return event.league + ':' + event.id; }
 
 const comparisonLimit = 4;
+const comparisonStorageKey = 'cowboy.liveComparison';
 type ComparedGame = {event:LiveEvent; reportedAt?:string};
 
 function comparisonTime(event: LiveEvent, board: LiveBoard | null) {
@@ -423,27 +424,40 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
   const openLive = () => { clearTransientFilters(); navigate('live'); replaceLiveFilters(defaultLiveFilters); };
   const openPicks = () => navigate('picks');
   const [compared,setCompared] = useState<ComparedGame[]>([]);
+  const restoredComparison = useRef(false);
   const allEvents = board?.events ?? [];
   const comparedKeys = new Set(compared.map(item=>eventKey(item.event)));
   useEffect(()=>{
     if (!board) return;
-    setCompared(previous=>{
-      if (!previous.length) return previous;
-      const games = new Map(board.events.map(event=>[eventKey(event),event]));
-      return previous.map(item=>{
-        const latest = games.get(eventKey(item.event));
-        return latest ? {event:latest,reportedAt:comparisonTime(latest,board)} : item;
-      });
-    });
+    const games = new Map(board.events.map(event=>[eventKey(event),event]));
+    if (!restoredComparison.current) {
+      restoredComparison.current = true;
+      try {
+        const saved: unknown = JSON.parse(sessionStorage.getItem(comparisonStorageKey) ?? '[]');
+        if (Array.isArray(saved)) {
+          const selected = [...new Set(saved.slice(0,comparisonLimit))].flatMap(key=>{
+            const event = typeof key === 'string' ? games.get(key) : undefined;
+            return event ? [{event,reportedAt:comparisonTime(event,board)}] : [];
+          });
+          if (selected.length) setCompared(previous=>previous.length ? previous : selected);
+        }
+      } catch {}
+      return;
+    }
+    setCompared(previous=>previous.length ? previous.map(item=>{
+      const latest = games.get(eventKey(item.event));
+      return latest ? {event:latest,reportedAt:comparisonTime(latest,board)} : item;
+    }) : previous);
   },[board]);
 
   function toggleComparison(event: LiveEvent) {
     const key = eventKey(event);
-    setCompared(previous=>{
-      if (previous.some(item=>eventKey(item.event)===key)) return previous.filter(item=>eventKey(item.event)!==key);
-      if (previous.length>=comparisonLimit) return previous;
-      return [...previous,{event,reportedAt:comparisonTime(event,board)}];
-    });
+    if (compared.length>=comparisonLimit && !comparedKeys.has(key)) return;
+    const next = comparedKeys.has(key)
+      ? compared.filter(item=>eventKey(item.event)!==key)
+      : [...compared,{event,reportedAt:comparisonTime(event,board)}];
+    setCompared(next);
+    try { sessionStorage.setItem(comparisonStorageKey,JSON.stringify(next.map(item=>eventKey(item.event)))); } catch {}
   }
 
   const liveEvents = allEvents.filter(event => event.status === 'live');
@@ -732,7 +746,7 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
           </button>
         ))}
       </div>}
-      {liveView && compared.length > 0 && <section className="cw-live-comparison" aria-label="Score comparison">
+      {liveView && compared.length > 0 && <section className="cw-live-comparison" id="cw-score-comparison" tabIndex={-1} aria-label="Score comparison">
         <div className="cw-section-heading">
           <h2>Score comparison</h2>
           <span aria-live="polite">{compared.length} of {comparisonLimit} games</span>
@@ -748,7 +762,10 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
               <div className="cw-comparison-meta">
                 <span>{delayed ? event.scoreSource === 'NHL' ? 'NHL backup' : 'Last reported' : 'Updated'}
                   {reportedAt && <> <time dateTime={reportedAt}>{time(reportedAt)}</time></>}</span>
-                <button onClick={()=>toggleComparison(event)} aria-label={`Remove ${event.name} from comparison`}>Remove</button>
+                <button onClick={()=>{
+                  toggleComparison(event);
+                  (document.getElementById('cw-compare-'+key) ?? document.getElementById('games-board'))?.focus();
+                }} aria-label={`Remove ${event.name} from comparison`}>Remove</button>
               </div>
             </article>;
           })}
@@ -829,6 +846,8 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
           <h2>{teamFilter?.name ?? pickedLeague?.name ?? sportLabel ?? (liveView ? liveScopeLabel : 'Around the leagues')}
             {!liveView && !golfView && <small className="cw-board-date">{dateName}</small>}
           </h2>
+          {liveView && compared.length > 0 && <button className="cw-compare-jump"
+            onClick={()=>document.getElementById('cw-score-comparison')?.focus()}>View comparison</button>}
           {pickedLeague?.status === 'ok' && pickedLeague.lastSuccessAt && <span className="cw-league-updated">Updated <time dateTime={pickedLeague.lastSuccessAt}>{time(pickedLeague.lastSuccessAt)}</time></span>}
           {boardFollow && <button className="cw-board-follow" disabled={subscriptions.disabled} aria-pressed={followedIds.has(boardFollow.id)}
             aria-label={`${followedIds.has(boardFollow.id) ? 'Unfollow' : 'Follow'} ${boardFollow.name}`}
@@ -860,7 +879,7 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
         </div>
         {liveView?<div className="cw-live-actions">
           <button className="cw-live-open" onClick={()=>openGame(e)}>Game center <span aria-hidden="true">→</span></button>
-          {e.status==='live' && <button className="cw-compare-toggle" aria-label={`Compare ${e.name}`}
+          {e.status==='live' && <button className="cw-compare-toggle" id={'cw-compare-'+eventKey(e)} aria-label={`Compare ${e.name}`}
             aria-pressed={comparedKeys.has(eventKey(e))} disabled={compared.length>=comparisonLimit&&!comparedKeys.has(eventKey(e))}
             onClick={()=>toggleComparison(e)}>{comparedKeys.has(eventKey(e))?'Comparing':'Compare'}</button>}
         </div>:<div className="cw-pick-options">{pickSides(e.league).map(side=><button key={side} aria-label={`Pick ${pickName(e,side)}`} aria-pressed={selectionsByGame.get(eventKey(e))?.side===side} onClick={()=>togglePick(e,side)} disabled={pending||!eligiblePick(e)||(selections.length>=5&&!selectionsByGame.has(eventKey(e)))}><span>{pickName(e,side,'shortName')}</span><small>{canPick(e,now)?side==='draw'?'Pick draw':'Pick winner':'Closed'}</small></button>)}</div>}
