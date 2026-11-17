@@ -23,7 +23,8 @@ export function createSportsHandlers(client: SportsClient = { getLiveBoard, getL
         if (leagues.length > 1 || (leagues.length === 1 && !LIVE_LEAGUES.some(config => config.id === leagues[0]))) {
           throw new LiveSportsError('Supply one supported league key', 400);
         }
-        return Response.json(await client.getLiveBoard(leagues[0]), { headers });
+        const liveOnly = request?.headers.get('X-Cowboy-Score-Refresh') === 'live';
+        return Response.json(await client.getLiveBoard(leagues[0], liveOnly), { headers });
       } catch (error) { return failure(error); }
     },
     async event(request: Request) {

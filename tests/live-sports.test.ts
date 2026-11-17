@@ -743,6 +743,49 @@ test('board coalesces requests and refreshes active leagues ahead of idle league
   assert.equal(calls, live.LIVE_LEAGUES.length * 2 + activeLeagues.size);
 });
 
+test('a warm live refresh returns while the full schedule waits for an idle league', {timeout: 3_000}, async () => {
+  const {createSportsHandlers} = await import('../app/api/sports/handlers');
+  let clock = Date.parse('2026-11-15T19:00:00Z');
+  const initial = structuredClone(fixtures.nfl);
+  const updated = structuredClone(initial);
+  updated.events[0].competitions[0].competitors[0].score = '91';
+  const scheduleStarted = Promise.withResolvers<void>();
+  const releaseSchedule = Promise.withResolvers<void>();
+  let warm = false;
+  let nflRequests = 0;
+  const client = live.createLiveSportsClient({now: () => clock, fetch: async input => {
+    const path = new URL(String(input)).pathname;
+    const league = live.LIVE_LEAGUES.find(config => path.endsWith(config.path + '/scoreboard'))!;
+    if (warm && league.id === 'wnba') {
+      scheduleStarted.resolve();
+      await releaseSchedule.promise;
+    }
+    if (league.id === 'nfl') {
+      nflRequests++;
+      return Response.json(warm ? updated : initial);
+    }
+    return Response.json(fixtures[league.id]);
+  }});
+  const first = await client.getLiveBoard();
+  assert.ok(first.events.some(event => event.league === 'nfl' && event.status === 'live'));
+  warm = true;
+  clock += 8_000;
+  const scheduled = client.getLiveBoard();
+  try {
+    await scheduleStarted.promise;
+    const request = new Request('https://cowboy.test/api/sports', {headers: {'X-Cowboy-Score-Refresh': 'live'}});
+    const response = await createSportsHandlers(client).board(request);
+    assert.equal(response.status, 200);
+    const board: live.LiveBoard = await response.json();
+    assert.equal(board.leagues.length, first.leagues.length);
+    assert.ok(board.events.some(event => event.league === 'nfl' && [event.home.score, event.away.score].includes(91)));
+    assert.equal(nflRequests, 2);
+  } finally {
+    releaseSchedule.resolve();
+    await scheduled;
+  }
+});
+
 test('the event route falls back to the same scoreboard event while pick verification fails closed', async () => {
   const {createSportsHandlers} = await import('../app/api/sports/handlers');
   let clock = Date.parse('2026-11-15T19:00:00Z');

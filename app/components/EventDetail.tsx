@@ -3,7 +3,7 @@
 import {useContext, useEffect, useRef, useState, type CSSProperties} from 'react';
 import {matchesSearchText} from './BoardSearch';
 import {Modal, api, type Ticket} from './AccountPicks';
-import {SportIcon, StarIcon, TabIcon} from './SportIcon';
+import {ActionIcon, SportIcon, StarIcon, TabIcon} from './SportIcon';
 import {RankedTeamName, TeamMark} from './TeamMark';
 import type {LiveEvent} from './LiveWorkspace';
 import { pickName, pickSides, supportsDrawPick, type PickSide } from '../lib/pick-outcomes';
@@ -887,6 +887,10 @@ function EventDetailContent({
   const boardPosition = !boardDelayed && boardEvent?.status === 'live' &&
     boardEvent.period === detail.period && boardEvent.clock === detail.clock ? boardEvent.footballPosition : undefined;
   const fieldPosition = detail.status === 'live' && !delayed && !error ? boardPosition ?? detail.footballPosition : undefined;
+  const scoreboard = newerBoard ?? snapshot ?? event;
+  const showHeaderScore = scoreboard.status !== 'scheduled' && (scoreboard.away.score !== null ||
+    scoreboard.home.score !== null || (scoreboard.sport === 'tennis' &&
+      Boolean(scoreboard.away.linescores?.length || scoreboard.home.linescores?.length)));
   const hasTotal = detail.status !== 'scheduled' && (detail.away.score !== null || detail.home.score !== null);
   const hasPeriodScores = detail.status !== 'scheduled' && Boolean(detail.away.linescores?.length || detail.home.linescores?.length);
   const hasBaseballTotals = detail.status !== 'scheduled' && Boolean(detail.away.baseballTotals || detail.home.baseballTotals);
@@ -901,32 +905,32 @@ function EventDetailContent({
           <button className="cw-game-watch" disabled={watchDisabled} aria-pressed={watching} onClick={onWatch}>
             <StarIcon filled={watching}/>{watching ? 'Watching' : 'Watch game'}
           </button>
-          {shareable&&<button className="cw-game-copy" onClick={()=>void copyGameLink()}>Copy game link</button>}
+          {shareable&&<button className="cw-game-copy" onClick={()=>void copyGameLink()}><ActionIcon action="share"/>Copy game link</button>}
         </div>
       </div>
       <div className="cw-game-scoreboard">
         {(['away', 'home'] as const).map(side => (
           <div key={side} className={`cw-game-team cw-game-${side}`}>
-            <TeamMark team={{...detail[side], logo: detail[side].logo || event[side].logo}}/>
+            <TeamMark team={{...scoreboard[side], logo: scoreboard[side].logo || event[side].logo}}/>
             <RankedTeamName team={{
-              ...detail[side],
-              rank: detail[side].rank ?? (!boardDelayed && boardEvent?.[side].id === detail[side].id ? boardEvent[side].rank : undefined),
+              ...scoreboard[side],
+              rank: scoreboard[side].rank ?? (!boardDelayed && boardEvent?.[side].id === scoreboard[side].id ? boardEvent[side].rank : undefined),
             }}/>
-            {showTennisScores ? <BoardScore event={detail} side={side}/> : hasTotal && <strong>{detail[side].score ?? '—'}</strong>}
-            {detail.fight?.records[side] && <small className="cw-fighter-record"><span className="sr-only">Fighter record, wins losses draws: </span>{detail.fight.records[side]}</small>}
-            {detail.soccerAggregate?.advances===side && <small className="cw-result-winner">Advances</small>}
-            {(showTennisScores || detail.fight || (!detail.soccerAggregate?.advances && detail.shootoutScores)) &&
-              detail.completed && detail.winner===side && <small className="cw-result-winner">Winner</small>}
+            {showHeaderScore && <BoardScore event={scoreboard} side={side}/>}
+            {scoreboard.fight?.records[side] && <small className="cw-fighter-record"><span className="sr-only">Fighter record, wins losses draws: </span>{scoreboard.fight.records[side]}</small>}
+            {scoreboard.soccerAggregate?.advances===side && <small className="cw-result-winner">Advances</small>}
+            {(scoreboard.sport === 'tennis' || scoreboard.fight || (!scoreboard.soccerAggregate?.advances && scoreboard.shootoutScores)) &&
+              scoreboard.completed && scoreboard.winner===side && <small className="cw-result-winner">Winner</small>}
           </div>
         ))}
         <div className="cw-game-status">
-          <GameStatus status={detail.status}>{detail.status === 'scheduled' ? 'Upcoming' : detail.winner === 'draw' ? 'Full-time draw' : detail.statusText}</GameStatus>
-          <span>{detail.status === 'scheduled'
-            ? scheduleTime(detail.startsAt,zone)
-            : detail.clock}</span>
-          {detail.scoreSource && <span>Backup score</span>}
-          {detail.shootoutScores && <span>Penalties {detail.shootoutScores.away}–{detail.shootoutScores.home}</span>}
-          {detail.soccerAggregate && <span>Aggregate {detail.soccerAggregate.away}–{detail.soccerAggregate.home} · Leg {detail.soccerAggregate.leg} of {detail.soccerAggregate.totalLegs}</span>}
+          <GameStatus status={scoreboard.status}>{scoreboard.status === 'scheduled' ? 'Upcoming' : scoreboard.winner === 'draw' ? 'Full-time draw' : scoreboard.statusText}</GameStatus>
+          <span>{scoreboard.status === 'scheduled'
+            ? scheduleTime(scoreboard.startsAt,zone)
+            : scoreboard.clock}</span>
+          {scoreboard.scoreSource && <span>Backup score</span>}
+          {scoreboard.shootoutScores && <span>Penalties {scoreboard.shootoutScores.away}–{scoreboard.shootoutScores.home}</span>}
+          {scoreboard.soccerAggregate && <span>Aggregate {scoreboard.soccerAggregate.away}–{scoreboard.soccerAggregate.home} · Leg {scoreboard.soccerAggregate.leg} of {scoreboard.soccerAggregate.totalLegs}</span>}
         </div>
       </div>
       {detail.fight && <div className="cw-fight-summary">

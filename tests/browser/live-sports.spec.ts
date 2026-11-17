@@ -123,6 +123,33 @@ test('dedicated Live board only shows in-progress games and opens Game Center', 
   await expect(page.locator('.cw-event')).toHaveCount(1);
 });
 
+test('Game Center Scores tab highlights a focused board update before the summary catches up', async ({page}) => {
+  const game = {...board.events[1], id: '402102'};
+  let updated = false;
+  let focused = 0;
+  await page.route('**/api/account', route => route.fulfill({json:{user:null}}));
+  await page.route('**/api/sports', route => {
+    if (route.request().headers()['x-cowboy-score-refresh'] === 'live') focused++;
+    const match = updated ? {...game, home: {...game.home, score:17}} : game;
+    const receivedAt = new Date().toISOString();
+    return route.fulfill({json:{...board, events:[match], refreshAfterMs:1500,
+      fetchedAt:receivedAt, leagues:board.leagues.map(league=>({...league,lastSuccessAt:receivedAt}))}});
+  });
+  await page.route('**/api/sports/event?**', async route => {
+    if (updated) await new Promise(resolve => setTimeout(resolve,4_000));
+    await route.fulfill({json:game}).catch(() => undefined);
+  });
+  await page.goto('/live');
+  await page.getByRole('button',{name:'Game center',exact:true}).click();
+  const detail = page.getByRole('dialog',{name:'Game details'});
+  await detail.getByRole('button',{name:'Score',exact:true}).click();
+  await expect(detail.locator('.cw-game-home > b')).toHaveText('14');
+  updated = true;
+  await expect(detail.locator('.cw-game-home [data-score-change="up"]')).toHaveText('17');
+  expect(focused).toBeGreaterThan(0);
+  await expect(detail.getByRole('button',{name:'Score',exact:true})).toHaveAttribute('aria-pressed','true');
+});
+
 test('Live, My picks and Game Center URLs survive reload and browser navigation', async ({page}) => {
   const game = {...board.events[1], id: '402102'};
   await setup(page);
@@ -507,7 +534,7 @@ test('feed outages lock affected picks while healthy leagues stay available', as
   await expect(page.getByRole('button',{name:'Pick Boston Celtics'})).toHaveCount(0);
   await page.route('**/api/sports',route=>route.fulfill({json:{...board,stale:true,leagues:board.leagues.map(l=>({...l,status:'stale'}))}}));
   await page.getByRole('button',{name:'Try again'}).click();
-  await expect(page.getByText('Delayed source data.',{exact:false})).toBeVisible();
+  await expect(page.getByText('Score updates are delayed.',{exact:false})).toBeVisible();
   await expect(page.getByRole('button',{name:'Pick Boston Celtics'})).toBeDisabled();
   const nflFixture = {...board.events[1],status:'scheduled',statusText:'Scheduled',clock:null,period:null};
   await page.route('**/api/sports',route=>route.fulfill({json:{
@@ -718,7 +745,7 @@ test('live updates keep advancing for healthy leagues through a partial delay', 
   response = {...response,stale:false,fetchedAt:second,
     leagues:response.leagues.map(league=>({...league,status:'ok',lastSuccessAt:second}))};
   await refresh.click();
-  await expect(page.getByText('Delayed source data.',{exact:false})).toHaveCount(0);
+  await expect(page.getByText('Score updates are delayed.',{exact:false})).toHaveCount(0);
   await expect(moments.getByRole('listitem')).toHaveCount(1);
   response = {...response,events:[response.events[0],{...nfl,home:{...nfl.home,score:20}}],
     leagues:response.leagues.map(league=>league.id==='nfl' ? {...league,lastSuccessAt:third} : league)};

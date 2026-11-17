@@ -1,6 +1,6 @@
 import { LIVE_LEAGUES, hasRecordStandings } from './sports-leagues';
 import { supportsDrawPick } from './pick-outcomes';
-import { LIVE_SCORE_REFRESH_MS, SCHEDULE_REFRESH_MS, SCORE_RETRY_MS } from './score-refresh';
+import { hasActiveScores, LIVE_SCORE_REFRESH_MS, SCHEDULE_REFRESH_MS, SCORE_RETRY_MS } from './score-refresh';
 import { applyNhlScores, easternScoreDate } from './nhl-score-fallback';
 import { applyMlbScores } from './mlb-score-fallback';
 
@@ -1100,10 +1100,7 @@ export function createLiveSportsClient(options: ClientOptions = {}) {
         ? {events: [], golf: normalizeGolfScoreboard(payload)}
         : {events: normalizeScoreboard(config.id, payload)};
       const at = now();
-      const live = data.events.some(event => event.status === 'live' ||
-        (event.status === 'scheduled' && Math.abs(Date.parse(event.startsAt) - at) <= 60_000)) ||
-        data.golf?.some(tournament => tournament.state === 'in');
-      leagueDueAt.set(config.id, at + (live ? LIVE_SCORE_REFRESH_MS : SCHEDULE_REFRESH_MS));
+      leagueDueAt.set(config.id, at + (hasActiveScores(data, at) ? LIVE_SCORE_REFRESH_MS : SCHEDULE_REFRESH_MS));
       lastGood.set(config.id, {...data, at});
       leagueResults.set(config.id, {
         ...data, league: {...metadata, status: 'ok', lastSuccessAt: new Date(at).toISOString()},
@@ -1186,9 +1183,14 @@ export function createLiveSportsClient(options: ClientOptions = {}) {
     return pending;
   }
 
-  async function refreshBoard(target?: (typeof LIVE_LEAGUES)[number]): Promise<LiveBoard> {
+  async function refreshBoard(target?: (typeof LIVE_LEAGUES)[number], liveOnly = false): Promise<LiveBoard> {
     const started = now();
-    const leagues = target ? [target] : LIVE_LEAGUES.filter(league => (leagueDueAt.get(league.id) ?? 0) <= started);
+    const due = LIVE_LEAGUES.filter(league => (leagueDueAt.get(league.id) ?? 0) <= started);
+    const active = new Set(due.filter(league => {
+      const data = leagueResults.get(league.id);
+      return data && hasActiveScores(data, started);
+    }));
+    const leagues = target ? [target] : [...active, ...(!liveOnly ? due.filter(league => !active.has(league)) : [])];
     let index = 0;
     await Promise.all(Array.from({length: Math.min(4, leagues.length)}, async () => {
       while (index < leagues.length) await loadLeague(leagues[index++]);
@@ -1209,10 +1211,22 @@ export function createLiveSportsClient(options: ClientOptions = {}) {
     return board;
   }
 
-  async function getLiveBoard(league?: string): Promise<LiveBoard> {
+  async function getLiveBoard(league?: string, liveOnly = false): Promise<LiveBoard> {
     const target = league ? LIVE_LEAGUES.find(config => config.id === league) : undefined;
     if (league && !target) throw new LiveSportsError('Supply one supported league key', 400);
-    // Serialize updates so a single-league result cannot replace a newer board refresh.
+    if (!target && liveOnly && boardCache) {
+      // A warm live request joins per-league loads without waiting for the full schedule.
+      await refreshBoard(undefined, true);
+    } else {
+      await refreshScheduledBoard(target);
+    }
+    const copy = structuredClone(boardCache!.value);
+    copy.refreshAfterMs = Math.min(SCHEDULE_REFRESH_MS, Math.max(1_000, boardCache!.expires - now()));
+    if (copy.leagues.every(item => item.status === 'error')) throw new LiveSportsError('ESPN scoreboards unavailable', 502, copy);
+    return copy;
+  }
+
+  async function refreshScheduledBoard(target?: (typeof LIVE_LEAGUES)[number]) {
     while (refreshing) await refreshing;
     if (target && boardCache) {
       const due = (leagueDueAt.get(target.id) ?? 0) <= now();
@@ -1226,10 +1240,6 @@ export function createLiveSportsClient(options: ClientOptions = {}) {
       refreshing = refreshBoard().finally(() => { refreshing = undefined; });
       await refreshing;
     }
-    const copy = structuredClone(boardCache!.value);
-    copy.refreshAfterMs = Math.min(SCHEDULE_REFRESH_MS, Math.max(1_000, boardCache!.expires - now()));
-    if (copy.leagues.every(item => item.status === 'error')) throw new LiveSportsError('ESPN scoreboards unavailable', 502, copy);
-    return copy;
   }
 
   async function loadEvent(league: string, id: string): Promise<LiveEvent | null> {
@@ -1380,7 +1390,7 @@ export function createLiveSportsClient(options: ClientOptions = {}) {
 }
 
 const client = createLiveSportsClient();
-export const getLiveBoard = (league?: string): Promise<LiveBoard> => client.getLiveBoard(league);
+export const getLiveBoard = (league?: string, liveOnly = false): Promise<LiveBoard> => client.getLiveBoard(league, liveOnly);
 export const getLiveEvent = (league: string, id: string): Promise<LiveEvent | null> => client.getLiveEvent(league, id);
 export const getScoreboardEvent = client.getScoreboardEvent;
 

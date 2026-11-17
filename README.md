@@ -32,7 +32,7 @@ Open [COWBOY on port 3213](http://127.0.0.1:3213). Create a local test account, 
 
 | Condition | Behavior |
 | --- | --- |
-| Game live or near its scheduled start | The foreground app checks about every 1.5 seconds. An idle league is checked about every 8 seconds. |
+| Game live or near its scheduled start | The foreground app requests updates for active games about every 1.5 seconds and refreshes the wider schedule about every 8 seconds. |
 | Game Center summary unavailable | COWBOY tries that league's scoreboard, even on a direct game link, and retains already loaded details. |
 | ESPN hockey or baseball scoreboard unavailable | The NHL or MLB feed can update games when both teams and the start time match the last ESPN schedule. |
 | Another ESPN team scoreboard fails | Game-summary checks can recover scores for up to two known live games per affected league when that endpoint is available. The board labels backup scores and shows when they were last checked. |

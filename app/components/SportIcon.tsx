@@ -32,12 +32,14 @@ export function StatusIcon({status}:{status:string}) {
   return <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">{paths[status] ?? paths.unknown}</svg>;
 }
 
-export function ActionIcon({action}:{action:'compare'|'details'|'search'|'alerts'|'picks'}) {
+export function ActionIcon({action}:{action:'compare'|'details'|'search'|'alerts'|'picks'|'account'|'share'}) {
   const paths = {
     compare:<><rect x="3" y="5" width="7" height="14" rx="2"/><rect x="14" y="5" width="7" height="14" rx="2"/></>,
-    details:<path d="M5 12h14m-6-6 6 6-6 6"/>,
+    details:<path d="m9 5 7 7-7 7"/>,
     search:<><circle cx="10.5" cy="10.5" r="5.5"/><path d="m15 15 4 4"/></>,
     picks:<><path d="M4 6h16v4a2 2 0 0 0 0 4v4H4v-4a2 2 0 0 0 0-4Z"/><path d="m9 12 2 2 4-4"/></>,
+    account:<><circle cx="12" cy="8" r="3.25"/><path d="M5 20v-2a7 7 0 0 1 14 0v2"/></>,
+    share:<><path d="M12 15V3m-4 4 4-4 4 4M7 10H5v11h14V10h-2"/></>,
     alerts:<path d="M6 10a6 6 0 0 1 12 0c0 4 2 4 2 6H4c0-2 2-2 2-6Zm4 9a2 2 0 0 0 4 0"/>,
   };
   return <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">{paths[action]}</svg>;

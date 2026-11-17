@@ -21,7 +21,7 @@ import { useAccountFollows } from './AccountFollows';
 
 import type { LiveBoard, LiveEvent } from '../lib/live-sports';
 import { LIVE_LEAGUES } from '../lib/sports-leagues';
-import { LIVE_SCORE_REFRESH_MS, SCHEDULE_REFRESH_MS } from '../lib/score-refresh';
+import { hasActiveScores, LIVE_SCORE_REFRESH_MS, SCHEDULE_REFRESH_MS } from '../lib/score-refresh';
 import { pickName, pickSides, supportsDrawPick, type PickSide } from '../lib/pick-outcomes';
 export type { LiveEvent } from '../lib/live-sports';
 const spotlightOptions = [
@@ -161,21 +161,37 @@ function useLiveBoard() {
   useEffect(()=>{
     let disposed=false, running=false, timer:ReturnType<typeof setTimeout>|undefined, controller:AbortController|undefined;
     let delay=LIVE_SCORE_REFRESH_MS;
-    const load=async(league?: string)=>{
+    let lastFullRefresh = 0;
+    let lastBoard: LiveBoard | undefined;
+    const load=async(league?: string, interactive = false)=>{
       if(disposed||running||document.hidden)return;
-      clearTimeout(timer);running=true;setBusy(true);controller=new AbortController();
+      const now = Date.now();
+      const focused = !league && !interactive && lastBoard && hasActiveScores(lastBoard, now)
+        && now - lastFullRefresh < SCHEDULE_REFRESH_MS;
+      clearTimeout(timer);
+      running=true;
+      setBusy(true);
+      controller=new AbortController();
       try {
         const url = league ? `/api/sports?${new URLSearchParams({league})}` : '/api/sports';
-        const res=await fetch(url,{signal:controller.signal,cache:'no-store'});
+        const res=await fetch(url,{signal:controller.signal,cache:'no-store',
+          headers: focused ? {'X-Cowboy-Score-Refresh': 'live'} : undefined});
         if(!res.ok) throw new Error('Sports source is unavailable. Please try again.');
         const data:LiveBoard=await res.json();
         if(!Array.isArray(data.events)||!Array.isArray(data.leagues))throw new Error('Sports source returned an invalid response.');
-        if(!disposed){setBoard(data);setError('');delay=Math.max(1000,data.refreshAfterMs||SCHEDULE_REFRESH_MS);}
+        if(!disposed){
+          lastBoard = data;
+          if (!league && !focused) lastFullRefresh = Date.now();
+          setBoard(data);
+          setError('');
+          delay = Math.max(1000, data.refreshAfterMs || SCHEDULE_REFRESH_MS);
+          if (focused) delay = Math.min(delay, Math.max(1000, lastFullRefresh + SCHEDULE_REFRESH_MS - Date.now()));
+        }
       }catch(e){if(!disposed && (e as Error).name!=='AbortError')setError((e as Error).message);}
       finally {running=false;if(!disposed){setBusy(false);if(!document.hidden)timer=setTimeout(() => void load(),delay);}}
     };
-    const visibility=()=>{clearTimeout(timer);if(document.hidden)controller?.abort();else void load();};
-    refresh.current=(league)=>void load(league);document.addEventListener('visibilitychange',visibility);void load();
+    const visibility=()=>{clearTimeout(timer);if(document.hidden)controller?.abort();else void load(undefined,true);};
+    refresh.current=(league)=>void load(league,true);document.addEventListener('visibilitychange',visibility);void load();
     return()=>{disposed=true;clearTimeout(timer);controller?.abort();document.removeEventListener('visibilitychange',visibility);};
   },[]);
   return {board,error,busy,refresh:()=>refresh.current(),refreshLeague:(league:string)=>refresh.current(league)};
@@ -691,8 +707,8 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
       <button className="cw-updates-button" onClick={()=>setAlertsOpen(true)}
         aria-label={unreadAlerts ? `Game updates, ${unreadAlerts} unread` : 'Game updates'}>
         <ActionIcon action="alerts"/>Updates {unreadAlerts > 0 && <span aria-hidden="true">{unreadAlerts}</span>}
-      </button><button className="cw-account" disabled={account.accountLoading} aria-label={account.user?`Account: ${account.user.username}`:undefined} onClick={()=>setAccountOpen(true)}>{account.accountLoading?'Checking session…':account.user?account.user.username:'Sign in'}</button></div></header>
-    <div className="cw-source"><span><i className={error||board?.stale?'warning-dot':'source-dot'}/><b>Scores</b> <span>{error?'Connection interrupted':board?.stale?'Delayed data':busy?'Syncing scores…':'Sports data'}</span></span><span>{board?`${error || board.stale ? 'Last received' : 'Updated'} ${new Date(board.fetchedAt).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'})}`:'Connecting…'}<button disabled={busy} onClick={refresh} aria-label="Refresh sports"><RefreshIcon/></button></span></div>
+      </button><button className="cw-account" disabled={account.accountLoading} aria-label={account.user?`Account: ${account.user.username}`:undefined} onClick={()=>setAccountOpen(true)}><ActionIcon action="account"/>{account.accountLoading?'Checking session…':account.user?account.user.username:'Sign in'}</button></div></header>
+    <div className="cw-source"><span><i className={error||board?.stale?'warning-dot':'source-dot'}/><b>Scores</b> <span>{error?'Connection interrupted':board?.stale?'Delayed data':!board?'Syncing scores…':'Connected'}</span></span><span>{board?`${error || board.stale ? 'Last received' : 'Updated'} ${new Date(board.fetchedAt).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'})}`:'Connecting…'}<button disabled={busy} onClick={refresh} aria-label="Refresh sports"><RefreshIcon/></button></span></div>
     <div className="cw-grid">
     {!informationView && <aside className="cw-sports">
       <p className="cw-kicker">{liveView ? 'Live by league' : 'Browse by league'}</p>
@@ -852,7 +868,7 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
         </button>)}
       </div>}
       {error&&<div className="cw-alert" role="alert">Could not refresh scores. {board&&'Last received games are shown; new picks are paused.'}<button disabled={busy} onClick={refresh}>Try again</button></div>}
-      {board?.stale&&<div className="cw-alert" role="status">Delayed source data. Affected leagues show backup or last received scores, and new picks are paused.</div>}
+      {board?.stale&&<div className="cw-alert" role="status">Score updates are delayed. Affected leagues show backup or last received scores, and new picks are paused.</div>}
       {board?.leagues.filter(l=>l.status!=='ok').map(l=><div className="cw-league-error cw-league-health" key={l.id}>
         <div>
           <span>{l.name}: {l.backupSource?'backup scores':l.status==='error'?'scores unavailable':'delayed'}</span>

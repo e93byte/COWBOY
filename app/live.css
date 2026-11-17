@@ -100,7 +100,7 @@
 .cw-game-scoreboard { grid-template-columns: minmax(0,1fr) minmax(70px,.65fr) minmax(0,1fr); padding: 20px 12px; }
 .cw-game-team { font-weight: 700; }
 .cw-game-team .cw-team-mark { width: clamp(46px,10vw,74px); height: clamp(46px,10vw,74px); font-size: 14px; }
-.cw-game-team strong { font-size: 30px; line-height: 1.2; }
+.cw-game-team > b { font-size: 30px; line-height: 1.2; font-variant-numeric: tabular-nums; }
 .cw-game-status { align-self: center; color: #e8c7ae; font-size: 11px; }
 .cw-game-status span { color: var(--dim); }
 .cowboy-live .cw-game-info-toggle { width: 100%; display: flex; justify-content: space-between; text-align: left; }
@@ -1493,10 +1493,11 @@
 .cowboy-live :is(.cw-live-open,.cw-compare-toggle,.cw-compare-jump) { display: inline-flex; align-items: center; justify-content: center; gap: 4px; }
 .cowboy-live :is(.cw-live-open,.cw-compare-toggle,.cw-compare-jump,.cw-match-link) svg { width: 14px; height: 14px; }
 
-.cowboy-live .cw-updates-button { display: inline-flex; align-items: center; gap: 5px; }
-.cowboy-live .cw-updates-button svg { width: 14px; height: 14px; }
-@media (max-width: 390px) {
-  .cowboy-live .cw-updates-button svg { display: none; }
+.cowboy-live :is(.cw-updates-button,.cw-account,.cw-game-copy,.cw-auth-tabs button) {
+  display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+}
+.cowboy-live :is(.cw-updates-button,.cw-account,.cw-game-copy,.cw-auth-tabs button) svg {
+  width: 14px; height: 14px; flex: 0 0 14px;
 }
 
 .cowboy-live .cw-header nav button { display: inline-flex; align-items: center; gap: 6px; }
@@ -1513,7 +1514,7 @@
   justify-content: center;
   gap: 5px;
 }
-.cowboy-live :is(.cw-toolbar [aria-label="Event status"], .cw-game-tabs, .cw-history-tabs, .cw-live-switcher, .cw-spotlight-options, .cw-date-tabs) button svg {
+.cowboy-live :is(.cw-toolbar [aria-label="Event status"], .cw-game-tabs, .cw-history-tabs, .cw-live-switcher, .cw-history-tabs, .cw-spotlight-options, .cw-date-tabs) button svg {
   width: 15px;
   height: 15px;
   flex: 0 0 15px;
