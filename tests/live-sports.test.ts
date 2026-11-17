@@ -29,7 +29,7 @@ test('GET /api/sports serves the normalized board without inventing a golf match
     assert.equal(body.golf[0].id, '401850980');
     assert.ok(body.golf[0].leaderboard.length > 2);
     assert.ok(!body.events.some((event: live.LiveEvent) => event.league === 'pga'));
-    for (const key of ['ncaab', 'ncaaw', 'mls', 'ucl', 'bundesliga', 'seriea', 'ligue1', 'ligue2', 'efl', 'facup', 'brasileirao', 'aleague', 'nationsleague', 'nwsl', 'wsl', 'ligamx', 'argentina', 'premrugby', 'ncaah', 'ncaawh', 'concacafnl', 'afconqual']) {
+    for (const key of ['ncaab', 'ncaaw', 'mls', 'ucl', 'bundesliga', 'seriea', 'ligue1', 'ligue2', 'efl', 'facup', 'brasileirao', 'aleague', 'nationsleague', 'nwsl', 'wsl', 'ligamx', 'argentina', 'premrugby', 'ncaah', 'ncaawh', 'concacafnl', 'afconqual', 'top14', 'championsrugby']) {
       assert.equal(body.leagues.find((l: any) => l.id === key).status, 'ok');
       assert.ok(body.events.some((event: live.LiveEvent) => event.league === key));
     }

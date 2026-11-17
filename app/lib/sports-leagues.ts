@@ -32,6 +32,8 @@ export const LIVE_LEAGUES = [
   { id: 'wta', sport: 'tennis', name: 'WTA', path: 'tennis/wta' },
   { id: 'ufc', sport: 'mma', name: 'UFC', path: 'mma/ufc' },
   { id: 'premrugby', sport: 'rugby', name: 'Premiership Rugby', path: 'rugby/267979' },
+  { id: 'top14', sport: 'rugby', name: 'French Top 14', path: 'rugby/270559' },
+  { id: 'championsrugby', sport: 'rugby', name: 'European Rugby Champions Cup', path: 'rugby/271937' },
   { id: 'pga', sport: 'golf', name: 'PGA Tour', path: 'golf/pga' },
 ] as const;
 
