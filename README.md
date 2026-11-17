@@ -1,78 +1,102 @@
 # COWBOY
 
-[![GitHub checks](https://github.com/e93byte/COWBOY/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/e93byte/COWBOY/actions/workflows/ci.yml)
+[![CI](https://github.com/e93byte/COWBOY/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/e93byte/COWBOY/actions/workflows/ci.yml)
+![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=next.js)
+![TypeScript](https://img.shields.io/badge/TypeScript-ready-3178C6?logo=typescript&logoColor=white)
 
-COWBOY is a free-picks sports web app built with Next.js. Browse real fixtures, follow live games, and track your calls from entry to confirmed result. Picks have no stakes, payouts, or prizes.
+**A friendly place to follow sports and make free picks.** Browse real fixtures, keep an eye on live games, and see how your picks turn out—all without stakes, payouts, or prizes.
 
-## Quick start
+## Get started
 
-Use Node.js 22 and npm. The sample runs locally with public scores and a file-backed account store. No API key is required.
+New to the project? Follow these steps. You’ll need **Node.js 22** and **npm** installed.
+
+### 1. Download the project
 
 ```sh
 git clone https://github.com/e93byte/COWBOY.git
 cd COWBOY
+```
+
+### 2. Install dependencies
+
+```sh
 npm ci
+```
+
+### 3. Start the app
+
+```sh
 npm run dev -- --hostname 127.0.0.1 --port 3213
 ```
 
-Open [COWBOY on port 3213](http://127.0.0.1:3213). Create a local test account, select an upcoming matchup, and confirm your first pick.
+### 4. Open it in your browser
 
-## Explore the app
+Visit [http://127.0.0.1:3213](http://127.0.0.1:3213). Create a local test account, choose an upcoming matchup, and confirm a pick. No API key is needed to try the sample locally.
 
-| Page | What to try |
+> **Windows?** Run the same commands in PowerShell. If `npm` is not recognized, install Node.js 22 first, then close and reopen your terminal.
+
+## What you can do
+
+| Area | Try this |
 | --- | --- |
-| Home | Filter the schedule by sport, league, and date, including college hockey, international soccer, and European club rugby. Follow a matchup or add up to five independent free picks to your draft. Ranked NCAA teams show their published top-25 position when available. |
-| Watchlist | Reopen your filtered Watchlist through the address bar or refresh. Each browser shows its own follows or those of the signed-in account. |
-| Live | Follow in-progress scores or browse recent finals. Filter to watched matchups, or compare up to four selected games from the live board. Selections for games still on the board survive reloads in the same tab. |
-| Game Center | Open a game for scores, play-by-play, lineups, player stats, and standings where available. MLB includes probable pitchers, inning line scores, and confirmed pitching decisions when ESPN supplies them. Live NHL games can show the current on-ice lineup. Browse each team’s recent finals, upcoming fixtures, and available TV or streaming listings in Schedule and share a link to a specific section. |
-| My Picks | Review accuracy, the last five decided picks, and your current run. Change an eligible pick before its game starts. |
-| Preferences | Set your schedule timezone and followed-game alerts. |
+| **Home** | Browse the schedule and filter by sport, league, or date. Follow matchups and make up to five independent free picks. |
+| **Watchlist** | Keep track of games you follow and return to them later. |
+| **Live** | Follow games in progress, browse recent finals, or compare selected matchups. |
+| **Game Center** | Explore available scores, play-by-play, lineups, player stats, and standings. |
+| **My Picks** | Review your record and recent results. Eligible picks can be changed before a game starts. |
+| **Preferences** | Choose your schedule time zone and followed-game alerts. |
 
-## Scores and availability
+Availability varies by sport and data provider. If a score source is temporarily unavailable, COWBOY may show backup or recently saved information and label it accordingly.
 
-| Condition | Behavior |
+## Useful commands
+
+Run these from the project directory:
+
+| Command | What it does |
 | --- | --- |
-| Game live or near its scheduled start | The foreground app requests updates for active games about every 1.5 seconds and refreshes the wider schedule about every 8 seconds. |
-| Game Center summary unavailable | COWBOY tries that league's scoreboard, even on a direct game link, and retains already loaded details. |
-| ESPN hockey or baseball scoreboard unavailable | The NHL or MLB feed can update games when both teams and the start time match the last ESPN schedule. |
-| Another ESPN team scoreboard fails | Game-summary checks can recover scores for up to two known live games per affected league when that endpoint is available. The board labels backup scores and shows when they were last checked. |
-| Both feeds unavailable | The server can retain the last successful ESPN league response for up to 5 minutes, with the original timestamp. The installed PWA can also show its last saved scoreboard offline. |
+| `npm run dev` | Start the local development server. |
+| `npm run typecheck` | Generate Next.js types and check TypeScript. |
+| `npm test` | Run the unit tests. |
+| `npm run build` | Create a production build. |
+| `npm run start` | Serve the production build (run `npm run build` first). |
+| `npm run test:e2e` | Run the Playwright browser tests. |
 
-These intervals are polling targets. Provider publishing cadence, request latency, and retry backoff affect how soon a change reaches the screen. The API shares requests across users in one server process and backs off for at least 30 seconds on HTTP 429. Backup or cached scores are for display. Pick entry and settlement require ESPN verification.
+For browser tests, install Chromium once with `npx playwright install chromium`. The tests use port 3210 by default; to run them against the app on port 3213, use:
 
-See [Score endpoint and interface reference](docs/SCORE-ENDPOINTS-AND-ICONS.md) for endpoint URLs, measured response times, coverage gaps, and the FanDuel and BetMGM tab references.
+```sh
+PLAYWRIGHT_BASE_URL=http://127.0.0.1:3213 npm run test:e2e
+```
 
-## Public reference archive
+## Project map
 
-The [archive handoff](docs/PUBLIC-REFERENCE-ARCHIVE.md) records the public pages we verified, their coverage gaps, and how the references inform COWBOY.
+| Location | What lives there |
+| --- | --- |
+| `app/components/` | The main live-sports, game-detail, and account-pick interfaces. |
+| `app/lib/` | Sports data, normalization, caching, and fallback logic. |
+| `app/api/` | Sports, account, and pick API routes. |
+| `public/sw.js` | Offline scoreboard support. |
+| `tests/` | Unit tests, fixtures, and browser journeys. |
+| `docs/` | Data-source notes and public reference materials. |
 
-## Verification
+## Local data and privacy
+
+Local account data is stored in `.cowboy-data/`. To store it somewhere else, set `COWBOY_DATA_DIR` to an **absolute path**. Keep private data and secrets out of Git. Before hosting the app for other people, review the storage and deployment setup for your environment.
+
+COWBOY is for sports discovery and free picks—not gambling. Picks have **no stakes, payouts, or prizes**.
+
+## Need a hand?
+
+- Check the guides in [`docs/`](docs/) for score-source and project reference notes.
+- If something is broken, [open an issue](https://github.com/e93byte/COWBOY/issues) and include what you expected, what happened, and the command or page involved. **Never include passwords, tokens, or private account data.**
+
+## Contributing
+
+Small, clear contributions are welcome. Before opening a pull request, run the checks relevant to your change:
 
 ```sh
 npm run typecheck
 npm test
 npm run build
-npx playwright install chromium
-npm run test:e2e
 ```
 
-Playwright starts a development server on port 3210 by default. To run the browser tests against the preview on port 3213, use `PLAYWRIGHT_BASE_URL=http://127.0.0.1:3213 npm run test:e2e`. GitHub Actions installs locked dependencies, audits them, runs type checks and unit tests, builds for production, and runs browser tests against that build.
-
-To serve the built app, run `npm run start -- --hostname 127.0.0.1 --port 3213` after `npm run build`.
-
-## Project map
-
-| Path | Responsibility |
-| --- | --- |
-| `app/components/LiveWorkspace.tsx` | Boards, filters, live polling and draft picks |
-| `app/components/EventDetail.tsx` | Game Center, summary polling and fallback display |
-| `app/components/AccountPicks.tsx` | Accounts, draft slip and My Picks |
-| `app/lib/live-sports.ts` | ESPN adapter, normalization, cache and request limits |
-| `app/lib/nhl-score-fallback.ts` | NHL score matching for ESPN outages |
-| `app/api/` | Sports, account and pick APIs |
-| `public/sw.js` | Offline scoreboard support |
-| `tests/` | Unit tests, fixtures and browser journeys |
-
-## Local data and deployment
-
-Account data lives in `.cowboy-data/` by default. Set `COWBOY_DATA_DIR` to an absolute path to choose a different local directory. Keep local data and secrets out of Git. Before hosting this app for other users, replace the local account store with production storage and verify usage rights for distributed sports data and artwork.
+If you change a user journey, also run the browser tests. Please keep changes beginner-friendly and preserve the clear distinction between free picks and gambling.
