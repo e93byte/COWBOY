@@ -35,6 +35,8 @@ test('Home sport and league links survive reload and closing Game Center', async
   await expect(page).toHaveURL(/filterLeague=nba/);
   await page.reload();
   await expect(leagues.getByRole('button',{name:'NBA',exact:true})).toHaveAttribute('aria-pressed','true');
+  await expect(page.getByRole('region',{name:'NBA games',exact:true})).toBeVisible();
+  await expect(page.getByRole('region',{name:'In the spotlight'})).toHaveCount(0);
   await page.getByRole('button',{name:'Open event information for '+game.name,exact:true}).click();
   await expect(page).toHaveURL(/filterLeague=nba.*game=401910001/);
   await page.getByRole('button',{name:'Close Game details'}).click();
@@ -42,6 +44,7 @@ test('Home sport and league links survive reload and closing Game Center', async
   await expect(leagues.getByRole('button',{name:'NBA',exact:true})).toHaveAttribute('aria-pressed','true');
   await sports.getByRole('button',{name:'All',exact:true}).click();
   await expect(page).toHaveURL(/\/$/);
+  await expect(page.getByRole('region',{name:'In the spotlight'})).toBeVisible();
 });
 
 test('dedicated Live board only shows in-progress games and opens Game Center', async ({page}) => {

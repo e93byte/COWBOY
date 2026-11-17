@@ -605,7 +605,7 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
   }[liveScope];
   const upcoming = (board?.events ?? []).some(event => canPick(event, now));
   const showSpotlight = spotlightCandidates.length > 0 && (spotlightMode !== 'featured' || spotlight.length > 0);
-  const showHighlights = view === 'board' && ((onHome && !!board) || showSpotlight);
+  const showHighlights = view === 'board' && league === 'all' && ((onHome && !!board) || showSpotlight);
   const openUpcoming = () => {
     resetFilters();
     setFilter('upcoming');
