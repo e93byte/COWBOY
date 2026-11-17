@@ -295,6 +295,35 @@ test('MLB probable starters keep each team’s identity and validated pitching f
   assert.equal((await client.getLiveEvent('nfl',header.competitions[0].id))?.probablePitchers,undefined);
 });
 
+test('MLB line scores keep hits, errors and confirmed pitching decisions', async () => {
+  const header = structuredClone(summaries.nfl.header);
+  const competition = header.competitions[0];
+  const home = competition.competitors.find((side:{homeAway:string})=>side.homeAway==='home');
+  const away = competition.competitors.find((side:{homeAway:string})=>side.homeAway==='away');
+  Object.assign(home,{hits:8,errors:0,winner:true});
+  Object.assign(away,{hits:'7',errors:-1,winner:false});
+  const pitcher = (name:string,id:string,teamId:string,displayName:string) => ({
+    name, playerId:Number(id), team:{id:teamId}, athlete:{id,displayName},
+  });
+  competition.status = {type:{name:'STATUS_FINAL', state:'post', completed:true},featuredAthletes:[
+    pitcher('winningPitcher','39945',home.id,'Brock Burke'),
+    pitcher('losingPitcher','40917',away.id,'Adrian Morejon'),
+    pitcher('savingPitcher','33403',home.id,'Emilio Pagan'),
+  ]};
+  const [result] = live.normalizeScoreboard('mlb',{events:[header]});
+  assert.deepEqual(result.home.baseballTotals,{hits:8,errors:0});
+  assert.deepEqual(result.away.baseballTotals,{hits:7,errors:null});
+  assert.deepEqual(result.pitchingDecisions,[
+    {kind:'win',name:'Brock Burke',side:'home'},
+    {kind:'loss',name:'Adrian Morejon',side:'away'},
+    {kind:'save',name:'Emilio Pagan',side:'home'},
+  ]);
+  competition.status.featuredAthletes[2].team.id = away.id;
+  assert.equal(live.normalizeScoreboard('mlb',{events:[header]})[0].pitchingDecisions?.length,2);
+  competition.status.type = {name:'STATUS_IN_PROGRESS',state:'in',completed:false};
+  assert.equal(live.normalizeScoreboard('mlb',{events:[header]})[0].pitchingDecisions,undefined);
+});
+
 test('grouped baseball stats keep categories distinct and use scoring plays from play-by-play', async () => {
   const header = summaries.nfl.header;
   const game = live.normalizeScoreboard('mlb', {events: [header]})[0];

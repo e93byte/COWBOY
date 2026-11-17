@@ -10,6 +10,7 @@ type LiveTeam = {
   name: string;
   shortName: string;
   score: number | null;
+  baseballTotals?: {hits:number | null; errors:number | null};
   logo?: string;
   linescores?: (number | null)[];
   tennisSetDetails?: {tiebreak: number | null; winner: boolean | null}[];
@@ -141,6 +142,7 @@ export type LiveEvent = {
   leaders?: GameLeaderCategory[];
   pregameLeaders?: GameLeaderCategory[];
   probablePitchers?: Partial<Record<'away'|'home',ProbablePitcher>>;
+  pitchingDecisions?: {kind:'win'|'loss'|'save'; name:string; side:'away'|'home'}[];
   scoringPlays?: ScoringPlay[];
   timeline?: ScoringPlay[];
   soccerCommentary?: {sequence:number; clock:string | null; description:string}[];
@@ -704,6 +706,30 @@ function normalizeFootballDrives(data: Json, event: LiveEvent): FootballDrive[] 
   return current && !history.has(current.id) ? [current,...completed] : completed;
 }
 
+function nonnegativeCount(value: unknown): number | null {
+  const parsed = score(value);
+  return parsed !== null && Number.isSafeInteger(parsed) && parsed >= 0 ? parsed : null;
+}
+
+function normalizePitchingDecisions(status: Json, awayId: string, homeId: string, winner: 'away'|'home') {
+  const featured = Array.isArray(status.featuredAthletes) ? status.featuredAthletes.slice(0,20).map(object) : [];
+  const loser = winner === 'away' ? 'home' : 'away';
+  const roles = [
+    ['winningPitcher','win',winner], ['losingPitcher','loss',loser], ['savingPitcher','save',winner],
+  ] as const;
+  return roles.flatMap(([source,kind,side])=>{
+    const matches = featured.filter(row=>row.name===source);
+    if (matches.length !== 1) return [];
+    const [result] = matches;
+    const athlete = object(result.athlete);
+    const name = text(athlete.displayName || athlete.fullName).trim();
+    const teamId = side === 'away' ? awayId : homeId;
+    if (!name || !validId(athlete.id) || (result.playerId != null && String(result.playerId) !== athlete.id) ||
+      String(object(result.team).id) !== teamId) return [];
+    return [{kind, name:name.slice(0,120), side}];
+  });
+}
+
 function normalizeProbablePitcher(competitor: Json | undefined): ProbablePitcher | undefined {
   const probables = competitor?.probables;
   if (!Array.isArray(probables)) return;
@@ -778,10 +804,13 @@ export function normalizeScoreboard(league: string, payload: unknown): LiveEvent
             winner: typeof line.winner === 'boolean' ? line.winner : null,
           };
         }) : [];
+        const hits = league === 'mlb' ? nonnegativeCount(competitor.hits) : null;
+        const errors = league === 'mlb' ? nonnegativeCount(competitor.errors) : null;
         return {
           id: competitor.id, name: participant.displayName,
           shortName: text(participant.abbreviation || participant.shortName || participant.shortDisplayName || participant.displayName),
           score: score(competitor.score), ...(logo ? { logo } : {}),
+          ...(hits !== null || errors !== null ? {baseballTotals:{hits,errors}} : {}),
           ...(!neutral && linescores.some(value => value !== null) ? { linescores } : {}),
           ...(tennisSetDetails.some(line => line.tiebreak !== null || line.winner !== null) ? {tennisSetDetails} : {}),
         };
@@ -828,6 +857,8 @@ export function normalizeScoreboard(league: string, payload: unknown): LiveEvent
       }
       if (!text(startsAt) || !Number.isFinite(Date.parse(startsAt))) invalid('invalid contest date');
       const providerUrl = Array.isArray(event.links) ? event.links.map((link: Json) => safeUrl(object(link).href)).find(Boolean) : undefined;
+      const pitchingDecisions = league === 'mlb' && completed && (winner === 'away' || winner === 'home')
+        ? normalizePitchingDecisions(status, away.id, home.id, winner) : [];
       const probableAway = league === 'mlb' ? normalizeProbablePitcher(awayRaw) : undefined;
       const probableHome = league === 'mlb' ? normalizeProbablePitcher(homeRaw) : undefined;
       const situation = object(competition.situation);
@@ -843,6 +874,7 @@ export function normalizeScoreboard(league: string, payload: unknown): LiveEvent
         period: typeof status.period === 'number' && Number.isInteger(status.period) && status.period >= 0 ? status.period : null,
         home, away, ...(providerUrl ? { providerUrl } : {}), completed, winner,
         ...(shootoutScores ? {shootoutScores} : {}),
+        ...(pitchingDecisions.length ? {pitchingDecisions} : {}),
         ...(probableAway || probableHome ? {probablePitchers:{
           ...(probableAway ? {away:probableAway} : {}), ...(probableHome ? {home:probableHome} : {}),
         }} : {}),

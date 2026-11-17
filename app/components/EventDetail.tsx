@@ -69,11 +69,13 @@ function FootballDrives({event, busy, onRefresh}: {event: LiveEvent; busy: boole
 
 function PeriodScores({event}: {event: LiveEvent}) {
   const periods = Math.max(event.away.linescores?.length ?? 0, event.home.linescores?.length ?? 0);
-  if (!periods) return null;
+  const baseball = event.league === 'mlb';
+  const hasBaseballTotals = baseball && Boolean(event.away.baseballTotals || event.home.baseballTotals);
+  if (!periods && !hasBaseballTotals) return null;
   const indices = Array.from({length: periods}, (_, index) => index);
   const tennis = event.sport === 'tennis';
-  const title = tennis ? 'Score by set' : 'Score by period';
-  const activeIndex = tennis && event.status === 'live' && event.period ? event.period - 1 : -1;
+  const title = tennis ? 'Score by set' : baseball ? 'Score by inning' : 'Score by period';
+  const activeIndex = (tennis || baseball) && event.status === 'live' && event.period ? event.period - 1 : -1;
   const setWinners = tennis ? indices.map(index => {
     const home = event.home.tennisSetDetails?.[index]?.winner;
     const away = event.away.tennisSetDetails?.[index]?.winner;
@@ -83,7 +85,7 @@ function PeriodScores({event}: {event: LiveEvent}) {
   const hasSetWinners = setWinners.some(Boolean);
   const hasTotal = !tennis && (event.away.score !== null || event.home.score !== null);
   return <div className="cw-linescores-scroll" role="region" aria-label={title} tabIndex={0}>
-    <table className="cw-linescores">
+    <table className={baseball ? 'cw-linescores cw-baseball-linescores' : 'cw-linescores'}>
       <caption>{title}</caption>
       <thead>
         <tr>
@@ -92,7 +94,10 @@ function PeriodScores({event}: {event: LiveEvent}) {
             {tennis ? `Set ${index + 1}` : index + 1}{index===activeIndex && <span className="sr-only"> (in progress)</span>}
           </th>)}
           {hasSetWinners && <th scope="col">Sets won<span className="sr-only"> (confirmed by source)</span></th>}
-          {hasTotal && <th scope="col">Total</th>}
+          {hasTotal && <th scope="col">{baseball ? <abbr title="Runs">R</abbr> : 'Total'}</th>}
+          {hasBaseballTotals && <>
+            <th scope="col"><abbr title="Hits">H</abbr></th><th scope="col"><abbr title="Errors">E</abbr></th>
+          </>}
         </tr>
       </thead>
       <tbody>
@@ -109,7 +114,10 @@ function PeriodScores({event}: {event: LiveEvent}) {
               </td>;
             })}
             {hasSetWinners && <td>{setWinners.filter(winner=>winner===side).length}</td>}
-            {hasTotal && <td>{team.score ?? '—'}</td>}
+            {hasTotal && <td className={baseball ? 'cw-linescore-runs' : undefined}>{team.score ?? '—'}</td>}
+            {hasBaseballTotals && <>
+              <td>{team.baseballTotals?.hits ?? '—'}</td><td>{team.baseballTotals?.errors ?? '—'}</td>
+            </>}
           </tr>;
         })}
       </tbody>
@@ -805,6 +813,7 @@ function EventDetailContent({
   const fieldPosition = detail.status === 'live' && !delayed && !error ? boardPosition ?? detail.footballPosition : undefined;
   const hasTotal = detail.status !== 'scheduled' && (detail.away.score !== null || detail.home.score !== null);
   const hasPeriodScores = detail.status !== 'scheduled' && Boolean(detail.away.linescores?.length || detail.home.linescores?.length);
+  const hasBaseballTotals = detail.status !== 'scheduled' && Boolean(detail.away.baseballTotals || detail.home.baseballTotals);
   const showTennisScores = detail.sport === 'tennis' && hasPeriodScores && (detail.status === 'live' || detail.completed);
   const entryOpen = detail.status === 'scheduled' && Date.parse(detail.startsAt) > Date.now();
 
@@ -906,11 +915,20 @@ function EventDetailContent({
       </section>}
     </section> : <section className="cw-game-section" aria-label="Score summary">
       <h3>Score summary</h3>
-      {hasPeriodScores ? <PeriodScores event={detail}/> : hasTotal ? <dl className="cw-game-score-list">
+      {hasPeriodScores || hasBaseballTotals ? <PeriodScores event={detail}/> : hasTotal ? <dl className="cw-game-score-list">
         <div><dt>{detail.away.name}</dt><dd>{detail.away.score ?? '—'}</dd></div>
         <div><dt>{detail.home.name}</dt><dd>{detail.home.score ?? '—'}</dd></div>
       </dl> : <p>{detail.status==='scheduled' ? 'The game has not started.' : 'The source has not provided a score.'}</p>}
       <p className="cw-game-section-note">{detail.statusText}{detail.clock ? ` · ${detail.clock}` : ''}</p>
+      {!!detail.pitchingDecisions?.length && <section className="cw-pitching-preview" aria-label="Pitching decisions">
+        <h4>Pitching decisions</h4>
+        <dl className="cw-game-score-list">
+          {detail.pitchingDecisions.map(pitcher=><div key={pitcher.kind}>
+            <dt>{{win:'Win',loss:'Loss',save:'Save'}[pitcher.kind]}</dt>
+            <dd>{pitcher.name} · {detail[pitcher.side].shortName}</dd>
+          </div>)}
+        </dl>
+      </section>}
       <ScoreProgression event={snapshot ?? detail}/>
     </section>)}
     {section==='stats' && <GameStats event={detail} summary={snapshot ?? event} busy={busy} onRefresh={()=>setRefresh(value=>value+1)}/>}
