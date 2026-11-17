@@ -92,6 +92,14 @@ function readGameLink(params: URLSearchParams) {
 }
 function eventKey(event: Pick<LiveEvent,'league'|'id'>) { return event.league + ':' + event.id; }
 
+const comparisonLimit = 4;
+type ComparedGame = {event:LiveEvent; reportedAt?:string};
+
+function comparisonTime(event: LiveEvent, board: LiveBoard | null) {
+  const league = board?.leagues.find(item=>item.id===event.league);
+  return (event.scoreSource === 'NHL' ? league?.scoresUpdatedAt : league?.lastSuccessAt) ?? board?.fetchedAt;
+}
+
 function useGameMoments(board: LiveBoard | null, interrupted: boolean) {
   const previous = useRef<LiveBoard | null>(null);
   const [moments, setMoments] = useState<GameMoment[]>([]);
@@ -414,7 +422,30 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
   const openWatchlist = () => { openBoard(); setFilter('watchlist'); };
   const openLive = () => { clearTransientFilters(); navigate('live'); replaceLiveFilters(defaultLiveFilters); };
   const openPicks = () => navigate('picks');
+  const [compared,setCompared] = useState<ComparedGame[]>([]);
   const allEvents = board?.events ?? [];
+  const comparedKeys = new Set(compared.map(item=>eventKey(item.event)));
+  useEffect(()=>{
+    if (!board) return;
+    setCompared(previous=>{
+      if (!previous.length) return previous;
+      const games = new Map(board.events.map(event=>[eventKey(event),event]));
+      return previous.map(item=>{
+        const latest = games.get(eventKey(item.event));
+        return latest ? {event:latest,reportedAt:comparisonTime(latest,board)} : item;
+      });
+    });
+  },[board]);
+
+  function toggleComparison(event: LiveEvent) {
+    const key = eventKey(event);
+    setCompared(previous=>{
+      if (previous.some(item=>eventKey(item.event)===key)) return previous.filter(item=>eventKey(item.event)!==key);
+      if (previous.length>=comparisonLimit) return previous;
+      return [...previous,{event,reportedAt:comparisonTime(event,board)}];
+    });
+  }
+
   const liveEvents = allEvents.filter(event => event.status === 'live');
   const finalEvents = allEvents.filter(event => event.completed);
   const watchedIds = new Set(watched);
@@ -701,6 +732,28 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
           </button>
         ))}
       </div>}
+      {liveView && compared.length > 0 && <section className="cw-live-comparison" aria-label="Score comparison">
+        <div className="cw-section-heading">
+          <h2>Score comparison</h2>
+          <span aria-live="polite">{compared.length} of {comparisonLimit} games</span>
+        </div>
+        <div className="cw-comparison-grid">
+          {compared.map(({event,reportedAt})=>{
+            const key = eventKey(event);
+            const current = allEvents.find(item=>eventKey(item)===key);
+            const league = board?.leagues.find(item=>item.id===event.league);
+            const delayed = !!error || !current || league?.status !== 'ok';
+            return <article key={key} className="cw-comparison-card" aria-label={event.name}>
+              <MatchCard event={event} onOpen={openGame} label={`Open compared game: ${event.name}`}/>
+              <div className="cw-comparison-meta">
+                <span>{delayed ? event.scoreSource === 'NHL' ? 'NHL backup' : 'Last reported' : 'Updated'}
+                  {reportedAt && <> <time dateTime={reportedAt}>{time(reportedAt)}</time></>}</span>
+                <button onClick={()=>toggleComparison(event)} aria-label={`Remove ${event.name} from comparison`}>Remove</button>
+              </div>
+            </article>;
+          })}
+        </div>
+      </section>}
       {liveScorecards.length > 0 && <section className="cw-live-scorecards" aria-label="Live scores">
         <div className="cw-section-heading">
           <h2>Live scores</h2>
@@ -805,7 +858,12 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
           <button className="cw-event-detail" aria-label={`Details: ${e.name}`} onClick={()=>openGame(e)}><div className="cw-team"><span className="cw-team-identity"><TeamMark team={e.away}/><span>{e.away.name}</span></span><BoardScore event={e} side="away"/></div><div className="cw-team"><span className="cw-team-identity"><TeamMark team={e.home}/><span>{e.home.name}</span></span><BoardScore event={e} side="home"/></div></button>
           {!liveView&&<div className="cw-event-time"><time dateTime={e.startsAt}>{scheduleTime(e.startsAt,zone)}</time> <span>{canPick(e,now)?'Pre-game':'Entry locked'}</span><button onClick={()=>openGame(e)} aria-label={`Open event information for ${e.name}`}>Details</button></div>}
         </div>
-        {liveView?<button className="cw-live-open" onClick={()=>openGame(e)}>Game center <span aria-hidden="true">→</span></button>:<div className="cw-pick-options">{pickSides(e.league).map(side=><button key={side} aria-label={`Pick ${pickName(e,side)}`} aria-pressed={selectionsByGame.get(eventKey(e))?.side===side} onClick={()=>togglePick(e,side)} disabled={pending||!eligiblePick(e)||(selections.length>=5&&!selectionsByGame.has(eventKey(e)))}><span>{pickName(e,side,'shortName')}</span><small>{canPick(e,now)?side==='draw'?'Pick draw':'Pick winner':'Closed'}</small></button>)}</div>}
+        {liveView?<div className="cw-live-actions">
+          <button className="cw-live-open" onClick={()=>openGame(e)}>Game center <span aria-hidden="true">→</span></button>
+          {e.status==='live' && <button className="cw-compare-toggle" aria-label={`Compare ${e.name}`}
+            aria-pressed={comparedKeys.has(eventKey(e))} disabled={compared.length>=comparisonLimit&&!comparedKeys.has(eventKey(e))}
+            onClick={()=>toggleComparison(e)}>{comparedKeys.has(eventKey(e))?'Comparing':'Compare'}</button>}
+        </div>:<div className="cw-pick-options">{pickSides(e.league).map(side=><button key={side} aria-label={`Pick ${pickName(e,side)}`} aria-pressed={selectionsByGame.get(eventKey(e))?.side===side} onClick={()=>togglePick(e,side)} disabled={pending||!eligiblePick(e)||(selections.length>=5&&!selectionsByGame.has(eventKey(e)))}><span>{pickName(e,side,'shortName')}</span><small>{canPick(e,now)?side==='draw'?'Pick draw':'Pick winner':'Closed'}</small></button>)}</div>}
       </article>)}{!collapsed.includes(group.id)&&group.events.length>5&&league!=='ufc'&&<button className="cw-show-more" aria-expanded={showAllGroups.includes(group.id)} onClick={()=>setShowAllGroups(old=>old.includes(group.id)?old.filter(id=>id!==group.id):[...old,group.id])}>{showAllGroups.includes(group.id)?`Show fewer ${group.sport==='mma'?'bouts':'games'}`:`Show all ${group.events.length} ${group.sport==='mma'?'bouts':'games'}`}</button>}</section>)}</section>}
       {liveView && !golfView && <section className="cw-moments" aria-label="Game updates">
         <h2>Game updates</h2>

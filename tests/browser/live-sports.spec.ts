@@ -1338,3 +1338,35 @@ test('Live counts and updates follow each sport and league selection', async ({p
   await expect(leagues.getByRole('button',{name:'All Soccer',exact:true})).toHaveAttribute('aria-pressed','true');
   await expect(leagues.getByRole('button',{name:'MLS',exact:true})).toBeVisible();
 });
+
+test('Live compares four selected games and retains the latest score when a match leaves the feed', async ({page}) => {
+  await page.setViewportSize({width:390,height:844});
+  await page.route('**/api/account', r=>r.fulfill({json:{user:null}}));
+  const games = Array.from({length:5}, (_,index):LiveEvent=>{
+    const source = index%2 ? board.events[1] : event;
+    return {...source,id:String(401900100+index),name:`Match ${index+1}`,status:'live',statusText:'2nd Period',
+      away:{...source.away,name:`Away team ${index+1}`,score:7},home:{...source.home,name:`Home team ${index+1}`,score:10}};
+  });
+  let feed = {...board,events:games,refreshAfterMs:60_000};
+  await page.route('**/api/sports',route=>route.fulfill({json:feed}));
+  await page.goto('/live');
+  for (let i=1;i<=4;i++) await page.getByRole('button',{name:`Compare Match ${i}`,exact:true}).click();
+  const panel=page.getByRole('region',{name:'Score comparison'});
+  await expect(panel.getByRole('article')).toHaveCount(4);
+  await expect(page.getByRole('button',{name:'Compare Match 5',exact:true})).toBeDisabled();
+
+  const match=panel.getByRole('article',{name:'Match 1',exact:true});
+  const updated={...games[0],home:{...games[0].home,score:24}};
+  feed={...feed,events:[updated,...games.slice(1)]};
+  await page.getByRole('button',{name:'Refresh sports'}).click();
+  await expect(match.getByText('24',{exact:true})).toBeVisible();
+  feed={...feed,events:games.slice(1)};
+  await page.getByRole('button',{name:'Refresh sports'}).click();
+  await expect(match.getByText(/Last reported/)).toBeVisible();
+  await expect(match.getByText('24',{exact:true})).toBeVisible();
+
+  await match.getByRole('button',{name:'Remove Match 1 from comparison'}).click();
+  await expect(panel.getByRole('article')).toHaveCount(3);
+  await expect(page.getByRole('button',{name:'Compare Match 5',exact:true})).toBeEnabled();
+  await expect.poll(()=>page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+});
