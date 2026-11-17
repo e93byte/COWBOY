@@ -13,6 +13,7 @@ type LiveTeam = {
   score: number | null;
   baseballTotals?: {hits:number | null; errors:number | null};
   logo?: string;
+  rank?: number;
   linescores?: (number | null)[];
   tennisSetDetails?: {tiebreak: number | null; winner: boolean | null}[];
 };
@@ -828,6 +829,7 @@ export function normalizeScoreboard(league: string, payload: unknown): LiveEvent
       const neutral = config.sport === 'mma';
       const homeRaw = neutral ? competitors[0] : competitors.find(c => c.homeAway === 'home');
       const awayRaw = neutral ? competitors[1] : competitors.find(c => c.homeAway === 'away');
+      const rankedLeague = league === 'ncaaf' || league === 'ncaab' || league === 'ncaaw';
       const side = (competitor: Json | undefined): LiveEvent['home'] => {
         if (!competitor || !validId(competitor.id)) invalid('invalid participant identifier');
         const participant = object(competitor.team ?? competitor.athlete ?? competitor.roster);
@@ -847,10 +849,12 @@ export function normalizeScoreboard(league: string, payload: unknown): LiveEvent
         }) : [];
         const hits = league === 'mlb' ? nonnegativeCount(competitor.hits) : null;
         const errors = league === 'mlb' ? nonnegativeCount(competitor.errors) : null;
+        const rank = rankedLeague ? score(object(competitor.curatedRank).current) : null;
         return {
           id: competitor.id, name: participant.displayName,
           shortName: text(participant.abbreviation || participant.shortName || participant.shortDisplayName || participant.displayName),
           score: score(competitor.score), ...(logo ? { logo } : {}),
+          ...(rank !== null && Number.isInteger(rank) && rank >= 1 && rank <= 25 ? {rank} : {}),
           ...(hits !== null || errors !== null ? {baseballTotals:{hits,errors}} : {}),
           ...(!neutral && linescores.some(value => value !== null) ? { linescores } : {}),
           ...(tennisSetDetails.some(line => line.tiebreak !== null || line.winner !== null) ? {tennisSetDetails} : {}),

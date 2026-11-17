@@ -5,7 +5,7 @@ import type {LiveEvent} from '../lib/live-sports';
 import {scheduleTime} from '../lib/schedule-time';
 import {ScheduleTimeZone} from './ScheduleTimeZone';
 import {ActionIcon, SportIcon, StatusIcon} from './SportIcon';
-import {TeamMark} from './TeamMark';
+import {RankedTeamName, TeamMark} from './TeamMark';
 
 function SourceScore({score,tiebreak}:{score:number|null;tiebreak?:number|null}) {
   const previous = useRef({score,tiebreak});
@@ -69,7 +69,7 @@ export function MatchCard({event, onOpen, label}: {event: LiveEvent; onOpen: (ev
       {(['away','home'] as const).map(side => (
         <span key={side} className="cw-match-line">
           <TeamMark team={event[side]}/>
-          <strong>{event[side].name}</strong>
+          <strong><RankedTeamName team={event[side]}/></strong>
           {event.status !== 'scheduled' && <BoardScore event={event} side={side}/>}
         </span>
       ))}

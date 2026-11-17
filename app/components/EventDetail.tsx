@@ -4,7 +4,7 @@ import {useContext, useEffect, useRef, useState, type CSSProperties} from 'react
 import {matchesSearchText} from './BoardSearch';
 import {Modal, api, type Ticket} from './AccountPicks';
 import {SportIcon, StarIcon, TabIcon} from './SportIcon';
-import {TeamMark} from './TeamMark';
+import {RankedTeamName, TeamMark} from './TeamMark';
 import type {LiveEvent} from './LiveWorkspace';
 import { pickName, pickSides, supportsDrawPick, type PickSide } from '../lib/pick-outcomes';
 import { ScheduleTimeZone } from './ScheduleTimeZone';
@@ -848,7 +848,10 @@ function EventDetailContent({
         {(['away', 'home'] as const).map(side => (
           <div key={side} className={`cw-game-team cw-game-${side}`}>
             <TeamMark team={{...detail[side], logo: detail[side].logo || event[side].logo}}/>
-            <span>{detail[side].name}</span>
+            <RankedTeamName team={{
+              ...detail[side],
+              rank: detail[side].rank ?? (!boardDelayed && boardEvent?.[side].id === detail[side].id ? boardEvent[side].rank : undefined),
+            }}/>
             {showTennisScores ? <BoardScore event={detail} side={side}/> : hasTotal && <strong>{detail[side].score ?? '—'}</strong>}
             {detail.fight?.records[side] && <small className="cw-fighter-record"><span className="sr-only">Fighter record, wins losses draws: </span>{detail.fight.records[side]}</small>}
             {detail.soccerAggregate?.advances===side && <small className="cw-result-winner">Advances</small>}

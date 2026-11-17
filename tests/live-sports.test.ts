@@ -458,6 +458,19 @@ test('PGA normalizes an actual multi-player leaderboard without inventing home/a
   assert.throws(() => live.normalizeGolfScoreboard({}), /Invalid ESPN/);
 });
 
+test('college matchups include published top-25 ranks and omit unranked placeholders', () => {
+  const game = structuredClone(fixtures.nfl.events[0]);
+  const away = game.competitions[0].competitors.find((entry: {homeAway:string}) => entry.homeAway === 'away');
+  const home = game.competitions[0].competitors.find((entry: {homeAway:string}) => entry.homeAway === 'home');
+  away.curatedRank = {current:16};
+  home.curatedRank = {current:99};
+
+  const [ranked] = live.normalizeScoreboard('ncaaf', {events:[game]});
+  assert.equal(ranked.away.rank, 16);
+  assert.equal(ranked.home.rank, undefined);
+  assert.equal(live.normalizeScoreboard('nfl', {events:[game]})[0].away.rank, undefined);
+});
+
 test('real tennis empty draws and future TBD placeholders do not invalidate known matches', () => {
   const captured = JSON.parse(readFileSync(new URL('./fixtures/live-sports/tennis-edge-cases.json', import.meta.url), 'utf8'));
   for (const key of ['atp', 'wta']) {

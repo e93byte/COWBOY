@@ -21,6 +21,27 @@ test('real board shows source, real teams, locks live entry and filters leagues'
   await expect(page.getByText(/wallet|cashout|virtual funds/i)).toHaveCount(0);
 });
 
+test('ranked teams keep their scoreboard badge in Game Center when the summary omits it', async ({page}) => {
+  const college:LiveEvent = {...event,id:'401912345',league:'ncaab',leagueName:"NCAA Men's Basketball",name:'UCLA at Duke',
+    away:{id:'ucla',name:'UCLA',shortName:'UCLA',score:null,rank:7},home:{id:'duke',name:'Duke',shortName:'DUKE',score:null}};
+  await page.route('**/api/sports', route => route.fulfill({json:{
+    ...board, events:[college], leagues:[{id:'ncaab',sport:'basketball',name:college.leagueName,status:'ok'}],
+  }}));
+  await page.route('**/api/sports/event?**', route => route.fulfill({json:{event:{
+    ...college,away:{...college.away,rank:undefined},venue:'Cameron Indoor Stadium',
+  }}}));
+  await page.goto('/');
+  const game = page.getByRole('button',{name:'Details: UCLA at Duke'});
+  await expect(game.locator('.cw-team-rank')).toContainText('#7');
+  await game.click();
+  const details = page.getByRole('dialog',{name:'Game details'});
+  await expect(details.locator('.cw-team-rank')).toHaveCount(1);
+  await expect(details.locator('.cw-team-rank')).toContainText('#7');
+  await details.getByRole('button',{name:'Game information'}).click();
+  await expect(details.getByText('Cameron Indoor Stadium')).toBeVisible();
+  await expect(details.locator('.cw-team-rank')).toContainText('#7');
+});
+
 test('Home sport and league links survive reload and closing Game Center', async ({page}) => {
   const game = {...event,id:'401910001'};
   await setup(page);

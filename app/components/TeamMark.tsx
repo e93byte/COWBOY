@@ -35,3 +35,10 @@ export function TeamMark({ team, small = false }: {
       : (team.shortName || team.name).slice(0, 4)}
   </span>;
 }
+
+export function RankedTeamName({ team }: { team: { name: string; rank?: number } }) {
+  return <span className="cw-ranked-team-name">
+    {team.rank !== undefined && <small className="cw-team-rank"><span className="sr-only">Rank </span>#{team.rank}</small>}
+    {team.name}
+  </span>;
+}
