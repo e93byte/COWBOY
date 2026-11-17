@@ -318,8 +318,10 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
   }, [draftReady, selections]);
 
   const selectionsByGame = new Map(selections.map(pick => [eventKey(pick.event), pick]));
-  const eligiblePick = (event: LiveEvent | undefined) => !!event && canPick(event,now) && !error && !board?.stale &&
-    board?.leagues.find(league => league.id === event.league)?.status === 'ok';
+  const currentLeague = (id: string) => !error &&
+    board?.leagues.find(league => league.id === id)?.status === 'ok';
+  const eligiblePick = (event: LiveEvent | undefined) =>
+    !!event && canPick(event,now) && currentLeague(event.league);
   const draftEvents = new Map<string, LiveEvent>();
   for (const pick of selections) {
     const key = eventKey(pick.event);
@@ -727,7 +729,7 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
         </button>)}
       </div>}
       {error&&<div className="cw-alert" role="alert">{error} {board&&'Last received games are shown; new picks are paused.'}<button disabled={busy} onClick={refresh}>Try again</button></div>}
-      {board?.stale&&<div className="cw-alert" role="status">Delayed source data. Last received scores are shown. New picks are paused until the source recovers.</div>}
+      {board?.stale&&<div className="cw-alert" role="status">Delayed source data. Affected leagues show their last received scores and pause new picks.</div>}
       {board?.leagues.filter(l=>l.status!=='ok').map(l=><div className="cw-league-error cw-league-health" key={l.id}>
         <div>
           <span>{l.name}: {l.status==='error'?'source unavailable':'delayed'}{l.error?` · ${l.error}`:''}</span>
@@ -795,7 +797,7 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
       ticket={detailTicket || undefined}
       ticketsLoading={account.ticketsBusy}
       ticketsError={account.ticketsError}
-      boardDelayed={!!error || !!board?.stale || board?.leagues.find(item=>item.id===detail.league)?.status!=='ok'}
+      boardDelayed={!currentLeague(detail.league)}
       watching={watched.includes(detail.league+':'+detail.id)}
       onWatch={()=>toggleWatch(detail)} watchDisabled={subscriptions.disabled}
       onClose={closeGame} onPick={view==='picks'?undefined:side=>{togglePick(detail,side);closeGame();if(window.innerWidth<=700)setDrawer(true);}} picksAvailable={!pending&&eligiblePick(board?.events.find(event=>eventKey(event)===eventKey(detail)))&&(selections.length<5||selectionsByGame.has(eventKey(detail)))}/>}

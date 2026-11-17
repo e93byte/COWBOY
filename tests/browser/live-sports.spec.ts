@@ -393,7 +393,7 @@ test('UFC recent finals show confirmed winners and source judging without offeri
   await expect(detail.getByRole('button',{name:/^Select /})).toHaveCount(0);
 });
 
-test('real-feed failure is explicit, retry recovers, stale and partial sources lock new entries', async ({page}) => {
+test('feed outages lock affected picks while healthy leagues stay available', async ({page}) => {
   await setup(page);
   await page.route('**/api/sports',route=>route.fulfill({status:502,json:{error:'UPSTREAM_UNAVAILABLE',message:'ESPN unavailable'}}));
   await page.goto('/');
@@ -403,6 +403,16 @@ test('real-feed failure is explicit, retry recovers, stale and partial sources l
   await page.getByRole('button',{name:'Try again'}).click();
   await expect(page.getByText('Delayed source data.',{exact:false})).toBeVisible();
   await expect(page.getByRole('button',{name:'Pick Boston Celtics'})).toBeDisabled();
+  const nflFixture = {...board.events[1],status:'scheduled',statusText:'Scheduled',clock:null,period:null};
+  await page.route('**/api/sports',route=>route.fulfill({json:{
+    ...board,stale:true,events:[event,nflFixture],
+    leagues:[board.leagues[0],{...board.leagues[1],status:'stale'}],
+  }}));
+  await page.getByRole('button',{name:'Refresh sports'}).click();
+  await expect(page.getByRole('button',{name:'Pick Boston Celtics'})).toBeEnabled();
+  await expect(page.getByRole('button',{name:'Pick Buffalo Bills'})).toBeDisabled();
+  await page.getByRole('button',{name:'Pick Boston Celtics'}).click();
+  await expect(page.getByRole('button',{name:'Sign in to save pick',exact:true})).toBeEnabled();
   await page.route('**/api/sports',route=>route.fulfill({json:{...board,leagues:[board.leagues[0],{...board.leagues[1],status:'error',error:'Timed out'}]}}));
   await page.getByRole('button',{name:'Refresh sports'}).click();
   await expect(page.getByText('NFL: source unavailable · Timed out')).toBeVisible();
