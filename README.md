@@ -42,6 +42,10 @@ These intervals are polling targets. Provider publishing cadence, request latenc
 
 See [Score endpoint and interface reference](docs/SCORE-ENDPOINTS-AND-ICONS.md) for endpoint URLs, measured response times, coverage gaps, and the FanDuel and BetMGM tab references.
 
+## Public reference archive
+
+The [archive handoff](docs/PUBLIC-REFERENCE-ARCHIVE.md) records the public pages we verified, their coverage gaps, and how the references inform COWBOY.
+
 ## Verification
 
 ```sh
