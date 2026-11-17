@@ -1010,6 +1010,9 @@ export function createLiveSportsClient(options: ClientOptions = {}) {
   const backupBackoffUntil = new Map<string,number>();
   const details = new Map<string, { event: LiveEvent | null; expires: number }>();
   const detailRequests = new Map<string, Promise<LiveEvent | null>>();
+  const scheduleRequests = new Map<string, Promise<LiveEvent[]>>();
+  const teamSchedules = new Map<string, {events:LiveEvent[]; expires:number}>();
+  const scheduleBackoffUntil = new Map<string, number>();
   const leagueRequests = new Map<string, Promise<LiveEvent[]>>();
 
   let activeRequests = 0;
@@ -1302,10 +1305,59 @@ export function createLiveSportsClient(options: ClientOptions = {}) {
     return getCachedScoreboardEvent(league, id);
   }
 
-  return { getLiveBoard, getLiveEvent, getScoreboardEvent };
+  async function getTeamSchedule(league: string, teamId: string): Promise<LiveEvent[]> {
+    const config = leagueConfig(league);
+    if (!/^[0-9]{1,10}$/.test(teamId) || ['golf','mma','tennis'].includes(config.sport)) {
+      throw new LiveSportsError('Invalid team schedule request',400);
+    }
+    const key = `${league}:${teamId}`;
+    const cached = teamSchedules.get(key);
+    if (cached && cached.expires > now()) return cached.events;
+    const pending = scheduleRequests.get(key);
+    if (pending) return pending;
+    if ((scheduleBackoffUntil.get(league) ?? 0) > now()) throw new LiveSportsError('Team schedule is temporarily unavailable',429);
+    if (scheduleRequests.size >= 8) throw new LiveSportsError('Team schedule is busy',503);
+    const load = async () => {
+      try {
+        const raw = object(await request(`${config.path}/teams/${teamId}/schedule`));
+        if (text(object(raw.team).id) !== teamId || !Array.isArray(raw.events)) {
+          throw new LiveSportsError('Team schedule did not match the requested team');
+        }
+        const byId = new Map<string, LiveEvent>();
+        for (const match of raw.events.slice(0,400)) {
+          try {
+            for (const game of normalizeScoreboard(league,{events:[match]})) {
+              if (game.away.id===teamId || game.home.id===teamId) byId.set(game.id,game);
+            }
+          } catch (error) {
+            if (!(error instanceof LiveSportsError)) throw error;
+          }
+        }
+        if (raw.events.length && !byId.size) throw new LiveSportsError('No matching games in team schedule');
+        const ordered = [...byId.values()].sort((a,b)=>Date.parse(a.startsAt)-Date.parse(b.startsAt));
+        const recent = ordered.filter(game=>game.status==='final').slice(-8);
+        const upcoming = ordered.filter(game=>game.status==='live' || game.status==='scheduled').slice(0,8);
+        const events = [...recent,...upcoming];
+        teamSchedules.delete(key);
+        if (teamSchedules.size >= 64) teamSchedules.delete(teamSchedules.keys().next().value!);
+        teamSchedules.set(key,{events,expires:now()+60_000});
+        return events;
+      } catch (error) {
+        if (error instanceof LiveSportsError && error.status===429) scheduleBackoffUntil.set(league,now()+30_000);
+        throw error;
+      }
+    };
+    const requestForTeam = load().finally(()=>scheduleRequests.delete(key));
+    scheduleRequests.set(key,requestForTeam);
+    return requestForTeam;
+  }
+
+  return { getLiveBoard, getLiveEvent, getScoreboardEvent, getTeamSchedule };
 }
 
 const client = createLiveSportsClient();
 export const getLiveBoard = (league?: string): Promise<LiveBoard> => client.getLiveBoard(league);
 export const getLiveEvent = (league: string, id: string): Promise<LiveEvent | null> => client.getLiveEvent(league, id);
 export const getScoreboardEvent = client.getScoreboardEvent;
+
+export const getTeamSchedule = client.getTeamSchedule;

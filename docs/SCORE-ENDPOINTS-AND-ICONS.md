@@ -11,6 +11,10 @@
 
 Each range uses three direct GETs from the development machine. These measurements are network and HTTP response times. Measuring event-to-screen delay requires a source event timestamp and a recorded client render timestamp. The current foreground polling target is 1.5 seconds for live games. Independent fallback coverage is hockey and MLB. Where supported, up to two known live team games per league can also recover through the primary provider's per-game summary during a scoreboard outage. Backup results are display-only. Pick entry and settlement still require the primary verification path.
 
+## Team schedules
+
+Game Center requests `/api/sports/team-schedule?league={league}&team={id}` when a viewer opens the Schedule tab. The server calls the [team schedule endpoint](https://site.api.espn.com/apis/site/v2/sports/basketball/nba/teams/2/schedule) using the league’s configured sport path and a numeric team ID. It verifies the returned team and game participants before caching the result for 60 seconds. The UI prefers current scoreboard data for games present in both responses and uses the scoreboard alone when the schedule is unavailable.
+
 ## Lower-latency option
 
 - The [NFL Push Feeds](https://developer.sportradar.com/football/docs/nfl-ig-push) publish game events and include a lightweight score-and-clock stream. The [Soccer Push Events](https://developer.sportradar.com/soccer/reference/soccer-push-events) support live event subscriptions. [NBA](https://developer.sportradar.com/basketball/reference/nba-push-events), [WNBA](https://developer.sportradar.com/basketball/reference/wnba-push-events), and [men’s college basketball](https://developer.sportradar.com/basketball/reference/ncaamb-push-events) have documented event streams. Production use requires credentials and coverage for each competition. These streams are candidates for a server-side subscriber and have not been enabled or timed in COWBOY.

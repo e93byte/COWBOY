@@ -458,6 +458,27 @@ test('PGA normalizes an actual multi-player leaderboard without inventing home/a
   assert.throws(() => live.normalizeGolfScoreboard({}), /Invalid ESPN/);
 });
 
+test('team schedules validate identity and reuse a coalesced successful response', async () => {
+  const match = structuredClone(fixtures.nfl.events[0]);
+  const team = match.competitions[0].competitors[0].id;
+  let calls = 0;
+  const client = live.createLiveSportsClient({
+    fetch: async input => {
+      const url = new URL(String(input));
+      assert.equal(url.pathname,`/apis/site/v2/sports/football/nfl/teams/${team}/schedule`);
+      calls++;
+      return Response.json({team:{id:team},events:[match]});
+    },
+  });
+  const [first, concurrent] = await Promise.all([client.getTeamSchedule('nfl',team),client.getTeamSchedule('nfl',team)]);
+  assert.equal(first.length,1);
+  assert.equal(first[0].id,match.id);
+  assert.deepEqual(first,concurrent);
+  assert.deepEqual(await client.getTeamSchedule('nfl',team),first);
+  assert.equal(calls,1);
+  await assert.rejects(client.getTeamSchedule('nfl','../bad'),/Invalid team schedule/);
+});
+
 test('college matchups include published top-25 ranks and omit unranked placeholders', () => {
   const game = structuredClone(fixtures.nfl.events[0]);
   const away = game.competitions[0].competitors.find((entry: {homeAway:string}) => entry.homeAway === 'away');

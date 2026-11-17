@@ -11,7 +11,7 @@ import { ScheduleTimeZone } from './ScheduleTimeZone';
 import { ScoreProgression } from './ScoreProgression';
 import { SoccerLineups } from './SoccerLineups';
 import { scheduleTime } from '../lib/schedule-time';
-import { BoardScore, GameStatus } from './MatchCard';
+import { BoardScore, GameStatus, MatchCard } from './MatchCard';
 import { hasRecordStandings } from '../lib/sports-leagues';
 import { LIVE_SCORE_REFRESH_MS } from '../lib/score-refresh';
 
@@ -675,8 +675,63 @@ export function EventDetail({games, onGame, onClose, ...props}: Props & {
         </button>
       ))}
     </nav></>}
-    <EventDetailContent key={`${event.league}:${event.id}`} {...props}/>
+    <EventDetailContent key={`${event.league}:${event.id}`} {...props} games={leagueGames} onGame={onGame}/>
   </Modal>;
+}
+
+function TeamSchedule({event, games, onGame}: {
+  event: LiveEvent;
+  games: LiveEvent[];
+  onGame: (event: LiveEvent) => void;
+}) {
+  const [side, setSide] = useState<'away'|'home'>('away');
+  const team = event[side];
+  const [schedule, setSchedule] = useState<{teamId:string; events?:LiveEvent[]; failed?:boolean}>();
+  const remoteSupported = /^[0-9]{1,10}$/.test(team.id);
+  useEffect(() => {
+    if (!remoteSupported) return;
+    const controller = new AbortController();
+    const params = new URLSearchParams({league:event.league,team:team.id});
+    void api<{events:LiveEvent[]}>(`/api/sports/team-schedule?${params}`,{signal:controller.signal})
+      .then(({events})=>{
+        if (!controller.signal.aborted) setSchedule({teamId:team.id,events});
+      })
+      .catch(()=>{
+        if (!controller.signal.aborted) setSchedule({teamId:team.id,failed:true});
+      });
+    return () => controller.abort();
+  },[event.league,team.id,remoteSupported]);
+  const teamSchedule = schedule?.teamId === team.id ? schedule : undefined;
+  const visible = new Map((teamSchedule?.events ?? []).map(game=>[game.id,game]));
+  for (const game of games) visible.set(game.id,game);
+  const teamGames = [...visible.values()].filter(game => game.id !== event.id &&
+    (game.away.id === team.id || game.home.id === team.id))
+    .sort((a,b)=>Date.parse(a.startsAt)-Date.parse(b.startsAt));
+  const upcoming = teamGames.filter(game => game.status === 'scheduled' || game.status === 'live').slice(0, 4);
+  const finals = teamGames.filter(game => game.status === 'final').slice(-4).reverse();
+
+  return <section className="cw-game-section cw-team-schedule" aria-label="Team schedules">
+    <h3>Team schedules</h3>
+    <div className="cw-team-schedule-options" role="group" aria-label="Select team">
+      {(['away','home'] as const).map(option => (
+        <button key={option} aria-pressed={side===option} onClick={()=>setSide(option)}>
+          <TeamMark team={event[option]} small/>{event[option].name}
+        </button>
+      ))}
+    </div>
+    {!teamSchedule?.events && <p className="cw-game-section-note" role="status">
+      {remoteSupported && !teamSchedule ? 'Loading team schedule…' : 'Showing games available on the current scoreboard.'}
+    </p>}
+    {[
+      {label:'Live and upcoming', games:upcoming, empty:'No live or upcoming games are available.'},
+      {label:'Recent finals', games:finals, empty:'No recent finals are available.'},
+    ].map(group => <section key={group.label} aria-label={group.label}>
+      <h4>{group.label}</h4>
+      {group.games.length ? <div className="cw-team-schedule-games">
+        {group.games.map(game => <MatchCard key={game.id} event={game} label={`Open ${game.name}`} onOpen={onGame}/>)}
+      </div> : <p className="cw-game-section-note">{group.empty}</p>}
+    </section>)}
+  </section>;
 }
 
 const gameSections = [
@@ -687,6 +742,7 @@ const gameSections = [
   {id: 'timeline', label: 'Timeline'},
   {id: 'drives', label: 'Drives'},
   {id: 'matchup', label: 'Matchup'},
+  {id: 'schedule', label: 'Schedule'},
   {id: 'lineups', label: 'Lineups'},
   {id: 'standings', label: 'Standings'},
   {id: 'pick', label: 'My pick'},
@@ -696,6 +752,7 @@ type GameSection = (typeof gameSections)[number]['id'];
 function sectionAvailable(section: GameSection, event: LiveEvent) {
   if (section === 'drives') return event.sport === 'football';
   if (section === 'lineups') return event.sport === 'soccer';
+  if (section === 'schedule') return !['tennis','mma'].includes(event.sport);
   if (section === 'standings') return event.sport === 'soccer' || hasRecordStandings(event.league);
   return true;
 }
@@ -710,8 +767,8 @@ function readGameSection(event: LiveEvent): GameSection {
 
 function EventDetailContent({
   event, boardEvent, boardFetchedAt, boardDelayed, ticket, ticketsLoading, ticketsError,
-  watching, onWatch, watchDisabled, onPick, picksAvailable = false,
-}: Props) {
+  watching, onWatch, watchDisabled, onPick, picksAvailable = false, games, onGame,
+}: Props & {games: LiveEvent[]; onGame: (event: LiveEvent) => void}) {
   const zone = useContext(ScheduleTimeZone);
   const [snapshot, setSnapshot] = useState<LiveEvent | null>(null);
   const [requestedAt, setRequestedAt] = useState(Infinity);
@@ -957,6 +1014,7 @@ function EventDetailContent({
     {section==='timeline' && <GameTimeline event={detail} busy={busy} onRefresh={()=>setRefresh(value=>value+1)}/>}
     {section==='drives' && <FootballDrives event={detail} busy={busy} onRefresh={()=>setRefresh(value=>value+1)}/>}
     {section==='matchup' && <Matchup event={detail} matchup={(snapshot ?? event).matchup} pitchers={(snapshot ?? detail).probablePitchers} busy={busy} onRefresh={()=>setRefresh(value=>value+1)}/>}
+    {section==='schedule' && <TeamSchedule event={detail} games={games} onGame={onGame}/>}
     {section==='lineups' && <SoccerLineups event={snapshot ?? event} busy={busy} onRefresh={()=>setRefresh(value=>value+1)}/>}
     {section==='standings' && <GameStandings event={snapshot ?? event} busy={busy} onRefresh={()=>setRefresh(value=>value+1)}/>}
     {section==='pick' && <section className="cw-game-section" aria-label="Saved free pick">

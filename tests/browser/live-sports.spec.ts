@@ -42,6 +42,39 @@ test('ranked teams keep their scoreboard badge in Game Center when the summary o
   await expect(details.locator('.cw-team-rank')).toContainText('#7');
 });
 
+test('Game Center schedules switch teams and open the exact listed fixture', async ({page}) => {
+  const chosen = {...event,id:'401922001',away:{...event.away,id:'2'},home:{...event.home,id:'18'}};
+  const third = {id:'phi',name:'Philadelphia 76ers',shortName:'PHI',score:null};
+  const awayNext = {...chosen,id:'401922002',name:'Boston Celtics at Philadelphia 76ers',home:third};
+  const homeFinal:LiveEvent = {...chosen,id:'401922003',name:'Philadelphia 76ers at New York Knicks',away:{...third,score:101},
+    home:{...chosen.home,score:107},startsAt:'2026-11-16T05:00:00Z',status:'final',statusText:'Final',completed:true,winner:'home'};
+  const unrelated = {...chosen,id:'401922004',name:'Chicago Bulls at Philadelphia 76ers',home:third,away:{...third,id:'chi',name:'Chicago Bulls'}};
+  const fixtureGames = new Map([chosen,awayNext,homeFinal,unrelated].map(game=>[game.id,game]));
+  await page.route('**/api/sports',route=>route.fulfill({json:{...board,events:[chosen,homeFinal,unrelated]}}));
+  await page.route('**/api/sports/team-schedule?**',route=>{
+    const team = new URL(route.request().url()).searchParams.get('team');
+    return route.fulfill({json:{events:team==='2' ? [awayNext] : []}});
+  });
+  await page.route('**/api/sports/event?**',route=>{
+    const id = new URL(route.request().url()).searchParams.get('id');
+    return route.fulfill({json:{event:fixtureGames.get(id ?? '')}});
+  });
+  await page.setViewportSize({width:390,height:844});
+  await page.goto('/?game=401922001&league=nba&section=schedule');
+  const detail = page.getByRole('dialog',{name:'Game details'});
+  const schedule = detail.getByRole('region',{name:'Team schedules'});
+  await expect(schedule.getByRole('button',{name:'Open Boston Celtics at Philadelphia 76ers'})).toBeVisible();
+  await expect(schedule.getByRole('button',{name:'Open Chicago Bulls at Philadelphia 76ers'})).toHaveCount(0);
+  await schedule.getByRole('button',{name:'New York Knicks',exact:true}).click();
+  await expect(schedule.getByText('No live or upcoming games are available.')).toBeVisible();
+  const final = schedule.getByRole('button',{name:'Open Philadelphia 76ers at New York Knicks'});
+  await expect(final).toContainText('107');
+  await final.click();
+  await expect(page).toHaveURL(/game=401922003.*section=schedule/);
+  await expect(detail.locator('.cw-game-scoreboard')).toContainText('107');
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+});
+
 test('Home sport and league links survive reload and closing Game Center', async ({page}) => {
   const game = {...event,id:'401910001'};
   await setup(page);

@@ -69,12 +69,12 @@ const tabSymbols = {
   standings: <path d="M4 20h16M5 20v-7h5v7m0-11h5v11m0-4h4v4"/>,
 } satisfies Record<string, React.ReactNode>;
 
-type Tab = keyof typeof tabStatusIcons | keyof typeof tabSymbols | 'all' | 'following' | 'watchlist' | 'pick';
+type Tab = keyof typeof tabStatusIcons | keyof typeof tabSymbols | 'all' | 'following' | 'watchlist' | 'pick' | 'schedule';
 
 export function TabIcon({tab}: {tab: Tab}) {
   if (tab === 'all') return <SportIcon sport="all"/>;
   if (tab === 'following' || tab === 'watchlist') return <StarIcon/>;
   if (tab === 'pick') return <ActionIcon action="picks"/>;
   if (tab in tabStatusIcons) return <StatusIcon status={tabStatusIcons[tab as keyof typeof tabStatusIcons]}/>;
-  return <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">{tabSymbols[tab as keyof typeof tabSymbols]}</svg>;
+  return <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">{tabSymbols[(tab === 'schedule' ? 'calendar' : tab) as keyof typeof tabSymbols]}</svg>;
 }

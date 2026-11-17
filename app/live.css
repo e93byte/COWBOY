@@ -1521,3 +1521,24 @@
 @media (max-width: 540px) {
   .cowboy-live .cw-game-tabs button { flex-direction: column; gap: 3px; }
 }
+
+.cw-team-schedule-options, .cw-team-schedule-games {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.cowboy-live .cw-team-schedule-options button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+.cowboy-live .cw-team-schedule-options button[aria-pressed=true] {
+  border-color: var(--tan);
+  color: var(--tan);
+}
+.cw-team-schedule h4 { margin: 16px 0 0; }
+@media (max-width: 540px) {
+  .cw-team-schedule-games { grid-template-columns: minmax(0, 1fr); }
+}
