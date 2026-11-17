@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, rm, stat, symlink, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, realpath, rm, stat, symlink, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 import { createServer } from "node:http";
@@ -32,11 +33,10 @@ function request(route: string, method = "GET", body?: unknown, cookie?: string,
   });
 }
 
-const scratch = process.env.TMPDIR!;
 const password = "correct-horse-local-password";
 const rejectsCode = (promise: Promise<unknown>, code: string) => assert.rejects(promise, (error: unknown) => (error as { code: string }).code === code);
 async function fixture<T>(run: (store: AccountStore, dir: string) => Promise<T>) {
-  const dir = await mkdtemp(path.join(scratch, "cowboy-accounts-"));
+  const dir = await mkdtemp(path.join(await realpath(tmpdir()), "cowboy-accounts-"));
   try { return await run(new AccountStore({ directory: dir }), dir); }
   finally { await rm(dir, { recursive: true, force: true }); }
 }
