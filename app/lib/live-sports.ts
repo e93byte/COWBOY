@@ -26,6 +26,16 @@ type FightCard = {
   scorecards?: {away: number[]; home: number[]};
 };
 
+type ProbablePitcher = {
+  id: string;
+  name: string;
+  hand: 'L' | 'R' | null;
+  era: number | null;
+  whip: number | null;
+  strikeouts: number | null;
+  headshot?: string;
+};
+
 type TeamStat = { key: string; label: string; away: string | null; home: string | null };
 type PlayerStatGroup = {
   name: string;
@@ -130,6 +140,7 @@ export type LiveEvent = {
   playerStats?: { away: PlayerStatGroup[]; home: PlayerStatGroup[] };
   leaders?: GameLeaderCategory[];
   pregameLeaders?: GameLeaderCategory[];
+  probablePitchers?: Partial<Record<'away'|'home',ProbablePitcher>>;
   scoringPlays?: ScoringPlay[];
   timeline?: ScoringPlay[];
   soccerCommentary?: {sequence:number; clock:string | null; description:string}[];
@@ -693,6 +704,31 @@ function normalizeFootballDrives(data: Json, event: LiveEvent): FootballDrive[] 
   return current && !history.has(current.id) ? [current,...completed] : completed;
 }
 
+function normalizeProbablePitcher(competitor: Json | undefined): ProbablePitcher | undefined {
+  const probables = competitor?.probables;
+  if (!Array.isArray(probables)) return;
+  const starters = probables.slice(0,20).map(object).filter(row => row.name === 'probableStartingPitcher');
+  if (starters.length !== 1) return;
+  const [starter] = starters;
+  const athlete = object(starter.athlete);
+  const name = text(athlete.displayName || athlete.fullName).trim();
+  if (!name || !validId(athlete.id) || (starter.playerId != null && String(starter.playerId) !== athlete.id)) return;
+  const hand = object(athlete.throws).abbreviation;
+  const headshot = safeUrl(object(athlete.headshot).href, true);
+  const categories = object(object(starter.statistics).splits).categories;
+  const stats = Array.isArray(categories) ? categories.slice(0,40).map(object) : [];
+  const published = (key: string) => {
+    const value = stats.find(metric => metric.name === key)?.value;
+    return typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : null;
+  };
+  const strikeouts = published('strikeouts');
+  return {
+    id: athlete.id, name: name.slice(0,120), hand: hand === 'L' || hand === 'R' ? hand : null,
+    era:published('ERA'), whip:published('WHIP'), strikeouts:Number.isSafeInteger(strikeouts) ? strikeouts : null,
+    ...(headshot ? {headshot} : {}),
+  };
+}
+
 export function normalizeScoreboard(league: string, payload: unknown): LiveEvent[] {
   const config = leagueConfig(league);
   const data = object(payload);
@@ -792,6 +828,8 @@ export function normalizeScoreboard(league: string, payload: unknown): LiveEvent
       }
       if (!text(startsAt) || !Number.isFinite(Date.parse(startsAt))) invalid('invalid contest date');
       const providerUrl = Array.isArray(event.links) ? event.links.map((link: Json) => safeUrl(object(link).href)).find(Boolean) : undefined;
+      const probableAway = league === 'mlb' ? normalizeProbablePitcher(awayRaw) : undefined;
+      const probableHome = league === 'mlb' ? normalizeProbablePitcher(homeRaw) : undefined;
       const situation = object(competition.situation);
       const footballPosition = config.sport === 'football' && code === 'STATUS_IN_PROGRESS' && normalizedStatus === 'live'
         ? normalizeFootballPosition(situation, situation.possession, away, home)
@@ -805,6 +843,9 @@ export function normalizeScoreboard(league: string, payload: unknown): LiveEvent
         period: typeof status.period === 'number' && Number.isInteger(status.period) && status.period >= 0 ? status.period : null,
         home, away, ...(providerUrl ? { providerUrl } : {}), completed, winner,
         ...(shootoutScores ? {shootoutScores} : {}),
+        ...(probableAway || probableHome ? {probablePitchers:{
+          ...(probableAway ? {away:probableAway} : {}), ...(probableHome ? {home:probableHome} : {}),
+        }} : {}),
         ...(soccerAggregate ? {soccerAggregate} : {}),
         ...(footballPosition ? {footballPosition} : {}),
         ...(neutral && homeRaw && awayRaw ? normalizeFightCard(event,competition,index,awayRaw,homeRaw) : {}),

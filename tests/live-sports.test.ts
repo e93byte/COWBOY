@@ -275,6 +275,26 @@ test('NFL and NHL standings validate their league-specific columns', async () =>
   }
 });
 
+test('MLB probable starters keep each team’s identity and validated pitching figures', async () => {
+  const header = structuredClone(summaries.nfl.header);
+  const [home, away] = ['home','away'].map(side =>
+    header.competitions[0].competitors.find((item: {homeAway:string})=>item.homeAway===side));
+  const athlete = {id:'42584',displayName:'Drew Rasmussen',throws:{abbreviation:'R'},
+    headshot:{href:'https://a.espncdn.com/i/headshots/mlb/players/full/42584.png'}};
+  const starter = {name:'probableStartingPitcher',playerId:42584,athlete,statistics:{splits:{categories:[
+    {name:'ERA',value:2.1976},{name:'WHIP',value:-1},{name:'strikeouts',value:0},
+  ]}}};
+  home.probables = [starter];
+  away.probables = [{...starter,playerId:101}];
+  const client = live.createLiveSportsClient({fetch:async()=>Response.json({header})});
+  const event = await client.getLiveEvent('mlb',header.competitions[0].id);
+  assert.deepEqual(event?.probablePitchers,{home:{
+    id:'42584', name:'Drew Rasmussen', hand:'R', headshot:athlete.headshot.href,
+    era:2.1976,whip:null,strikeouts:0,
+  }});
+  assert.equal((await client.getLiveEvent('nfl',header.competitions[0].id))?.probablePitchers,undefined);
+});
+
 test('grouped baseball stats keep categories distinct and use scoring plays from play-by-play', async () => {
   const header = summaries.nfl.header;
   const game = live.normalizeScoreboard('mlb', {events: [header]})[0];

@@ -298,9 +298,10 @@ function GameStandings({event,busy,onRefresh}: {event:LiveEvent;busy:boolean;onR
   </section>;
 }
 
-function Matchup({event, matchup, busy, onRefresh}: {
+function Matchup({event, matchup, pitchers, busy, onRefresh}: {
   event: LiveEvent;
   matchup: LiveEvent['matchup'];
+  pitchers?: LiveEvent['probablePitchers'];
   busy: boolean;
   onRefresh: () => void;
 }) {
@@ -314,6 +315,7 @@ function Matchup({event, matchup, busy, onRefresh}: {
       <h3>Team matchup</h3>
       <button disabled={busy} onClick={onRefresh}>{busy ? 'Refreshing…' : 'Refresh matchup'}</button>
     </div>
+    {pitchers && <ProbablePitchers event={event} pitchers={pitchers}/>}
     {!matchup ? <p className="cw-game-section-note">{
       busy ? 'Loading matchup information…' : 'ESPN has not provided matchup information for this event.'
     }</p> : <>
@@ -441,6 +443,34 @@ function GameTimeline({event, busy, onRefresh}: {
   </section>;
 }
 
+function ProbablePitchers({event, pitchers}: {event:LiveEvent; pitchers:NonNullable<LiveEvent['probablePitchers']>}) {
+  return <section className="cw-pitching-preview" aria-label="Probable starting pitchers">
+    <h4>{event.status === 'scheduled' ? 'Probable starting pitchers' : 'Pregame probable pitchers'}</h4>
+    <p className="cw-game-section-note">ESPN’s pregame listing. Probable starters can change.</p>
+    <div className="cw-pregame-players">
+      {(['away','home'] as const).map(side=>{
+        const pitcher = pitchers[side];
+        return <section key={side} className="cw-pregame-team" aria-label={event[side].name}>
+          <h4><TeamMark team={event[side]} small/>{event[side].name}</h4>
+          {pitcher ? <>
+            <div className="cw-pitcher-identity">
+              {pitcher.headshot && <TeamMark team={{name:pitcher.name,shortName:'',logo:pitcher.headshot}}/>}
+              <div><strong>{pitcher.name}</strong>
+                {pitcher.hand && <small>{pitcher.hand === 'L' ? 'Left-handed' : 'Right-handed'}</small>}
+              </div>
+            </div>
+            <dl className="cw-pitcher-stats">
+              <div><dt><abbr title="Earned run average">ERA</abbr></dt><dd>{pitcher.era?.toFixed(2) ?? '—'}</dd></div>
+              <div><dt><abbr title="Walks plus hits per inning pitched">WHIP</abbr></dt><dd>{pitcher.whip?.toFixed(2) ?? '—'}</dd></div>
+              <div><dt><abbr title="Strikeouts">K</abbr></dt><dd>{pitcher.strikeouts ?? '—'}</dd></div>
+            </dl>
+          </> : <p>Starter pending</p>}
+        </section>;
+      })}
+    </div>
+  </section>;
+}
+
 function PregamePlayers({event}: {event:LiveEvent}) {
   const [category,setCategory] = useState('pointsPerGame');
   const published = event.pregameLeaders ?? [];
@@ -449,6 +479,7 @@ function PregamePlayers({event}: {event:LiveEvent}) {
     return stat ? [stat] : [];
   });
   const selected = ordered.find(group=>group.key===category) ?? ordered[0];
+  if (event.probablePitchers) return <ProbablePitchers event={event} pitchers={event.probablePitchers}/>;
   if (!selected) return <p className="cw-game-section-note">ESPN hasn’t supplied a pregame player preview for this matchup.</p>;
   return <>
     <p className="cw-game-section-note">Season averages per game from ESPN.</p>
@@ -886,7 +917,7 @@ function EventDetailContent({
     {section==='players' && <PlayerBoxScore event={detail} scheduled={detail.status==='scheduled' && boardStatus!=='live' && boardStatus!=='final'} busy={busy} onRefresh={()=>setRefresh(value=>value+1)}/>}
     {section==='timeline' && <GameTimeline event={detail} busy={busy} onRefresh={()=>setRefresh(value=>value+1)}/>}
     {section==='drives' && <FootballDrives event={detail} busy={busy} onRefresh={()=>setRefresh(value=>value+1)}/>}
-    {section==='matchup' && <Matchup event={detail} matchup={(snapshot ?? event).matchup} busy={busy} onRefresh={()=>setRefresh(value=>value+1)}/>}
+    {section==='matchup' && <Matchup event={detail} matchup={(snapshot ?? event).matchup} pitchers={(snapshot ?? detail).probablePitchers} busy={busy} onRefresh={()=>setRefresh(value=>value+1)}/>}
     {section==='lineups' && <SoccerLineups event={snapshot ?? event} busy={busy} onRefresh={()=>setRefresh(value=>value+1)}/>}
     {section==='standings' && <GameStandings event={snapshot ?? event} busy={busy} onRefresh={()=>setRefresh(value=>value+1)}/>}
     {section==='pick' && <section className="cw-game-section" aria-label="Saved free pick">
