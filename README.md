@@ -1,14 +1,34 @@
-# COWBOY
+<div align="center">
+  <img src="https://raw.githubusercontent.com/e93byte/COWBOY/main/public/cowboy-mark.webp" alt="COWBOY mascot" width="120">
+  <h1>COWBOY</h1>
+  <p><strong>A premium suite of sports and entertainment experiences—starting with live sports and free picks.</strong></p>
+  <p>
+    <a href="https://github.com/e93byte/COWBOY/actions/workflows/ci.yml"><img src="https://github.com/e93byte/COWBOY/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI status"></a>
+    <img src="https://img.shields.io/badge/Next.js-16-black?logo=next.js" alt="Next.js 16">
+    <img src="https://img.shields.io/badge/TypeScript-ready-3178C6?logo=typescript&logoColor=white" alt="TypeScript">
+  </p>
+</div>
 
-[![CI](https://github.com/e93byte/COWBOY/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/e93byte/COWBOY/actions/workflows/ci.yml)
-![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=next.js)
-![TypeScript](https://img.shields.io/badge/TypeScript-ready-3178C6?logo=typescript&logoColor=white)
+---
 
-**A friendly place to follow sports and make free picks.** Browse real fixtures, keep an eye on live games, and see how your picks turn out—all without stakes, payouts, or prizes.
+## What COWBOY stands for
 
-## Get started
+COWBOY is a bold, friendly home for sports and entertainment. The long-term product vision brings several experiences together under one recognizable brand, with a polished interface and the COWBOY mascot at its heart.
 
-New to the project? Follow these steps. You’ll need **Node.js 22** and **npm** installed.
+**Today, this repository contains the COWBOY sports experience:** browse real fixtures, follow live scores, and make free picks. Picks have no stakes, payouts, or prizes. The broader product ideas below are a vision—not features currently delivered by this app.
+
+| Product idea | What it means | Status in this repository |
+| --- | --- | --- |
+| **COWBOY Sports** | Sports schedules, live scoreboards, game details, watchlists, and free winner picks. | **Available** |
+| **COWBOY Live** | A future home for live entertainment experiences. The current app follows scores; it does not stream broadcasts. | Vision only |
+| **COWBOY Movies** | A possible future destination for movie discovery and streaming. | Vision only |
+| **COWBOY Games** | A possible future collection of interactive entertainment. | Vision only |
+
+Casino, wagering, paid entries, and prize-based contests are **not** part of this project. The image concept shared for the broader COWBOY brand should be understood as aspirational artwork, not a description of features available today.
+
+## Try COWBOY locally
+
+New to the project? You’ll need **Node.js 22** and **npm** installed.
 
 ### 1. Download the project
 
@@ -33,20 +53,20 @@ npm run dev -- --hostname 127.0.0.1 --port 3213
 
 Visit [http://127.0.0.1:3213](http://127.0.0.1:3213). Create a local test account, choose an upcoming matchup, and confirm a pick. No API key is needed to try the sample locally.
 
-> **Windows?** Run the same commands in PowerShell. If `npm` is not recognized, install Node.js 22 first, then close and reopen your terminal.
+> **Windows?** Run the commands in PowerShell. If `npm` is not recognized, install Node.js 22, then close and reopen your terminal.
 
-## What you can do
+## Explore the sports app
 
-| Area | Try this |
+| Area | What you can do |
 | --- | --- |
-| **Home** | Browse the schedule and filter by sport, league, or date. Follow matchups and make up to five independent free picks. |
+| **Sports board** | Browse schedules by sport, league, and date. Follow matchups and make up to five independent free picks. |
 | **Watchlist** | Keep track of games you follow and return to them later. |
 | **Live** | Follow games in progress, browse recent finals, or compare selected matchups. |
 | **Game Center** | Explore available scores, play-by-play, lineups, player stats, and standings. |
 | **My Picks** | Review your record and recent results. Eligible picks can be changed before a game starts. |
 | **Preferences** | Choose your schedule time zone and followed-game alerts. |
 
-Availability varies by sport and data provider. If a score source is temporarily unavailable, COWBOY may show backup or recently saved information and label it accordingly.
+Availability varies by sport and data provider. If a score source is temporarily unavailable, COWBOY may show backup or recently saved information and label it accordingly. Score updates are not a live video stream.
 
 ## Useful commands
 
@@ -61,7 +81,7 @@ Run these from the project directory:
 | `npm run start` | Serve the production build (run `npm run build` first). |
 | `npm run test:e2e` | Run the Playwright browser tests. |
 
-For browser tests, install Chromium once with `npx playwright install chromium`. The tests use port 3210 by default; to run them against the app on port 3213, use:
+For browser tests, install Chromium once with `npx playwright install chromium`. Tests use port 3210 by default. To run them against the app on port 3213, use:
 
 ```sh
 PLAYWRIGHT_BASE_URL=http://127.0.0.1:3213 npm run test:e2e
@@ -71,7 +91,7 @@ PLAYWRIGHT_BASE_URL=http://127.0.0.1:3213 npm run test:e2e
 
 | Location | What lives there |
 | --- | --- |
-| `app/components/` | The main live-sports, game-detail, and account-pick interfaces. |
+| `app/components/` | Live-sports, game-detail, and account-pick interfaces. |
 | `app/lib/` | Sports data, normalization, caching, and fallback logic. |
 | `app/api/` | Sports, account, and pick API routes. |
 | `public/sw.js` | Offline scoreboard support. |
@@ -82,11 +102,9 @@ PLAYWRIGHT_BASE_URL=http://127.0.0.1:3213 npm run test:e2e
 
 Local account data is stored in `.cowboy-data/`. To store it somewhere else, set `COWBOY_DATA_DIR` to an **absolute path**. Keep private data and secrets out of Git. Before hosting the app for other people, review the storage and deployment setup for your environment.
 
-COWBOY is for sports discovery and free picks—not gambling. Picks have **no stakes, payouts, or prizes**.
-
 ## Need a hand?
 
-- Check the guides in [`docs/`](docs/) for score-source and project reference notes.
+- Check [`docs/`](docs/) for score-source and project reference notes.
 - If something is broken, [open an issue](https://github.com/e93byte/COWBOY/issues) and include what you expected, what happened, and the command or page involved. **Never include passwords, tokens, or private account data.**
 
 ## Contributing
@@ -99,4 +117,4 @@ npm test
 npm run build
 ```
 
-If you change a user journey, also run the browser tests. Please keep changes beginner-friendly and preserve the clear distinction between free picks and gambling.
+If you change a user journey, also run the browser tests. Please keep contributions beginner-friendly and preserve the clear distinction between free picks and gambling.
