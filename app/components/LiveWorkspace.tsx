@@ -84,6 +84,12 @@ function canPick(e:LiveEvent,now:number) { return e.status==='scheduled' && new 
 function validGameLink(id: string, league: string) {
   return /^[0-9]{1,16}(?:-[0-9]{1,16})?$/.test(id) && /^[a-z0-9-]{1,24}$/.test(league);
 }
+function readGameLink(params: URLSearchParams) {
+  const id = params.get('game') ?? '';
+  const league = params.get('league') ?? '';
+  return params.getAll('game').length === 1 && params.getAll('league').length === 1 && validGameLink(id,league)
+    ? {id,league} : null;
+}
 function eventKey(event: Pick<LiveEvent,'league'|'id'>) { return event.league + ':' + event.id; }
 
 function useGameMoments(board: LiveBoard | null, interrupted: boolean) {
@@ -201,9 +207,10 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
     sharedGameRequest.current = controller;
     setSharedGameState('loading');
     const query = new URLSearchParams({id, league});
-    api<LiveEvent>(`/api/sports/event?${query}`, {signal: controller.signal})
-      .then(event => {
+    api<LiveEvent | {event:LiveEvent}>(`/api/sports/event?${query}`, {signal: controller.signal})
+      .then(result => {
         if (controller.signal.aborted) return;
+        const event = 'event' in result ? result.event : result;
         if (event.id !== id || event.league !== league || !event.home || !event.away) {
           throw new Error('Game identity does not match link.');
         }
@@ -235,13 +242,12 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
         setSharedZone(null);
       }
       if (!params.has('game') && !params.has('league')) return;
-      const id = params.get('game') ?? '';
-      const league = params.get('league') ?? '';
-      if (params.getAll('game').length !== 1 || params.getAll('league').length !== 1 || !validGameLink(id, league)) {
+      const link = readGameLink(params);
+      if (!link) {
         setSharedGameState('unavailable');
         return;
       }
-      loadGame(id,league);
+      loadGame(link.id,link.league);
     }
     readLocation();
     window.addEventListener('popstate', readLocation);
@@ -594,6 +600,11 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
   const detailTicket = detail && account.user
     ? account.tickets.find(ticket => ticket.eventId === detail.id && ticket.league === detail.league && ticket.status !== 'cancelled')
     : undefined;
+  const failedGame = sharedGameState === 'unavailable'
+    ? readGameLink(new URLSearchParams(window.location.search)) : null;
+  const savedPick = failedGame && view === 'picks' && account.user
+    ? account.tickets.find(ticket => ticket.eventId === failedGame.id && ticket.league === failedGame.league)
+    : undefined;
   return <ScheduleTimeZone.Provider value={zone}><div className={`cowboy-live ${liveView ? "cw-live-page" : informationView ? "cw-information-page" : view === "picks" ? "cw-picks-page" : "cw-home-page"}`}>
     <header className="cw-header"><a className="cw-brand" href="/" aria-label="COWBOY home"><img src="/cowboy-mark.webp" alt=""/><span>COWBOY<small>SPORTS / FREE PICKS</small></span></a><nav aria-label="Main navigation"><button aria-pressed={view==='board'} onClick={openBoard}>Sports board</button><button aria-pressed={liveView} onClick={openLive}>Live</button><button aria-pressed={view==='picks'} onClick={openPicks}>My picks</button></nav><div className="cw-header-actions">
       <button className="cw-updates-button" onClick={()=>setAlertsOpen(true)}
@@ -788,8 +799,13 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
     {accountOpen&&<AccountDialog user={account.user} onUser={u=>{account.setUser(u);if(!u){setSelections([]);setReview(false);}}} onClose={()=>setAccountOpen(false)}/>}
     {sharedGameState==='loading'&&<p className="cw-game-link-status" role="status">Opening shared game…</p>}
     {sharedGameState==='unavailable'&&<Modal title="Game unavailable" onClose={closeGame}>
+      {savedPick && <div className="cw-dialog-copy">
+        <h3>{savedPick.eventName}</h3>
+        <p>Your pick: <strong>{savedPick.selection}</strong> · {savedPick.status}</p>
+      </div>}
       <p className="cw-dialog-copy">This link could not load a matchup from the sports feed. You can still browse the current scoreboard.</p>
-      <button className="cw-primary" onClick={closeGame}>{view==='picks'?'Back to My picks':'Back to sports board'}</button>
+      {failedGame && <button className="cw-primary" onClick={()=>loadGame(failedGame.id,failedGame.league)}>Retry matchup</button>}
+      <button className={failedGame?'cw-clear':'cw-primary'} onClick={closeGame}>{view==='picks'?'Back to My picks':'Back to sports board'}</button>
     </Modal>}
     {detail&&<EventDetail event={detail} games={allEvents} onGame={event=>openGame(event,true)}
       boardEvent={board?.events.find(e=>e.id===detail.id&&e.league===detail.league)}

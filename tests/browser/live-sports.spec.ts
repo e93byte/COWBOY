@@ -861,6 +861,36 @@ test('Game Center follows the address bar, Back, Forward and pasted links', asyn
   await expect(page).toHaveURL(/\/$/);
 });
 
+test('an older saved pick keeps its record when a game is unavailable and accepts a matching scoreboard fallback', async ({page}) => {
+  await setup(page);
+  const game = {...event, id:'401941122', name:'Boston Celtics at New York Knicks', status:'final', completed:true,
+    statusText:'Final', startsAt:'2026-10-10T00:00:00.000Z', away:{...event.away,score:114}, home:{...event.home,score:102}};
+  const ticket = {id:'finished-pick',eventId:game.id,league:game.league,eventName:game.name,
+    selection:game.away.name,side:'away',startsAt:game.startsAt,createdAt:'2026-10-09T00:00:00.000Z',
+    status:'won',settledAt:'2026-10-10T04:00:00.000Z'};
+  await page.route('**/api/account', route=>route.fulfill({json:{user:{id:'owner',username:'rider'}}}));
+  await page.route('**/api/picks', route=>route.fulfill({json:{tickets:[ticket]}}));
+  let fallback = false;
+  await page.route('**/api/sports/event?**', route=>fallback
+    ? route.fulfill({json:{event:game,stale:true,fallback:'scoreboard',lastSuccessAt:board.fetchedAt}})
+    : route.fulfill({status:404,json:{error:'Event not found'}}));
+  await page.goto('/picks');
+  await page.getByRole('button',{name:'Game center',exact:true}).click();
+  const unavailable = page.getByRole('dialog',{name:'Game unavailable'});
+  await expect(unavailable).toContainText(game.name);
+  await expect(unavailable).toContainText('Your pick: Boston Celtics');
+  await expect(page).toHaveURL(/\/picks\?game=401941122&league=nba/);
+  fallback = true;
+  await unavailable.getByRole('button',{name:'Retry matchup'}).click();
+  const detail = page.getByRole('dialog',{name:'Game details'});
+  await expect(detail).toContainText('Game summary unavailable. Showing the last scoreboard update.');
+  await expect(detail).toContainText('114');
+  await detail.getByRole('button',{name:'My pick',exact:true}).click();
+  await expect(detail.getByRole('region',{name:'Saved free pick'})).toContainText('Correct pick');
+  await detail.getByRole('button',{name:'Close Game details'}).click();
+  await expect(page).toHaveURL(/\/picks$/);
+});
+
 test('multiple drafts support switching, removal and clearing before separate submission', async ({page}) => {
   const second = {
     ...event, id:'401023', name:'Toronto Raptors at Chicago Bulls',
