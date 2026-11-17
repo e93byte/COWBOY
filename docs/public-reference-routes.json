@@ -1,5 +1,5 @@
 {
-  "recorded_at": "2026-11-17T07:30:19+00:00",
+  "recorded_at": "2026-11-17T07:32:20+00:00",
   "totals": {
     "routes": 745,
     "exact": 694,
@@ -32,6 +32,28 @@
       "inert_form_controls_verified": true,
       "loaded_stylesheets": 24,
       "network_requests": 0
+    }
+  ],
+  "final_live_rechecks": [
+    {
+      "url": "https://sportsbook.fanduel.com/basketball/cyprus---league",
+      "observed_status": "Page not found",
+      "render_wait_seconds": 15
+    },
+    {
+      "url": "https://sportsbook.fanduel.com/soccer/australian-a-league-men",
+      "observed_status": "Page not found",
+      "render_wait_seconds": 15
+    },
+    {
+      "url": "https://sportsbook.fanduel.com/soccer/german-frauen-bundesliga",
+      "observed_status": "Page not found",
+      "render_wait_seconds": 15
+    },
+    {
+      "url": "https://sportsbook.fanduel.com/tennis/itf-m25-lajeado-bra-q",
+      "observed_status": "Page not found",
+      "render_wait_seconds": 15
     }
   ],
   "routes": [
@@ -133,11 +155,13 @@
     },
     {
       "url": "https://casino.fanduel.com/game-play/",
-      "state": "game launch excluded"
+      "state": "game launch excluded",
+      "disposition": "Interactive casino launch route excluded from the public reference archive."
     },
     {
       "url": "https://casino.fanduel.com/game-window-play/",
-      "state": "game launch excluded"
+      "state": "game launch excluded",
+      "disposition": "Interactive casino launch route excluded from the public reference archive."
     },
     {
       "url": "https://casino.fanduel.com/game/777-strike",
@@ -514,6 +538,7 @@
     {
       "url": "https://casino.fanduel.com/promotions",
       "state": "rendered redirect",
+      "disposition": "The operator redirects this exact URL. The redirect behavior is preserved and the public destination is indexed separately when available.",
       "related_capture": "https://casino.fanduel.com/rewards",
       "historical_status": "verified exact historical content"
     },
@@ -628,6 +653,7 @@
     {
       "url": "https://fanduel.com/predicts",
       "state": "rendered redirect",
+      "disposition": "The operator redirects this exact URL. The redirect behavior is preserved and the public destination is indexed separately when available.",
       "related_capture": "https://www.fanduel.com/predicts",
       "historical_status": "no indexed candidate"
     },
@@ -718,18 +744,21 @@
     {
       "url": "https://racing.fanduel.com/info/privacypolicy",
       "state": "rendered redirect",
+      "disposition": "The operator redirects this exact URL. The redirect behavior is preserved and the public destination is indexed separately when available.",
       "related_capture": "https://www.fanduel.com/racing-privacy",
       "historical_status": "historical shell or expected content unverified"
     },
     {
       "url": "https://racing.fanduel.com/info/privacypolicy/state-specific-privacy-rights",
       "state": "rendered redirect",
+      "disposition": "The operator redirects this exact URL. The redirect behavior is preserved and the public destination is indexed separately when available.",
       "related_capture": "https://www.fanduel.com/racing-privacy",
       "historical_status": "historical shell or expected content unverified"
     },
     {
       "url": "https://racing.fanduel.com/info/termsandconditions",
       "state": "shell",
+      "disposition": "The exact URL renders the operator shell without the requested page content.",
       "related_capture": "https://policies.fanduel.com/RACING/USA/2024-11-19T07-00-00.html",
       "publisher_references": [
         {
@@ -742,6 +771,7 @@
     {
       "url": "https://racing.fanduel.com/info/wagerresponsibly",
       "state": "rendered redirect",
+      "disposition": "The operator redirects this exact URL. The redirect behavior is preserved and the public destination is indexed separately when available.",
       "related_capture": "https://www.fanduel.com/racing-privacy",
       "historical_status": "historical shell or expected content unverified"
     },
@@ -1096,6 +1126,7 @@
     {
       "url": "https://sportsbook.draftkings.com/event/jakub-cyndera-vs-adrian-panczyk/35031112",
       "state": "not found",
+      "disposition": "The original URL now returns a not-found page. Historical discovery and related public references remain indexed when available.",
       "historical_status": "no indexed candidate"
     },
     {
@@ -1617,6 +1648,7 @@
     {
       "url": "https://sportsbook.draftkings.com/event/kai-luca-ampaw-vs-james-weber/35032932",
       "state": "not found",
+      "disposition": "The original URL now returns a not-found page. Historical discovery and related public references remain indexed when available.",
       "publisher_references": [
         {
           "publisher": "International Tennis Federation",
@@ -1760,6 +1792,7 @@
     {
       "url": "https://sportsbook.draftkings.com/event/leone-crowley-vs-stuart-carrington/35032902",
       "state": "not found",
+      "disposition": "The original URL now returns a not-found page. Historical discovery and related public references remain indexed when available.",
       "publisher_references": [
         {
           "publisher": "World Snooker Tour",
@@ -1975,6 +2008,7 @@
     {
       "url": "https://sportsbook.draftkings.com/event/marek-volny-vs-petr-osvald/35028882",
       "state": "not found",
+      "disposition": "The original URL now returns a not-found page. Historical discovery and related public references remain indexed when available.",
       "historical_status": "no indexed candidate"
     },
     {
@@ -2100,6 +2134,7 @@
     {
       "url": "https://sportsbook.draftkings.com/event/martin-sychra-vs-marcel-pikous/35036394",
       "state": "not found",
+      "disposition": "The original URL now returns a not-found page. Historical discovery and related public references remain indexed when available.",
       "publisher_references": [
         {
           "publisher": "Liga Pro",
@@ -2135,6 +2170,7 @@
     {
       "url": "https://sportsbook.draftkings.com/event/matyas-kolek-vs-vojtech-kocian/35028862",
       "state": "not found",
+      "disposition": "The original URL now returns a not-found page. Historical discovery and related public references remain indexed when available.",
       "publisher_references": [
         {
           "publisher": "Liga Pro",
@@ -2194,6 +2230,7 @@
     {
       "url": "https://sportsbook.draftkings.com/event/michal-chalupa-vs-jakub-simecek/35036358",
       "state": "not found",
+      "disposition": "The original URL now returns a not-found page. Historical discovery and related public references remain indexed when available.",
       "publisher_references": [
         {
           "publisher": "Liga Pro",
@@ -2265,6 +2302,7 @@
     {
       "url": "https://sportsbook.draftkings.com/event/michal-vavrecka-vs-tibor-chmela/35036359",
       "state": "not found",
+      "disposition": "The original URL now returns a not-found page. Historical discovery and related public references remain indexed when available.",
       "publisher_references": [
         {
           "publisher": "Liga Pro",
@@ -2276,6 +2314,7 @@
     {
       "url": "https://sportsbook.draftkings.com/event/michal-zahradka-vs-jan-mecl-jr./35028835",
       "state": "not found",
+      "disposition": "The original URL now returns a not-found page. Historical discovery and related public references remain indexed when available.",
       "historical_status": "no indexed candidate"
     },
     {
@@ -2305,6 +2344,7 @@
     {
       "url": "https://sportsbook.draftkings.com/event/michal-zahradka-vs-richard-wagner/35036360",
       "state": "not found",
+      "disposition": "The original URL now returns a not-found page. Historical discovery and related public references remain indexed when available.",
       "publisher_references": [
         {
           "publisher": "Liga Pro",
@@ -2500,6 +2540,7 @@
     {
       "url": "https://sportsbook.draftkings.com/event/miroslav-barta-vs-tomas-kulhanek/35028849",
       "state": "not found",
+      "disposition": "The original URL now returns a not-found page. Historical discovery and related public references remain indexed when available.",
       "historical_status": "no indexed candidate"
     },
     {
@@ -2553,6 +2594,7 @@
     {
       "url": "https://sportsbook.draftkings.com/event/miroslaw-warzecha-vs-piotr-gesiarz/35031120",
       "state": "not found",
+      "disposition": "The original URL now returns a not-found page. Historical discovery and related public references remain indexed when available.",
       "historical_status": "no indexed candidate"
     },
     {
@@ -2737,7 +2779,8 @@
     },
     {
       "url": "https://sportsbook.draftkings.com/event/pavel-kulhanek-vs-vaclav-hruska-sr./35034828",
-      "state": "blocked"
+      "state": "blocked",
+      "disposition": "The public browser reached a redirect loop. Existing public discovery and related evidence remain indexed."
     },
     {
       "url": "https://sportsbook.draftkings.com/event/pavel-schneider-vs-michal-derco/35034860",
@@ -2826,6 +2869,7 @@
     {
       "url": "https://sportsbook.draftkings.com/event/pedro-rodrigues-longobardi-vs-felipe-moretti/35032817",
       "state": "not found",
+      "disposition": "The original URL now returns a not-found page. Historical discovery and related public references remain indexed when available.",
       "related_capture": "https://sportsbook.fanduel.com/tennis/itf-m25-lajeado-bra-q/pedro-rodrigues-longobardi-v-felipe-moretti-36326431",
       "publisher_references": [
         {
@@ -2922,6 +2966,7 @@
     {
       "url": "https://sportsbook.draftkings.com/event/piotr-strus-vs-marcin-kowalczyk/35031111",
       "state": "not found",
+      "disposition": "The original URL now returns a not-found page. Historical discovery and related public references remain indexed when available.",
       "historical_status": "no indexed candidate"
     },
     {
@@ -3503,6 +3548,7 @@
     {
       "url": "https://sportsbook.draftkings.com/event/tomas-janata-vs-petr-zmuda/35028870",
       "state": "not found",
+      "disposition": "The original URL now returns a not-found page. Historical discovery and related public references remain indexed when available.",
       "historical_status": "no indexed candidate"
     },
     {
@@ -3808,6 +3854,7 @@
     {
       "url": "https://sportsbook.fanduel.com/basketball/cyprus---league",
       "state": "partial",
+      "disposition": "The exact URL returned FanDuel's Page not found screen in the final rendered recheck. Historical partial evidence and related public references remain indexed.",
       "related_capture": "https://sportsbook.fanduel.com/basketball/cyprus---league/keravnos-strovolou-nicosia-v-ael-limassol-bc-36326848",
       "publisher_references": [
         {
@@ -3876,6 +3923,7 @@
     {
       "url": "https://sportsbook.fanduel.com/football/canadian-football-matches",
       "state": "not found",
+      "disposition": "The original URL now returns a not-found page. Historical discovery and related public references remain indexed when available.",
       "publisher_references": [
         {
           "publisher": "CFL",
@@ -3915,12 +3963,14 @@
     {
       "url": "https://sportsbook.fanduel.com/navigation/mlb?tab=awards",
       "state": "rendered redirect",
+      "disposition": "The operator redirects this exact URL. The redirect behavior is preserved and the public destination is indexed separately when available.",
       "related_capture": "https://sportsbook.fanduel.com/navigation/mlb",
       "historical_status": "no indexed candidate"
     },
     {
       "url": "https://sportsbook.fanduel.com/navigation/mlb?tab=league-winners",
       "state": "rendered redirect",
+      "disposition": "The operator redirects this exact URL. The redirect behavior is preserved and the public destination is indexed separately when available.",
       "related_capture": "https://sportsbook.fanduel.com/navigation/mlb",
       "historical_status": "historical shell or expected content unverified"
     },
@@ -4011,6 +4061,7 @@
     {
       "url": "https://sportsbook.fanduel.com/navigation/nba?tab=parlay-builder",
       "state": "rendered redirect",
+      "disposition": "The operator redirects this exact URL. The redirect behavior is preserved and the public destination is indexed separately when available.",
       "related_capture": "https://sportsbook.fanduel.com/navigation/nba",
       "historical_status": "historical shell or expected content unverified"
     },
@@ -4029,12 +4080,14 @@
     {
       "url": "https://sportsbook.fanduel.com/navigation/ncaab?tab=march-madness",
       "state": "rendered redirect",
+      "disposition": "The operator redirects this exact URL. The redirect behavior is preserved and the public destination is indexed separately when available.",
       "related_capture": "https://www.fanduel.com/research/ncaab/march-madness-odds-picks-predictions",
       "historical_status": "historical shell or expected content unverified"
     },
     {
       "url": "https://sportsbook.fanduel.com/navigation/ncaaf?tab=bowl-games",
       "state": "rendered redirect",
+      "disposition": "The operator redirects this exact URL. The redirect behavior is preserved and the public destination is indexed separately when available.",
       "related_capture": "https://www.fanduel.com/research/college-football-bowl-game-schedule-spreads-moneylines-and-totals-for-every-game",
       "historical_status": "historical shell or expected content unverified"
     },
@@ -4101,12 +4154,14 @@
     {
       "url": "https://sportsbook.fanduel.com/navigation/nfl?tab=games",
       "state": "rendered redirect",
+      "disposition": "The operator redirects this exact URL. The redirect behavior is preserved and the public destination is indexed separately when available.",
       "related_capture": "https://sportsbook.fanduel.com/navigation/nfl",
       "historical_status": "historical shell or expected content unverified"
     },
     {
       "url": "https://sportsbook.fanduel.com/navigation/nfl?tab=nfl-draft",
       "state": "rendered redirect",
+      "disposition": "The operator redirects this exact URL. The redirect behavior is preserved and the public destination is indexed separately when available.",
       "related_capture": "https://support.fanduel.com/s/article/NFL-Draft-with-FanDuel",
       "historical_status": "historical shell or expected content unverified"
     },
@@ -4257,6 +4312,7 @@
     {
       "url": "https://sportsbook.fanduel.com/navigation/pga?tab=the-masters",
       "state": "rendered redirect",
+      "disposition": "The operator redirects this exact URL. The redirect behavior is preserved and the public destination is indexed separately when available.",
       "related_capture": "https://www.fanduel.com/research/pga/the-masters-odds-predictions",
       "historical_status": "historical shell or expected content unverified"
     },
@@ -4299,6 +4355,7 @@
     {
       "url": "https://sportsbook.fanduel.com/soccer/australian-a-league-men",
       "state": "partial",
+      "disposition": "The exact URL returned FanDuel's Page not found screen in the final rendered recheck. Historical partial evidence and related public references remain indexed.",
       "related_capture": "https://sportsbook.fanduel.com/soccer/australian-a-league-men's",
       "publisher_references": [
         {
@@ -4695,6 +4752,7 @@
     {
       "url": "https://sportsbook.fanduel.com/soccer/german-frauen-bundesliga",
       "state": "partial",
+      "disposition": "The exact URL returned FanDuel's Page not found screen in the final rendered recheck. Historical partial evidence and related public references remain indexed.",
       "related_capture": "https://sportsbook.fanduel.com/soccer/german-frauen-bundesliga/vfb-stuttgart-(w)-v-leverkusen-(w)-36310826",
       "publisher_references": [
         {
@@ -4843,6 +4901,7 @@
     {
       "url": "https://sportsbook.fanduel.com/soccer/uefa-nations-league-c",
       "state": "not found",
+      "disposition": "The original URL now returns a not-found page. Historical discovery and related public references remain indexed when available.",
       "related_capture": "https://sportsbook.fanduel.com/soccer/uefa-nations-league-c/estonia-v-bulgaria-36319211",
       "publisher_references": [
         {
@@ -4927,6 +4986,7 @@
     {
       "url": "https://sportsbook.fanduel.com/tennis/itf-m15-santa-cruz-bol-q",
       "state": "not found",
+      "disposition": "The original URL now returns a not-found page. Historical discovery and related public references remain indexed when available.",
       "related_capture": "https://sportsbook.fanduel.com/tennis/itf-m15-santa-cruz-bol-q/ramiro-amarilla-v-cole-cozens-36326465",
       "publisher_references": [
         {
@@ -4951,6 +5011,7 @@
     {
       "url": "https://sportsbook.fanduel.com/tennis/itf-m25-lajeado-bra-q",
       "state": "partial",
+      "disposition": "The exact URL returned FanDuel's Page not found screen in the final rendered recheck. Historical partial evidence and related public references remain indexed.",
       "related_capture": "https://sportsbook.draftkings.com/leagues/tennis/m25-lajeado-qualifiers",
       "publisher_references": [
         {
@@ -5095,6 +5156,7 @@
     {
       "url": "https://support.draftkings.com/dk?id=kb_article_view&sysparm_article=KB0012240",
       "state": "rendered redirect",
+      "disposition": "The operator redirects this exact URL. The redirect behavior is preserved and the public destination is indexed separately when available.",
       "related_capture": "https://support.draftkings.com/dk/en-us/welcome-to-draftkings-sports-and-casino?id=kb_article_view&sysparm_article=KB0012240",
       "historical_status": "no indexed candidate"
     },
@@ -5113,11 +5175,13 @@
     {
       "url": "https://support.fanduel.com/s/article/undefined/article/What-is-Consumer-Protection-with-FanDuel-Predicts",
       "state": "not found",
+      "disposition": "The original URL now returns a not-found page. Historical discovery and related public references remain indexed when available.",
       "related_capture": "https://support.fanduel.com/s/article/What-is-Consumer-Protection-with-FanDuel-Predicts"
     },
     {
       "url": "https://support.fanduel.com/s/article/undefined/article/What-is-FanDuel-Responsible-Gaming",
       "state": "not found",
+      "disposition": "The original URL now returns a not-found page. Historical discovery and related public references remain indexed when available.",
       "related_capture": "https://support.fanduel.com/s/article/What-is-FanDuel-Responsible-Gaming"
     },
     {
@@ -5159,11 +5223,13 @@
     {
       "url": "https://support.fanduel.com/s/undefined/article/What-is-Consumer-Protection-with-FanDuel-Predicts",
       "state": "not found",
+      "disposition": "The original URL now returns a not-found page. Historical discovery and related public references remain indexed when available.",
       "related_capture": "https://support.fanduel.com/s/article/What-is-Consumer-Protection-with-FanDuel-Predicts"
     },
     {
       "url": "https://support.fanduel.com/s/undefined/article/What-is-FanDuel-Responsible-Gaming",
       "state": "not found",
+      "disposition": "The original URL now returns a not-found page. Historical discovery and related public references remain indexed when available.",
       "related_capture": "https://support.fanduel.com/s/article/What-is-FanDuel-Responsible-Gaming"
     },
     {
@@ -5193,6 +5259,7 @@
     {
       "url": "https://www.fanduel.com/live",
       "state": "shell",
+      "disposition": "The exact URL renders the operator shell without the requested page content.",
       "related_capture": "https://www.fanduel.com/rules",
       "historical_status": "historical shell or expected content unverified"
     },
@@ -5342,11 +5409,13 @@
     },
     {
       "url": "https://www.fanduel.com/research/[slug]",
-      "state": "page error"
+      "state": "page error",
+      "disposition": "Published template or error route has no concrete public page to archive."
     },
     {
       "url": "https://www.fanduel.com/research/[slug]/[sub]",
-      "state": "not found"
+      "state": "not found",
+      "disposition": "The original URL now returns a not-found page. Historical discovery and related public references remain indexed when available."
     },
     {
       "url": "https://www.fanduel.com/research/afc-west-odds-update-broncos-a-slim-favorite-over-the-chiefs",
@@ -6779,6 +6848,7 @@
     {
       "url": "https://www.fanduel.com/research/mma",
       "state": "rendered redirect",
+      "disposition": "The operator redirects this exact URL. The redirect behavior is preserved and the public destination is indexed separately when available.",
       "related_capture": "https://www.fanduel.com/research/ufc",
       "historical_status": "verified historical alternate-host article"
     },
@@ -8249,6 +8319,7 @@
     {
       "url": "https://www.fanduel.com/research/sports-betting-101",
       "state": "rendered redirect",
+      "disposition": "The operator redirects this exact URL. The redirect behavior is preserved and the public destination is indexed separately when available.",
       "related_capture": "https://www.fanduel.com/sports-betting-guide",
       "historical_status": "verified exact historical content"
     },
@@ -8723,6 +8794,7 @@
     {
       "url": "https://www.fanduel.com/sports-betting-guide/WORLD_CUP_PAGE_URL",
       "state": "not found",
+      "disposition": "The original URL now returns a not-found page. Historical discovery and related public references remain indexed when available.",
       "related_capture": "https://www.fanduel.com/research/soccer/world-cup",
       "historical_status": "no indexed candidate"
     },
@@ -8753,6 +8825,7 @@
     {
       "url": "https://www.fanduel.com/sports-betting-guide/what-is-parlay",
       "state": "not found",
+      "disposition": "The original URL now returns a not-found page. Historical discovery and related public references remain indexed when available.",
       "related_capture": "https://www.fanduel.com/sports-betting-guide/what-is-a-parlay-bet",
       "historical_status": "verified exact historical content"
     }

@@ -12,6 +12,8 @@ The original queue has **694 exact renders and 51 gaps**. All 694 exact captures
 
 The original Friends Mode league page and league-creation page now render at their exact URLs, replacing two shell-only captures. Their offline views preserve the public navigation, league options, sport selector, Name and Description controls, and first-party styling. The archived controls are inert. Both views passed content and stylesheet checks with 24 loaded stylesheets and zero network requests. The archive records exact renders separately from corrected URLs and publisher references.
 
+Every remaining original URL now has a terminal disposition in the route inventory. The 51 gaps comprise 25 removed pages, 16 operator redirects, four historical partial captures whose current URLs return Page not found, two shell-only routes, two excluded interactive casino launch routes, one redirect loop, and one published template error. These states are evidence about the current public web. Repeating the same crawl cannot turn removed or redirecting URLs into exact pages.
+
 ## How this informs the app
 
 | Reference | What to compare in COWBOY |
