@@ -132,6 +132,18 @@
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
+.cw-record-form {
+  border-top: 1px solid var(--edge);
+  margin-top: 12px;
+  padding-top: 10px;
+}
+.cw-record-form-heading { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; }
+.cw-record-form-heading h4 { margin: 0; }
+.cw-record-form-heading strong { color: var(--dim); }
+.cw-record-form ol { display: flex; flex-wrap: wrap; gap: 6px; list-style: none; margin: 8px 0 0; padding: 0; }
+.cowboy-live .cw-record-form button { min-width: 44px; min-height: 44px; font-weight: 700; }
+.cowboy-live .cw-record-form .won { color: #c2dfb1; background: #24301f; border-color: #48593d; }
+.cowboy-live .cw-record-form .lost { color: #fac1b5; background: #39221f; border-color: #694539; }
 .cw-history-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
 .cowboy-live .cw-history-tabs button { border-radius: 18px; min-height: 44px; }
 .cowboy-live .cw-history-tabs button[aria-pressed=true] { background: var(--paper); color: #211b17; }

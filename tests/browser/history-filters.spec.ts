@@ -2,6 +2,38 @@
 
 import { test, expect } from '@playwright/test';
 
+test('recent results and the current run use game order and respect record filters', async ({page}) => {
+  const base={league:'nba',selection:'Boston Celtics',side:'away',createdAt:'2026-11-09T00:00:00Z',settledAt:'2026-11-16T00:00:00Z'};
+  const tickets=[
+    {...base,id:'newer',eventId:'401000004',eventName:'Latest Boston game',startsAt:'2026-11-14T00:00:00Z',status:'won'},
+    {...base,id:'void',eventId:'401000005',eventName:'Voided Chicago game',startsAt:'2026-11-15T00:00:00Z',status:'void'},
+    {...base,id:'middle',eventId:'401000003',eventName:'Earlier Toronto game',startsAt:'2026-11-13T00:00:00Z',status:'won'},
+    {...base,id:'oldest',eventId:'401000001',eventName:'Older New York game',startsAt:'2026-11-11T00:00:00Z',status:'lost'},
+    {...base,id:'open',eventId:'401000006',eventName:'Open Miami game',startsAt:'2026-11-20T00:00:00Z',status:'open',settledAt:null},
+  ].reverse();
+  await page.setViewportSize({width:390,height:844});
+  await page.route('**/api/account',route=>route.fulfill({json:{user:{id:'form-user',username:'courtside'}}}));
+  await page.route('**/api/sports',route=>route.fulfill({json:{events:[],leagues:[],fetchedAt:base.settledAt,source:'ESPN',refreshAfterMs:15000,stale:false}}));
+  await page.route('**/api/picks',route=>route.fulfill({json:{tickets}}));
+  await page.route('**/api/sports/event?**',route=>route.fulfill({status:404,json:{error:'Unavailable'}}));
+  await page.goto('/picks');
+  const record = page.getByRole('region',{name:'Pick record',exact:true});
+  const results = record.getByRole('list',{name:'Recent results, newest game first'});
+  await expect(record.getByText('2 wins in a row')).toBeVisible();
+  await expect(results.getByRole('button')).toHaveText(['W','W','L']);
+  await expect(results.getByRole('button').first()).toHaveAccessibleName('Latest Boston game · Won');
+  await results.getByRole('button',{name:'Older New York game · Lost'}).click();
+  const dialog = page.getByRole('dialog',{name:'Game unavailable'});
+  await expect(dialog).toContainText('Older New York game');
+  await expect(page).toHaveURL(/\/picks\?game=401000001&league=nba$/);
+  await dialog.getByRole('button',{name:'Back to My picks'}).click();
+  await page.getByRole('searchbox',{name:'Search picks'}).fill('New York');
+  const filtered = page.getByRole('region',{name:'Filtered pick record'});
+  await expect(filtered.getByText('1 loss in a row')).toBeVisible();
+  await expect(filtered.getByRole('list',{name:'Recent results, newest game first'}).getByRole('button')).toHaveText(['L']);
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+});
+
 test('history filters open and settled picks without changing stored records', async ({ page }) => {
   const base={eventId:'401-filter',league:'nba',selection:'Boston Celtics',side:'away',startsAt:new Date(Date.now()+86400000).toISOString(),createdAt:new Date().toISOString(),settledAt:null};
   const tickets=[

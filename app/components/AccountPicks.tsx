@@ -277,6 +277,13 @@ export function PicksHistory({tickets,busy,error,onRefresh,onUpdate,user,onSignI
   }
   const decided = counts.won + counts.lost;
   const accuracy = decided ? new Intl.NumberFormat(undefined,{style:'percent',maximumFractionDigits:1}).format(counts.won / decided) : null;
+  const results = matching.filter(ticket=>(ticket.status==='won' || ticket.status==='lost') && Number.isFinite(Date.parse(ticket.startsAt)))
+    .sort((a,b)=>Date.parse(b.startsAt)-Date.parse(a.startsAt) ||
+      Date.parse(b.createdAt)-Date.parse(a.createdAt) || a.id.localeCompare(b.id));
+  const latest = results[0];
+  const streakEnd = latest ? results.findIndex(ticket=>ticket.status!==latest.status) : 0;
+  const streak = streakEnd === -1 ? results.length : streakEnd;
+  const outcome = latest?.status==='won' ? (streak===1?'win':'wins') : (streak===1?'loss':'losses');
   const filteredTickets = matching.filter(ticket => {
     if (filter === 'live') return livePick(ticket);
     if (filter === 'settled') return ticket.status !== 'open';
@@ -334,6 +341,18 @@ export function PicksHistory({tickets,busy,error,onRefresh,onUpdate,user,onSignI
         <div><dt>Accuracy</dt><dd>{accuracy ?? 'Pending'}</dd></div>
       </dl>
       <p>{decided ? `Based on ${decided} confirmed ${decided === 1 ? 'result' : 'results'}.` : 'Accuracy appears after your first confirmed win or loss.'}</p>
+      {latest && <div className="cw-record-form">
+        <div className="cw-record-form-heading"><h4>Recent results</h4>
+          <strong>{streak} {outcome} in a row</strong>
+        </div>
+        <ol role="list" aria-label="Recent results, newest game first">
+          {results.slice(0,5).map(ticket=><li key={ticket.id}>
+            <button type="button" className={ticket.status}
+              aria-label={`${ticket.eventName} · ${ticket.status==='won'?'Won':'Lost'}`}
+              onClick={()=>onGame(ticket,matchup(ticket))}>{ticket.status==='won'?'W':'L'}</button>
+          </li>)}
+        </ol>
+      </div>}
     </section>}
     {user && tickets.length > 0 && <div role="group" aria-label="Pick history filters" className="cw-history-tabs">
       {historyFilters.map(value => (
