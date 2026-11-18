@@ -1,11 +1,22 @@
 <div align="center">
   <img src="docs/screenshots/COWBOYMAIN.jpeg" alt="COWBOY Premium Suite of Products" width="100%">
+  <br/><br/>
   <h1>COWBOY</h1>
-  <p><strong>Premium suite of products</strong></p>
+  <p><strong>A bold, premium sports & entertainment experience · Real-time live scores, match tracking, and free picks.</strong></p>
   <p>
     <a href="https://github.com/e93byte/COWBOY/actions/workflows/ci.yml"><img src="https://github.com/e93byte/COWBOY/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI status"></a>
-    <img src="https://img.shields.io/badge/Next.js-16-black?logo=next.js" alt="Next.js 16">
-    <img src="https://img.shields.io/badge/TypeScript-ready-3178C6?logo=typescript&logoColor=white" alt="TypeScript">
+    <img src="https://img.shields.io/badge/Next.js-16.4-black?logo=next.js&logoColor=white" alt="Next.js 16">
+    <img src="https://img.shields.io/badge/TypeScript-5.9-3178C6?logo=typescript&logoColor=white" alt="TypeScript">
+    <img src="https://img.shields.io/badge/Playwright-66%20passed-2EAD33?logo=playwright&logoColor=white" alt="Playwright E2E Tests">
+    <img src="https://img.shields.io/badge/Free--to--Play-No%20Cash%20%7C%20No%20Prizes-e08e45" alt="Free to Play">
+  </p>
+  <p>
+    <a href="#what-cowboy-stands-for">Brand Vision</a> •
+    <a href="#cowboy-in-action">Product Showcase</a> •
+    <a href="#key-features">Key Features</a> •
+    <a href="#try-cowboy-locally">Quick Start</a> •
+    <a href="#useful-commands">Commands</a> •
+    <a href="#project-map">Architecture</a>
   </p>
 </div>
 
@@ -13,12 +24,12 @@
 
 ## What COWBOY stands for
 
-COWBOY is a bold, premium sports-and-entertainment brand. The long-term product vision brings several experiences together under one recognizable identity, with a polished experience and the COWBOY mascot at the center.
+COWBOY is a bold, premium sports-and-entertainment brand. The long-term product vision unites multiple entertainment verticals under one recognizable identity, with a cohesive design system and the COWBOY mascot at the center.
 
-This repository currently delivers the COWBOY sports experience: live sports scores, schedule browsing, and free picks. Picks have no stakes, payouts, or prizes. The sections below describe the broader COWBOY ecosystem as a brand vision and product direction—not features currently implemented in this repo.
+This repository delivers the **COWBOY Sports** experience: live scores, schedule browsing, matchup details, watchlists, and free picks. Picks have **no stakes, payouts, or prizes**.
 
-| Product area | Purpose | Status |
-| --- | --- | --- |
+| Product Vertical | Experience | Status |
+| :--- | :--- | :--- |
 | **COWBOY Sports** | Live scores, match tracking, matchup details, watchlists, and free picks. | **Available in this repo** |
 | **COWBOY Live TV & Sports** | Streaming, sports broadcasting, and live event viewing. | Vision only |
 | **COWBOY Casino** | Entertainment and table-game experiences. | Vision only |
@@ -30,16 +41,32 @@ This repository currently delivers the COWBOY sports experience: live sports sco
   <img src="docs/screenshots/cowboy-ecosystem.jpeg" alt="COWBOY Realtime Entertainment Ecosystem" width="100%">
 </p>
 
-> The artwork above represents the brand-concept vision for the broader entertainment ecosystem. This repository focuses strictly on the sports board, live score updates, game details, and free picks; it does not include streaming, casino, paid gaming, or wagering features.
+> [!NOTE]
+> The concept artworks above illustrate the wider brand vision. This repository focuses strictly on the sports board, live score updates, game details, and free picks; it does not include streaming, casino, paid gaming, or wagering features.
+
+---
 
 ## COWBOY in action
 
-The screenshots below highlight the sports experience that is actually available in this repository: real live scores, matchup tracking, period-by-period progression, and draft free picks.
+The screenshots below highlight the sports experience currently running in this repository: real multi-league schedules, in-game period breakdowns, team rosters, and free draft picks.
 
 <p align="center">
   <img src="docs/screenshots/sports-board.jpeg" alt="COWBOY sports board with schedules and filters" width="49%">
   <img src="docs/screenshots/game-details.jpeg" alt="COWBOY game details and score breakdown" width="49%">
 </p>
+
+---
+
+## Key features
+
+- ⚡ **Multi-League Live Scoreboard:** Track NFL, NBA, WNBA, MLB, NHL, NCAA Football & Basketball, Premier League, UEFA Champions League, UFC, and ATP/WTA Tennis with automatic live polling.
+- 🎯 **Free Five-Pick Draft:** Pure prediction tracking without stakes, cash prizes, or wagering fees. Results lock at scheduled kickoff and grade authoritatively when final scores post.
+- 🛡️ **Responsible Play Controls:** Built-in daily pick limits, optional cooling-off pauses, and browser-level self-exclusion.
+- 🔁 **One-Tap "Pick Again":** Quick re-selection workflow on eligible settled, postponed, or cancelled fixtures.
+- 📱 **Mobile & Tablet Optimized:** Responsive touch-first UI engineered and tested for 390px mobile screens and tablet viewports without horizontal clipping.
+- 🔄 **Fault-Tolerant Score Router:** Multi-tier fallback architecture that gracefully degrades to secondary scoreboards and cached slates during upstream provider delays.
+
+---
 
 ## Try COWBOY locally
 
