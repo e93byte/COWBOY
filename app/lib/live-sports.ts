@@ -1041,6 +1041,9 @@ export function createLiveSportsClient(options: ClientOptions = {}) {
 
   let activeRequests = 0;
   const requestQueue: (() => void)[] = [];
+  // A board refresh may fan out across many leagues. Keep the fan-out bounded,
+  // but never let a queued request permanently occupy a slot after it starts.
+  const BOARD_REFRESH_TIMEOUT_MS = 12_000;
 
   async function request(path: string, allowMissing = false): Promise<unknown> {
     return requestJson(`https://site.api.espn.com/apis/site/v2/sports/${path}`, 'ESPN', allowMissing);
@@ -1049,7 +1052,7 @@ export function createLiveSportsClient(options: ClientOptions = {}) {
   async function requestJson(url: string, provider: 'ESPN' | 'NHL' | 'MLB', allowMissing = false): Promise<unknown> {
     if (requestQueue.length >= 64) throw new LiveSportsError('Sports request queue is full; retry shortly', 503);
     if (activeRequests >= 4) await new Promise<void>(resolve => requestQueue.push(resolve));
-    else activeRequests++;
+    activeRequests++;
     let response: Response | undefined;
     const timeoutMs = options.timeoutMs ?? (allowMissing ? 3_500 : 2_500);
     const controller = new AbortController();
@@ -1087,9 +1090,8 @@ export function createLiveSportsClient(options: ClientOptions = {}) {
       clearTimeout(timeout);
       // HTTP failures, missing records and HTML walls still own an unread response body.
       if (response?.body && !response.bodyUsed) await response.body.cancel().catch(() => undefined);
-      const next = requestQueue.shift();
-      if (next) next();
-      else activeRequests--;
+      activeRequests--;
+      requestQueue.shift()?.();
     }
   }
 
@@ -1196,20 +1198,41 @@ export function createLiveSportsClient(options: ClientOptions = {}) {
     }));
     const leagues = target ? [target] : [...active, ...(!liveOnly ? due.filter(league => !active.has(league)) : [])];
     let index = 0;
-    await Promise.all(Array.from({length: Math.min(4, leagues.length)}, async () => {
+    const workers = Promise.all(Array.from({length: Math.min(4, leagues.length)}, async () => {
       while (index < leagues.length) await loadLeague(leagues[index++]);
     }));
+    // Do not hold the API request open while one provider or queue entry stalls.
+    // In-flight league loads are coalesced and may finish in the background.
+    let timedOut = false;
+    const timeout = new Promise<void>(resolve => setTimeout(() => { timedOut = true; resolve(); }, BOARD_REFRESH_TIMEOUT_MS));
+    await Promise.race([workers, timeout]);
+    const deadline = now();
+    for (const config of LIVE_LEAGUES) {
+      if (!leagueResults.has(config.id)) {
+        leagueDueAt.set(config.id, deadline + SCORE_RETRY_MS);
+        leagueResults.set(config.id, {
+          events: [],
+          league: {
+            id: config.id,
+            name: config.name,
+            sport: config.sport,
+            status: 'error',
+            error: 'Score feed refresh deadline exceeded',
+          },
+        });
+      }
+    }
     const results = LIVE_LEAGUES.map(config => leagueResults.get(config.id)!);
     const timestamps = results.flatMap(({league}) => league.status !== 'error' && league.lastSuccessAt
       ? [Date.parse(league.lastSuccessAt)] : []);
-    const expires = Math.min(...leagueDueAt.values());
+    const expires = Math.min(...LIVE_LEAGUES.map(config => leagueDueAt.get(config.id) ?? deadline + SCORE_RETRY_MS));
     const board: LiveBoard = {
       events: results.flatMap(result => result.events), leagues: results.map(result => result.league),
       golf: results.flatMap(result => result.golf ?? []),
       fetchedAt: new Date(Math.min(now(), ...timestamps)).toISOString(),
       source: 'ESPN',
       refreshAfterMs: Math.min(SCHEDULE_REFRESH_MS, Math.max(1_000, expires - now())),
-      stale: results.some(result => result.league.status === 'stale'),
+      stale: timedOut || results.some(result => result.league.status !== 'ok'),
     };
     boardCache = { value: board, expires };
     return board;
@@ -1226,7 +1249,9 @@ export function createLiveSportsClient(options: ClientOptions = {}) {
     }
     const copy = structuredClone(boardCache!.value);
     copy.refreshAfterMs = Math.min(SCHEDULE_REFRESH_MS, Math.max(1_000, boardCache!.expires - now()));
-    if (copy.leagues.every(item => item.status === 'error')) throw new LiveSportsError('ESPN scoreboards unavailable', 502, copy);
+    if (copy.leagues.every(item => item.status === 'error')) {
+      throw new LiveSportsError('ESPN scoreboards unavailable', 502, copy);
+    }
     return copy;
   }
 

@@ -173,7 +173,8 @@ function useLiveBoard() {
   const [busy,setBusy]=useState(true);
   const refresh=useRef<(league?: string)=>void>(()=>{});
   useEffect(()=>{
-    let disposed=false, running=false, timer:ReturnType<typeof setTimeout>|undefined, controller:AbortController|undefined;
+    let disposed=false, running=false, requestTimedOut=false, timer:ReturnType<typeof setTimeout>|undefined, requestTimer:ReturnType<typeof setTimeout>|undefined, controller:AbortController|undefined;
+    const CLIENT_REQUEST_TIMEOUT_MS = 15_000;
     let delay=LIVE_SCORE_REFRESH_MS;
     let lastFullRefresh = 0;
     let lastBoard: LiveBoard | undefined;
@@ -186,6 +187,8 @@ function useLiveBoard() {
       running=true;
       setBusy(true);
       controller=new AbortController();
+      requestTimedOut=false;
+      requestTimer=setTimeout(()=>{requestTimedOut=true;controller?.abort();}, CLIENT_REQUEST_TIMEOUT_MS);
       try {
         const url = league ? `/api/sports?${new URLSearchParams({league})}` : '/api/sports';
         const res=await fetch(url,{signal:controller.signal,cache:'no-store',
@@ -201,12 +204,16 @@ function useLiveBoard() {
           delay = Math.max(1000, data.refreshAfterMs || SCHEDULE_REFRESH_MS);
           if (focused) delay = Math.min(delay, Math.max(1000, lastFullRefresh + SCHEDULE_REFRESH_MS - Date.now()));
         }
-      }catch(e){if(!disposed && (e as Error).name!=='AbortError')setError((e as Error).message);}
-      finally {running=false;if(!disposed){setBusy(false);if(!document.hidden)timer=setTimeout(() => void load(),delay);}}
+      }catch(e){
+        if(!disposed && ((e as Error).name!=='AbortError' || requestTimedOut)) {
+          setError(requestTimedOut ? 'Score feed timed out. Showing the last received scores; retrying automatically.' : (e as Error).message);
+        }
+      }
+      finally {clearTimeout(requestTimer);requestTimer=undefined;running=false;if(!disposed){setBusy(false);if(!document.hidden)timer=setTimeout(() => void load(),delay);}}
     };
     const visibility=()=>{clearTimeout(timer);if(document.hidden)controller?.abort();else void load(undefined,true);};
     refresh.current=(league)=>void load(league,true);document.addEventListener('visibilitychange',visibility);void load();
-    return()=>{disposed=true;clearTimeout(timer);controller?.abort();document.removeEventListener('visibilitychange',visibility);};
+    return()=>{disposed=true;clearTimeout(timer);clearTimeout(requestTimer);controller?.abort();document.removeEventListener('visibilitychange',visibility);};
   },[]);
   return {board,error,busy,refresh:()=>refresh.current(),refreshLeague:(league:string)=>refresh.current(league)};
 }
