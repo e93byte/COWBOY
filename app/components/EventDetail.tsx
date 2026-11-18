@@ -668,7 +668,7 @@ export function EventDetail({games, onGame, onClose, ...props}: Props & {
       {nearby.map(game => (
         <button key={game.id} aria-label={game.name} aria-current={game.id === event.id ? 'true' : undefined}
           onClick={() => { if (game.id !== event.id) onGame(game); }}>
-          <strong>{game.away.shortName || game.away.name} · {game.home.shortName || game.home.name}</strong>
+          <strong><SportIcon sport={game.sport}/>{game.away.shortName || game.away.name} · {game.home.shortName || game.home.name}</strong>
           <span>{game.status === 'scheduled'
             ? <time dateTime={game.startsAt}>{scheduleTime(game.startsAt,zone)}</time>
             : game.statusText}</span>

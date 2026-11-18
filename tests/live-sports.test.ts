@@ -2,11 +2,26 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import * as live from '../app/lib/live-sports';
+import { CircuitBreaker } from '../app/lib/circuit-breaker';
 
 const baseFixtures = JSON.parse(readFileSync(new URL('./fixtures/live-sports/scoreboards.json', import.meta.url), 'utf8'));
 const expandedFixtures = JSON.parse(readFileSync(new URL('./fixtures/live-sports/expanded-scoreboards.json', import.meta.url), 'utf8'));
 const fixtures = { ...baseFixtures, ...expandedFixtures };
 const summaries = JSON.parse(readFileSync(new URL('./fixtures/live-sports/summaries.json', import.meta.url), 'utf8'));
+
+test('provider circuit breaker opens after repeated failures and permits one half-open probe', () => {
+  let clock = 1_000;
+  const breaker = new CircuitBreaker({ failureThreshold: 2, cooldownMs: 100, now: () => clock });
+  assert.equal(breaker.allow('ESPN:scoreboard:nfl'), true);
+  breaker.failure('ESPN:scoreboard:nfl');
+  breaker.failure('ESPN:scoreboard:nfl');
+  assert.equal(breaker.allow('ESPN:scoreboard:nfl'), false);
+  clock += 100;
+  assert.equal(breaker.allow('ESPN:scoreboard:nfl'), true);
+  assert.equal(breaker.allow('ESPN:scoreboard:nfl'), false);
+  breaker.success('ESPN:scoreboard:nfl');
+  assert.equal(breaker.allow('ESPN:scoreboard:nfl'), true);
+});
 
 test('GET /api/sports serves the normalized board without inventing a golf matchup', async () => {
   const original = globalThis.fetch;
@@ -830,6 +845,33 @@ test('a rate-limited league backs off automatic checks and manual retries', asyn
   assert.equal(requests,2);
   assert.equal(board.leagues.find(league=>league.id==='nfl')?.status,'ok');
 });
+test('a failed ESPN scoreboard opens a per-league circuit and skips the next probe window', async () => {
+  let clock = 10_000;
+  let nflRequests = 0;
+  const client = live.createLiveSportsClient({ now: () => clock, fetch: async input => {
+    const url = String(input);
+    if (url.includes('/football/nfl/')) {
+      nflRequests++;
+      return new Response('unavailable', { status: 503 });
+    }
+    const config = live.LIVE_LEAGUES.find(league => url.includes(league.path));
+    return Response.json(config ? fixtures[config.id] : { events: [] });
+  } });
+  await client.getLiveBoard('nfl');
+  for (let attempt = 0; attempt < 2; attempt++) {
+    clock += 5_001;
+    await client.getLiveBoard('nfl');
+  }
+  assert.equal(nflRequests, 3);
+  clock += 5_001;
+  const skipped = await client.getLiveBoard('nfl');
+  assert.equal(nflRequests, 3);
+  assert.match(skipped.leagues.find(league => league.id === 'nfl')!.error!, /circuit is open/);
+  clock += 30_000;
+  await client.getLiveBoard('nfl');
+  assert.equal(nflRequests, 4, 'cooldown permits one half-open provider probe');
+});
+
 test('outbound concurrency is shared between board and concurrent event requests', async () => {
   let active = 0;
   let maximum = 0;

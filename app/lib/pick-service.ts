@@ -21,11 +21,19 @@ export type RealPickTicket = {
   status: "open" | "won" | "lost" | "void" | "cancelled";
   settledAt: string | null;
   changes?: PickChange[];
+  /** Present for a multi-game free-picks entry; legacy tickets omit it. */
+  entryId?: string;
+  entryIndex?: number;
+  entrySize?: number;
 };
 export type EventGetter = (league: string, id: string) => Promise<LiveEvent | null>;
 export function publicTicket(ticket: StoredPick): RealPickTicket {
-  const { id, eventId, league, eventName, selection, side, startsAt, createdAt, status, settledAt, changes } = ticket;
-  return { id, eventId, league, eventName, selection, side, startsAt, createdAt, status, settledAt, ...(changes ? {changes} : {}) };
+  const { id, eventId, league, eventName, selection, side, startsAt, createdAt, status, settledAt, changes, entryId, entryIndex, entrySize } = ticket;
+  return {
+    id, eventId, league, eventName, selection, side, startsAt, createdAt, status, settledAt,
+    ...(changes ? {changes} : {}),
+    ...(entryId ? {entryId, entryIndex, entrySize} : {}),
+  };
 }
 
 type PickInput = { eventId: string; league: string; side: PickSide; requestId: string };
@@ -191,6 +199,7 @@ export class PickService {
           ticket.eventId === pick.eventId && (ticket.changes?.[0]?.side ?? ticket.side) === pick.side));
         if (previous.every(ticket => ticket !== undefined)) return previous.map(publicTicket);
       }
+      const entryId = picks.length > 1 ? randomUUID() : undefined;
       const tickets: StoredPick[] = picks.map(({eventId, league, side, requestId}, index) => {
         const event = events[index];
         assertScheduled(event, now);
@@ -204,6 +213,7 @@ export class PickService {
           id: randomUUID(), eventId, league, eventName: event.name, selection: pickName(event, side), side,
           startsAt: event.startsAt, createdAt: new Date(now).toISOString(), status: "open", settledAt: null,
           userId: user.id, requestId, homeId: event.home.id, awayId: event.away.id,
+          ...(entryId ? {entryId, entryIndex: index, entrySize: picks.length} : {}),
         };
       });
       data.tickets.push(...tickets);

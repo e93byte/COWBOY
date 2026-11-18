@@ -1,7 +1,7 @@
 'use client';
 import { useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import type { LiveEvent } from './LiveWorkspace';
-import {ActionIcon, CloseIcon, TabIcon} from './SportIcon';
+import {ActionIcon, CloseIcon, SportIcon, TabIcon} from './SportIcon';
 
 export type User = {id:string;username:string};
 import type { RealPickTicket as Ticket } from '../lib/pick-service';
@@ -13,6 +13,7 @@ import { matchesSearchText } from './BoardSearch';
 export type { RealPickTicket as Ticket } from '../lib/pick-service';
 export type Selection = {
   event: Pick<LiveEvent, 'id' | 'league' | 'leagueName' | 'name' | 'startsAt'> & {
+    sport?: LiveEvent['sport'];
     home: Pick<LiveEvent['home'], 'name' | 'shortName'>;
     away: Pick<LiveEvent['away'], 'name' | 'shortName'>;
   };
@@ -22,11 +23,36 @@ export type Selection = {
 function canPick(event: LiveEvent, now: number) {
   return event.status === 'scheduled' && Date.parse(event.startsAt) > now;
 }
-export async function api<T>(url:string, options?:RequestInit):Promise<T> {
-  const res=await fetch(url,{cache:'no-store',...options,headers:{'Content-Type':'application/json',...options?.headers}});
-  const data=await res.json();
-  if(!res.ok)throw new Error(data.message||'The request could not be completed. Try again.');
-  return data;
+export const CLIENT_API_TIMEOUT_MS = 12_000;
+
+/**
+ * All authenticated/detail requests share one bounded lifecycle. A stalled
+ * account or Game Center request must never leave a premium surface spinning
+ * forever, while a caller-provided signal still wins during unmount/navigation.
+ */
+export async function api<T>(url:string, options?:RequestInit, timeoutMs = CLIENT_API_TIMEOUT_MS):Promise<T> {
+  const controller = new AbortController();
+  const parentSignal = options?.signal;
+  let timedOut = false;
+  const abortFromParent = () => controller.abort(parentSignal?.reason);
+  if (parentSignal?.aborted) abortFromParent();
+  else parentSignal?.addEventListener('abort', abortFromParent, {once:true});
+  const timer = setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, timeoutMs);
+  try {
+    const res=await fetch(url,{cache:'no-store',...options,signal:controller.signal,headers:{'Content-Type':'application/json',...options?.headers}});
+    const data=await res.json();
+    if(!res.ok)throw new Error(data.message||'The request could not be completed. Try again.');
+    return data;
+  } catch (error) {
+    if (timedOut) throw new Error('This data request timed out. Showing the last available information; try again shortly.');
+    throw error;
+  } finally {
+    clearTimeout(timer);
+    parentSignal?.removeEventListener('abort', abortFromParent);
+  }
 }
 export function Modal({title,onClose,children,locked=false,className}:{title:string;onClose:()=>void;children:ReactNode;locked?:boolean;className?:string}){
   const ref=useRef<HTMLDialogElement>(null);
@@ -239,6 +265,32 @@ const historySorts = [
 
 const historyFilters = ['all', 'open', 'live', 'settled', 'won', 'lost', 'void', 'cancelled'] as const;
 
+type TicketGroup = {key:string; tickets:Ticket[]};
+function groupTickets(tickets: Ticket[]): TicketGroup[] {
+  const groups = new Map<string, TicketGroup>();
+  for (const ticket of tickets) {
+    const key = ticket.entryId ?? ticket.id;
+    const group = groups.get(key);
+    if (group) group.tickets.push(ticket);
+    else groups.set(key, {key, tickets:[ticket]});
+  }
+  return [...groups.values()];
+}
+function groupStatus(tickets: Ticket[]) {
+  const statuses = new Set(tickets.map(ticket=>ticket.status));
+  if (statuses.size === 1) return tickets[0].status;
+  if (statuses.has('open')) return 'open';
+  if (statuses.has('won') && statuses.has('lost')) return 'mixed';
+  if (statuses.has('won')) return 'won';
+  if (statuses.has('lost')) return 'lost';
+  if (statuses.has('void')) return 'void';
+  return 'cancelled';
+}
+function groupStatusLabel(status: ReturnType<typeof groupStatus>, tickets: Ticket[]) {
+  if (status === 'mixed') return `${tickets.filter(ticket=>ticket.status==='won').length} won · ${tickets.filter(ticket=>ticket.status==='lost').length} lost`;
+  return status[0].toUpperCase()+status.slice(1);
+}
+
 export function PicksHistory({tickets,busy,error,onRefresh,onUpdate,user,onSignIn,events,onGame,onRebet,onBrowse,feedCurrent}:{tickets:Ticket[];busy:boolean;error:string;onRefresh:()=>void;onUpdate:(ticket: Ticket)=>void;user:User|null;onSignIn:()=>void;events:LiveEvent[];onGame:(ticket:Ticket,event?:LiveEvent)=>void;onRebet:(ticket:Ticket,event:LiveEvent)=>void;onBrowse:()=>void;feedCurrent:boolean}){
   const zone = useContext(ScheduleTimeZone);
   const [cancelling,setCancelling]=useState<Ticket|null>(null);
@@ -297,6 +349,7 @@ export function PicksHistory({tickets,busy,error,onRefresh,onUpdate,user,onSignI
     if (Number.isNaN(left) || Number.isNaN(right)) return Number(Number.isNaN(left)) - Number(Number.isNaN(right));
     return sort.direction * (left - right);
   });
+  const groupedTickets = groupTickets(filteredTickets);
   const cancel=async()=>{
     if(!cancelling||cancelPending)return;
     setCancelPending(true);setCancelError('');
@@ -372,46 +425,58 @@ export function PicksHistory({tickets,busy,error,onRefresh,onUpdate,user,onSignI
         {filteredTickets.length===0 && <div className="cw-empty" role="status">
           <h3>{filter==='live'&&!feedCurrent?'Live pick updates unavailable':searchActive?'No picks match these filters.':`No ${filter} picks yet.`}</h3>
         </div>}
-        {filteredTickets.map(ticket => {
-          const event = matchup(ticket);
-          const beforeStart = ticket.status === 'open' && Date.parse(ticket.startsAt) > Date.now();
-          const displayField = sort.field;
-          const displayDate = ticket[displayField];
-          const resultLabel = ticket.status === 'cancelled' ? 'Cancelled' : 'Confirmed';
-          const dateLabel = displayField === 'startsAt' ? 'Event' : displayField === 'createdAt'
-            ? 'Entered' : resultLabel;
-          return <article className="cw-ticket cw-tracker-card" key={ticket.id}>
+        {groupedTickets.map(group => {
+          const status = groupStatus(group.tickets);
+          const multiLeg = group.tickets.length > 1;
+          const firstTicket = group.tickets[0];
+          const firstEvent = matchup(firstTicket);
+          return <article className={`cw-ticket cw-tracker-card ${multiLeg ? 'cw-entry-card' : ''}`} key={group.key}>
             <header>
-              <span>{event?.leagueName || ticket.league.toUpperCase()} · {ticket.side==='draw'?'Free draw pick':'Free winner pick'}</span>
-              <span className={`cw-ticket-status ${ticket.status}`}>{ticket.status[0].toUpperCase()+ticket.status.slice(1)}</span>
+              <span><SportIcon sport={firstEvent?.sport ?? 'all'}/>{multiLeg ? `Free-picks entry · ${group.tickets.length} legs` : (firstEvent?.leagueName || firstTicket.league.toUpperCase()) + ' · ' + (firstTicket.side==='draw'?'Free draw pick':'Free winner pick')}</span>
+              <span className={`cw-ticket-status ${status}`}>{groupStatusLabel(status,group.tickets)}</span>
             </header>
-            <div className="cw-tracker-matchup">
-              <h3>{ticket.eventName}</h3>
-              {feedCurrent&&event?.status==='live'&&<p className="cw-live-label">
-                {event.statusText}{event.away.score!==null&&event.home.score!==null&&` · ${event.away.shortName} ${event.away.score}–${event.home.score} ${event.home.shortName}`}
-              </p>}
-              <p>Your pick: <strong>{ticket.selection}</strong></p>
-              {!!ticket.changes?.length && <details className="cw-pick-changes">
-                <summary>Change history ({ticket.changes.length})</summary>
-                <ol>{ticket.changes.map((change,index) => (
-                  <li key={index}>Previously {change.selection} · <time dateTime={change.changedAt}>{new Date(change.changedAt).toLocaleString()}</time></li>
-                ))}</ol>
-              </details>}
+            {multiLeg && <p className="cw-entry-summary">Each leg settles independently. This entry’s result updates as source-confirmed results arrive.</p>}
+            <div className="cw-entry-legs">
+            {group.tickets.map((ticket, legIndex) => {
+              const event = matchup(ticket);
+              const beforeStart = ticket.status === 'open' && Date.parse(ticket.startsAt) > Date.now();
+              const displayField = sort.field;
+              const displayDate = ticket[displayField];
+              const resultLabel = ticket.status === 'cancelled' ? 'Cancelled' : 'Confirmed';
+              const dateLabel = displayField === 'startsAt' ? 'Event' : displayField === 'createdAt'
+                ? 'Entered' : resultLabel;
+              return <div className={`cw-entry-leg ${multiLeg ? 'cw-entry-leg-bordered' : ''}`} key={ticket.id}>
+                {multiLeg && <div className="cw-entry-leg-label">Leg {(ticket.entryIndex ?? legIndex) + 1} of {ticket.entrySize ?? group.tickets.length}</div>}
+                <div className="cw-tracker-matchup">
+                  <h3>{ticket.eventName}</h3>
+                  {feedCurrent&&event?.status==='live'&&<p className="cw-live-label">
+                    {event.statusText}{event.away.score!==null&&event.home.score!==null&&` · ${event.away.shortName} ${event.away.score}–${event.home.score} ${event.home.shortName}`}
+                  </p>}
+                  <p>Your pick: <strong>{ticket.selection}</strong></p>
+                  {!!ticket.changes?.length && <details className="cw-pick-changes">
+                    <summary>Change history ({ticket.changes.length})</summary>
+                    <ol>{ticket.changes.map((change,index) => (
+                      <li key={index}>Previously {change.selection} · <time dateTime={change.changedAt}>{new Date(change.changedAt).toLocaleString()}</time></li>
+                    ))}</ol>
+                  </details>}
+                </div>
+                <footer>
+                  <small className="cw-history-times">
+                    <span>{displayDate && Number.isFinite(Date.parse(displayDate)) ? <>{dateLabel} <time dateTime={displayDate}>{scheduleTime(displayDate,zone)}</time></> : 'Date unavailable'}</span>
+                    {displayField!=='settledAt' && ticket.settledAt && <span>{resultLabel} <time dateTime={ticket.settledAt}>{scheduleTime(ticket.settledAt,zone)}</time></span>}
+                  </small>
+                  <div className="cw-tracker-actions">
+                    <button onClick={()=>onGame(ticket,event)}>Game center</button>
+                    {event && (ticket.status==='won' || ticket.status==='lost' || ticket.status==='cancelled' || ticket.status==='void') && canPick(event, Date.now()) &&
+                      <button onClick={()=>onRebet(ticket,event)}>Pick again</button>}
+                    {beforeStart && feedCurrent && event?.status === 'scheduled' && Date.parse(event.startsAt) > Date.now() &&
+                      <button disabled={busy} onClick={()=>setEditing({ticket,event})}>Edit pick</button>}
+                    {beforeStart && <button className="cw-clear" aria-label={`Cancel pick: ${ticket.selection}`} disabled={busy} onClick={()=>{setCancelError('');setCancelling(ticket);}}>Cancel pick</button>}
+                  </div>
+                </footer>
+              </div>;
+            })}
             </div>
-            <footer>
-              <small className="cw-history-times">
-                <span>{displayDate && Number.isFinite(Date.parse(displayDate)) ? <>{dateLabel} <time dateTime={displayDate}>{scheduleTime(displayDate,zone)}</time></> : 'Date unavailable'}</span>
-                {displayField!=='settledAt' && ticket.settledAt && <span>{resultLabel} <time dateTime={ticket.settledAt}>{scheduleTime(ticket.settledAt,zone)}</time></span>}
-              </small>
-              <div className="cw-tracker-actions">
-                <button onClick={()=>onGame(ticket,event)}>Game center</button>
-                {event && (ticket.status==='won' || ticket.status==='lost' || ticket.status==='cancelled' || ticket.status==='void') && canPick(event, Date.now()) &&
-                  <button onClick={()=>onRebet(ticket,event)}>Pick again</button>}
-                {beforeStart && feedCurrent && event?.status === 'scheduled' && Date.parse(event.startsAt) > Date.now() &&
-                  <button disabled={busy} onClick={()=>setEditing({ticket,event})}>Edit pick</button>}
-                {beforeStart && <button className="cw-clear" aria-label={`Cancel pick: ${ticket.selection}`} disabled={busy} onClick={()=>{setCancelError('');setCancelling(ticket);}}>Cancel pick</button>}
-              </div>
-            </footer>
           </article>;
         })}
       </div>}
@@ -438,7 +503,7 @@ export function PickPanel({selections,user,disabled,pending,draftEvents,onChoose
         const key = `${event.league}:${event.id}`;
         const current = draftEvents.get(key);
         return <div className="cw-draft-pick" key={key}>
-          <span className="cw-kicker">{event.leagueName} · {supportsDrawPick(event.league)?'FULL-TIME RESULT':'MATCH WINNER'}</span>
+          <span className="cw-kicker"><SportIcon sport={event.sport ?? 'all'}/>{event.leagueName} · {supportsDrawPick(event.league)?'FULL-TIME RESULT':'MATCH WINNER'}</span>
           <h3>{event.name}</h3>
           <div className="cw-draft-options" role="group" aria-label={`Selection for ${event.name}`}>
             {pickSides(event.league).map(option => (

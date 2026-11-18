@@ -573,7 +573,39 @@ test("multi-game review commits together, rejects a locked game and safely repla
     assert.deepEqual((await replay.json()).tickets,tickets);
     assert.equal((await service.list(token)).length,2);
   });
-});
+  });
+
+  test("multi-game batches receive one durable entry identity while legacy single picks remain unchanged", async () => {
+   await fixture(async (store, directory) => {
+     const {token}=await store.register("EntryRider", password);
+     const first=event({id:"401234571",name:"Away One at Home One"});
+     const second=event({id:"401234572",name:"Away Two at Home Two"});
+     const service=new PickService({store,getEvent:async (_league,id)=>id===first.id?first:id===second.id?second:null,now:()=>eventTime});
+     const picks=[pick({eventId:first.id,requestId:"entry-one"}),pick({eventId:second.id,side:"away",requestId:"entry-two"})];
+     const saved=await service.submitBatch(token,picks);
+     assert.equal(saved.length,2);
+     assert.ok(saved[0].entryId);
+     assert.equal(saved[0].entryId,saved[1].entryId);
+     assert.deepEqual(saved.map(ticket=>ticket.entryIndex),[0,1]);
+     assert.deepEqual(saved.map(ticket=>ticket.entrySize),[2,2]);
+     const replay=await service.submitBatch(token,picks);
+     assert.deepEqual(replay,saved);
+     const single=await new PickService({store:new AccountStore({directory}),getEvent:async()=>event({id:"401234573"}),now:()=>eventTime})
+       .submit(token,pick({eventId:"401234573",requestId:"single-entry"}));
+     assert.equal(single.entryId,undefined);
+     assert.equal(single.entrySize,undefined);
+   });
+  });
+
+  test("stored legacy tickets without entry metadata remain readable", async () => {
+   await fixture(async (store) => {
+     const {token}=await store.register("LegacyRider", password);
+     const service=new PickService({store,getEvent:async()=>event(),now:()=>eventTime});
+     const ticket=await service.submit(token,pick());
+     assert.equal(ticket.entryId,undefined);
+     assert.deepEqual((await service.list(token))[0],ticket);
+   });
+  });
 
 test("a valid soccer draw can be submitted or edited and settles as its own outcome", async () => {
   await fixture(async store => {

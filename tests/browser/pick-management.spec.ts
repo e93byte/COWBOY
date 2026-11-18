@@ -1,5 +1,37 @@
 import { test, expect } from '@playwright/test';
 
+test('a multi-game submission renders as one grouped free-picks entry with leg controls', async ({page}) => {
+  const startsAt = new Date(Date.now() + 86400000).toISOString();
+  const games = [
+    {id:'401201',league:'nba',leagueName:'NBA',sport:'basketball',name:'Boston Celtics at New York Knicks',startsAt,status:'scheduled',statusText:'Tomorrow',clock:null,period:null,winner:null,completed:false,away:{id:'bos',name:'Boston Celtics',shortName:'BOS',score:null},home:{id:'ny',name:'New York Knicks',shortName:'NYK',score:null}},
+    {id:'401202',league:'nba',leagueName:'NBA',sport:'basketball',name:'Chicago Bulls at Miami Heat',startsAt,status:'scheduled',statusText:'Tomorrow',clock:null,period:null,winner:null,completed:false,away:{id:'chi',name:'Chicago Bulls',shortName:'CHI',score:null},home:{id:'mia',name:'Miami Heat',shortName:'MIA',score:null}},
+  ];
+  let tickets: Record<string, unknown>[] = [];
+  await page.route('**/api/account', route => route.fulfill({json:{user:{id:'entry-user',username:'entryrider'}}}));
+  await page.route('**/api/sports', route => route.fulfill({json:{events:games,leagues:[{id:'nba',name:'NBA',sport:'basketball',status:'ok'}],fetchedAt:new Date().toISOString(),source:'ESPN',refreshAfterMs:15000,stale:false}}));
+  await page.route('**/api/picks/**', async route => {
+    if (route.request().method() === 'POST' && route.request().url().endsWith('/api/picks/batch')) {
+      const entryId = '11111111-1111-4111-8111-111111111111';
+      tickets = games.map((game,index) => ({id:`entry-ticket-${index}`,eventId:game.id,league:game.league,eventName:game.name,selection:game.away.name,side:'away',startsAt,createdAt:new Date().toISOString(),status:'open',settledAt:null,entryId,entryIndex:index,entrySize:2}));
+      return route.fulfill({json:{tickets}});
+    }
+    return route.fulfill({json:{tickets}});
+  });
+  await page.route('**/api/picks', route => route.fulfill({json:{tickets}}));
+  await page.goto('/');
+  await page.getByRole('button',{name:'Pick Boston Celtics'}).click();
+  await page.getByRole('button',{name:'Pick Chicago Bulls'}).click();
+  await page.getByRole('button',{name:'Review 2 free picks',exact:true}).click();
+  await page.getByRole('button',{name:'Confirm 2 free picks',exact:true}).click();
+  await expect(page.getByRole('dialog',{name:'Review your free picks'})).toHaveCount(0);
+  await page.getByRole('button',{name:'My picks',exact:true}).click();
+  await expect(page.getByText('Free-picks entry · 2 legs',{exact:true})).toBeVisible();
+  await expect(page.getByText('Leg 1 of 2',{exact:true})).toBeVisible();
+  await expect(page.getByText('Leg 2 of 2',{exact:true})).toBeVisible();
+  await expect(page.locator('.cw-entry-card')).toHaveCount(1);
+  await expect(page.getByRole('button',{name:'Cancel pick: Boston Celtics',exact:true})).toBeVisible();
+  await expect(page.getByRole('button',{name:'Cancel pick: Chicago Bulls',exact:true})).toBeVisible();
+});
 test('history cancellation requires confirmation and preserves the pick when the server refuses', async ({ page }) => {
   const ticket={id:'manage-ticket',eventId:'401-manage',league:'nba',eventName:'Boston Celtics at New York Knicks',selection:'Boston Celtics',side:'away',startsAt:new Date(Date.now()+86400000).toISOString(),createdAt:new Date().toISOString(),status:'open',settledAt:null};
   let current={...ticket}, attempts=0;

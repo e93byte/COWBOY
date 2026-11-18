@@ -3,6 +3,8 @@ import { supportsDrawPick } from './pick-outcomes';
 import { hasActiveScores, LIVE_SCORE_REFRESH_MS, SCHEDULE_REFRESH_MS, SCORE_RETRY_MS } from './score-refresh';
 import { applyNhlScores, easternScoreDate } from './nhl-score-fallback';
 import { applyMlbScores } from './mlb-score-fallback';
+import { CircuitBreaker } from './circuit-breaker';
+import { liveScoreStageMatches, normalizeLiveScorePayload, normalizeOpenLigaPayload, normalizeSportsDbPayload, sportsDbLeagueMatches } from './provider-fallbacks';
 
 export { LIVE_LEAGUES } from './sports-leagues';
 
@@ -161,7 +163,7 @@ export type LiveEvent = {
   recordStandings?: {title:string; rows:RecordStanding[]}[];
   fight?: FightCard;
   providerUrl?: string;
-  scoreSource?: 'NHL' | 'MLB' | 'ESPN summary';
+  scoreSource?: 'NHL' | 'MLB' | 'ESPN summary' | 'LiveScore' | 'OpenLigaDB' | 'SportsDB';
   winner: 'home' | 'away' | 'draw' | null;
   completed: boolean;
 };
@@ -1030,8 +1032,13 @@ export function createLiveSportsClient(options: ClientOptions = {}) {
   const retryAfter = new Map<string, number>();
   const espnBackoffUntil = new Map<string, number>();
   const summaryBackoffUntil = new Map<string, number>();
+  const espnCircuit = new CircuitBreaker({ failureThreshold: 3, cooldownMs: 30_000, now });
   const leagueLoads = new Map<string, Promise<void>>();
   const backupBackoffUntil = new Map<string,number>();
+  let liveScoreStagesCache: {day:string; stages:Json[]; expires:number} | undefined;
+  let liveScoreStagesPending: Promise<Json[]> | undefined;
+  const sportsDbCache = new Map<string, {events: Json[]; expires: number}>();
+  const sportsDbPending = new Map<string, Promise<Json[]>>();
   const details = new Map<string, { event: LiveEvent | null; expires: number }>();
   const detailRequests = new Map<string, Promise<LiveEvent | null>>();
   const scheduleRequests = new Map<string, Promise<LiveEvent[]>>();
@@ -1049,7 +1056,7 @@ export function createLiveSportsClient(options: ClientOptions = {}) {
     return requestJson(`https://site.api.espn.com/apis/site/v2/sports/${path}`, 'ESPN', allowMissing);
   }
 
-  async function requestJson(url: string, provider: 'ESPN' | 'NHL' | 'MLB', allowMissing = false): Promise<unknown> {
+  async function requestJson(url: string, provider: 'ESPN' | 'NHL' | 'MLB' | 'LiveScore' | 'OpenLigaDB' | 'SportsDB', allowMissing = false): Promise<unknown> {
     if (requestQueue.length >= 64) throw new LiveSportsError('Sports request queue is full; retry shortly', 503);
     if (activeRequests >= 4) await new Promise<void>(resolve => requestQueue.push(resolve));
     activeRequests++;
@@ -1095,16 +1102,83 @@ export function createLiveSportsClient(options: ClientOptions = {}) {
     }
   }
 
+  async function loadLiveScoreStages(day: string): Promise<Json[]> {
+    if (liveScoreStagesCache?.day === day && liveScoreStagesCache.expires > now()) return liveScoreStagesCache.stages;
+    if (liveScoreStagesPending) return liveScoreStagesPending;
+    liveScoreStagesPending = (async () => {
+      const stages: Json[] = [];
+      for (let page = 0; page < 6; page++) {
+        const payload = await requestJson(`https://prod-public-api.livescore.com/v1/api/app/date/soccer/${day}/${page}`, 'LiveScore', true);
+        const batch = Array.isArray(object(payload).Stages) ? object(payload).Stages.map(object) : [];
+        if (!batch.length) break;
+        stages.push(...batch);
+      }
+      liveScoreStagesCache = {day, stages, expires: now() + 15_000};
+      return stages;
+    })().finally(() => { liveScoreStagesPending = undefined; });
+    return liveScoreStagesPending;
+  }
+
+  async function publicSoccerFallback(config: (typeof LIVE_LEAGUES)[number]): Promise<LiveEvent[]> {
+    if (config.sport !== 'soccer') return [];
+    const day = new Date(now()).toISOString().slice(0, 10).replaceAll('-', '');
+    const stages = await loadLiveScoreStages(day);
+    const matchingStages = stages.filter(stage => liveScoreStageMatches(config.id, stage));
+    let events = normalizeLiveScorePayload(config.id, config.name, {Stages: matchingStages});
+    if (events.length || config.id !== 'bundesliga') return events;
+    const openLiga = await requestJson('https://api.openligadb.de/getmatchdata/bl1', 'OpenLigaDB', true);
+    const today = new Date(now()).toISOString().slice(0, 10);
+    events = normalizeOpenLigaPayload(config.id, config.name, openLiga, now())
+      .filter(event => event.startsAt.slice(0, 10) === today);
+    return events;
+  }
+
+  async function sportsDbFallback(config: (typeof LIVE_LEAGUES)[number]): Promise<LiveEvent[]> {
+    const key = process.env.SPORTSDB_KEY?.trim();
+    if (!key || config.sport === 'golf' || config.sport === 'mma') return [];
+    const sports: Record<string, string> = {
+      football: 'American Football', basketball: 'Basketball', baseball: 'Baseball', hockey: 'Ice Hockey',
+      soccer: 'Soccer', tennis: 'Tennis', rugby: 'Rugby',
+    };
+    const sport = sports[config.sport];
+    if (!sport) return [];
+    const day = new Date(now()).toISOString().slice(0, 10);
+    const cacheKey = `${day}:${sport}`;
+    let allEvents = sportsDbCache.get(cacheKey);
+    if (!allEvents || allEvents.expires <= now()) {
+      let pending = sportsDbPending.get(cacheKey);
+      if (!pending) {
+        pending = requestJson(
+          `https://www.thesportsdb.com/api/v1/json/${encodeURIComponent(key)}/eventsday.php?d=${day}&s=${encodeURIComponent(sport)}`,
+          'SportsDB', true,
+        ).then(payload => Array.isArray(object(payload).events) ? (object(payload).events as Json[]) : [])
+          .then(events => { sportsDbCache.set(cacheKey, {events, expires: now() + 15_000}); return events; })
+          .finally(() => { sportsDbPending.delete(cacheKey); });
+        sportsDbPending.set(cacheKey, pending);
+      }
+      allEvents = {events: await pending, expires: now() + 15_000};
+    }
+    const events = allEvents.events.filter(event => sportsDbLeagueMatches(config.id, object(event).strLeague));
+    return normalizeSportsDbPayload(config.id, config.name, {events}, config.sport);
+  }
+
   async function updateLeague(config: (typeof LIVE_LEAGUES)[number]): Promise<void> {
     const metadata = { id: config.id, name: config.name, sport: config.sport };
+    const circuitKey = `ESPN:scoreboard:${config.id}`;
+    let circuitAttempted = false;
     try {
       if ((espnBackoffUntil.get(config.id) ?? 0) > now()) {
         throw new LiveSportsError('ESPN HTTP 429', 429);
       }
+      if (!espnCircuit.allow(circuitKey)) {
+        throw new LiveSportsError('ESPN scoreboard circuit is open; using cached data', 503);
+      }
+      circuitAttempted = true;
       const payload = await request(scoreboardPath(config, now()));
       const data: LeagueData = config.sport === 'golf'
         ? {events: [], golf: normalizeGolfScoreboard(payload)}
         : {events: normalizeScoreboard(config.id, payload)};
+      espnCircuit.success(circuitKey);
       const at = now();
       leagueDueAt.set(config.id, at + (hasActiveScores(data, at) ? LIVE_SCORE_REFRESH_MS : SCHEDULE_REFRESH_MS));
       lastGood.set(config.id, {...data, at});
@@ -1112,6 +1186,7 @@ export function createLiveSportsClient(options: ClientOptions = {}) {
         ...data, league: {...metadata, status: 'ok', lastSuccessAt: new Date(at).toISOString()},
       });
     } catch (error) {
+      if (circuitAttempted) espnCircuit.failure(circuitKey);
       const rateLimited = error instanceof LiveSportsError && error.status === 429;
       if (rateLimited && (espnBackoffUntil.get(config.id) ?? 0) <= now()) {
         espnBackoffUntil.set(config.id, now() + 30_000);
@@ -1142,6 +1217,32 @@ export function createLiveSportsClient(options: ClientOptions = {}) {
         } catch (backupError) {
           if (backupError instanceof LiveSportsError && backupError.status === 429) {
             backupBackoffUntil.set(config.id,now() + 30_000);
+          }
+        }
+      }
+      if (!backupSource && now() >= (backupBackoffUntil.get(config.id) ?? 0)) {
+        try {
+          const fallbackEvents = await publicSoccerFallback(config);
+          if (fallbackEvents.length) {
+            events = fallbackEvents;
+            backupSource = fallbackEvents[0].scoreSource;
+          }
+        } catch (fallbackError) {
+          if (fallbackError instanceof LiveSportsError && fallbackError.status === 429) {
+            backupBackoffUntil.set(config.id, now() + 30_000);
+          }
+        }
+      }
+      if (!backupSource && now() >= (backupBackoffUntil.get(config.id) ?? 0)) {
+        try {
+          const fallbackEvents = await sportsDbFallback(config);
+          if (fallbackEvents.length) {
+            events = fallbackEvents;
+            backupSource = fallbackEvents[0].scoreSource;
+          }
+        } catch (fallbackError) {
+          if (fallbackError instanceof LiveSportsError && fallbackError.status === 429) {
+            backupBackoffUntil.set(config.id, now() + 30_000);
           }
         }
       }
@@ -1176,7 +1277,7 @@ export function createLiveSportsClient(options: ClientOptions = {}) {
       leagueResults.set(config.id, {
         events,
         golf: retained ? previous.golf : undefined,
-        league: {...metadata, status: retained ? 'stale' : 'error', error: message, lastSuccessAt, scoresUpdatedAt, backupSource},
+        league: {...metadata, status: backupSource || retained ? 'stale' : 'error', error: message, lastSuccessAt, scoresUpdatedAt, backupSource},
       });
     }
   }
@@ -1344,6 +1445,8 @@ export function createLiveSportsClient(options: ClientOptions = {}) {
     const config = leagueConfig(league);
     if (!validId(id)) throw new LiveSportsError('Invalid event id', 400);
     if (config.sport === 'golf') throw new LiveSportsError('PGA leaderboard is not a two-sided contest', 400);
+    const fallbackEvent = getCachedScoreboardEvent(league, id)?.event;
+    if (fallbackEvent?.scoreSource && ['LiveScore', 'OpenLigaDB', 'SportsDB'].includes(fallbackEvent.scoreSource)) return fallbackEvent;
     const key = `${league}:${id}`;
     const cached = details.get(key);
     if (cached && cached.expires > now()) return structuredClone(cached.event);

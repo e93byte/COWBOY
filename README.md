@@ -142,6 +142,10 @@ PLAYWRIGHT_BASE_URL=http://127.0.0.1:3213 npm run test:e2e
 
 Local account data is stored in `.cowboy-data/`. To store it somewhere else, set `COWBOY_DATA_DIR` to an **absolute path**. Keep private data and secrets out of Git. Before hosting the app for other people, review the storage and deployment setup for your environment.
 
+### Optional score fallback
+
+Set `SPORTSDB_KEY` on the server to enable TheSportsDB as a rate-limited fallback after the public LiveScore/OpenLigaDB paths. The app keeps this key server-side, caches one daily sport feed briefly, validates team identity and timestamps, and labels the result as delayed/backup internally. The public test key is not suitable for production; obtain a licensed key from TheSportsDB before enabling it in a hosted deployment. If the variable is absent, the app skips this provider without changing the primary ESPN path.
+
 ## Need a hand?
 
 - Check [`docs/`](docs/) for score-source and project reference notes.

@@ -179,7 +179,7 @@ function useLiveBoard() {
     let lastFullRefresh = 0;
     let lastBoard: LiveBoard | undefined;
     const load=async(league?: string, interactive = false)=>{
-      if(disposed||running||document.hidden)return;
+      if(disposed||running)return;
       const now = Date.now();
       const focused = !league && !interactive && lastBoard && hasActiveScores(lastBoard, now)
         && now - lastFullRefresh < SCHEDULE_REFRESH_MS;
@@ -212,7 +212,7 @@ function useLiveBoard() {
       finally {clearTimeout(requestTimer);requestTimer=undefined;running=false;if(!disposed){setBusy(false);if(!document.hidden)timer=setTimeout(() => void load(),delay);}}
     };
     const visibility=()=>{clearTimeout(timer);if(document.hidden)controller?.abort();else void load(undefined,true);};
-    refresh.current=(league)=>void load(league,true);document.addEventListener('visibilitychange',visibility);void load();
+    refresh.current=(league)=>void load(league,true);document.addEventListener('visibilitychange',visibility);void load(undefined,true);
     return()=>{disposed=true;clearTimeout(timer);clearTimeout(requestTimer);controller?.abort();document.removeEventListener('visibilitychange',visibility);};
   },[]);
   return {board,error,busy,refresh:()=>refresh.current(),refreshLeague:(league:string)=>refresh.current(league)};
@@ -426,8 +426,8 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
       return;
     }
     const key = eventKey(event);
-    const {id,league,leagueName,name,startsAt,home,away} = event;
-    const pick: Selection = {event:{id,league,leagueName,name,startsAt,
+    const {id,league,leagueName,name,startsAt,sport,home,away} = event;
+    const pick: Selection = {event:{id,league,leagueName,name,startsAt,sport,
       home:{name:home.name,shortName:home.shortName},away:{name:away.name,shortName:away.shortName}},
       side,requestId:crypto.randomUUID()};
     setSelections(previous => {
@@ -788,10 +788,10 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
         aria-label={unreadAlerts ? `Game updates, ${unreadAlerts} unread` : 'Game updates'}>
         <ActionIcon action="alerts"/>Updates {unreadAlerts > 0 && <span aria-hidden="true">{unreadAlerts}</span>}
       </button><button className="cw-account" disabled={account.accountLoading} aria-label={account.user?`Account: ${account.user.username}`:undefined} onClick={()=>setAccountOpen(true)}><ActionIcon action="account"/>{account.accountLoading?'Checking session…':account.user?account.user.username:'Sign in'}</button></div></header>
-    <div className="cw-source"><span><i className={error||board?.stale?'warning-dot':'source-dot'}/><b>Scores</b> <span>{error?'Connection interrupted':board?.stale?'Delayed data':!board?'Syncing scores…':'Connected'}</span></span><span className="cw-source-right"><span>{board?`${error || board.stale ? 'Last received' : 'Updated'} ${new Date(board.fetchedAt).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'})}`:'Connecting…'}</span><button className="cw-source-refresh" disabled={busy} onClick={refresh} aria-label="Refresh sports"><RefreshIcon/></button><button className="cw-source-health-toggle" aria-expanded={sourcesExpanded} aria-controls="cw-source-health" onClick={()=>setSourcesExpanded(value=>!value)}>{feedSummary}<span aria-hidden="true">{sourcesExpanded?'−':'+'}</span></button></span></div>
+    <div className="cw-source"><span><i className={error||board?.stale?'warning-dot':'source-dot live-radar'}/><b>Scores</b> <span>{error?'Connection interrupted':board?.stale?'Delayed data':!board?'Syncing scores…':'Connected'}</span></span><span className="cw-source-right"><span>{board?`${error || board.stale ? 'Last received' : 'Updated'} ${new Date(board.fetchedAt).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'})}`:'Connecting…'}</span><button className="cw-source-refresh" disabled={busy} onClick={refresh} aria-label="Refresh sports"><RefreshIcon/></button><button className="cw-source-health-toggle" aria-expanded={sourcesExpanded} aria-controls="cw-source-health" onClick={()=>setSourcesExpanded(value=>!value)}>{feedSummary}<span aria-hidden="true">{sourcesExpanded?'−':'+'}</span></button></span></div>
     {sourcesExpanded && <section className="cw-source-health" id="cw-source-health" aria-label="Score feed health">
-      <div className="cw-source-health-head"><div><strong>Feed health</strong><span>Primary: ESPN scoreboard · fallback scores are labeled in Game Center</span></div><span>{feedHealth ? `${feedHealth.failed ? `${feedHealth.failed} unavailable` : 'No failures'}${feedHealth.delayed ? ` · ${feedHealth.delayed} delayed` : ''}` : 'Waiting for first response'}</span></div>
-      <div className="cw-source-health-grid">{board?.leagues.map(item=><button key={item.id} className={`cw-source-health-item ${item.status}`} onClick={()=>{setSourcesExpanded(false);selectLeague(item.id)}}><span><i aria-hidden="true"/> {item.name}</span><small>{item.status==='ok'?'Primary live':item.backupSource?`Fallback: ${item.backupSource}`:item.status==='stale'?'Delayed':'Unavailable'}</small></button>)}</div>
+      <div className="cw-source-health-head"><div><strong>Feed health</strong><span>Live updates combine verified feeds and automatic backups. Delays are labeled.</span></div><span>{feedHealth ? `${feedHealth.failed ? `${feedHealth.failed} unavailable` : 'No failures'}${feedHealth.delayed ? ` · ${feedHealth.delayed} delayed` : ''}` : 'Waiting for first response'}</span></div>
+      <div className="cw-source-health-grid">{board?.leagues.map(item=><button key={item.id} className={`cw-source-health-item ${item.status}`} onClick={()=>{setSourcesExpanded(false);selectLeague(item.id)}}><span><SportIcon sport={item.sport}/>{item.name}</span><small>{item.status==='ok'?'Live updates':item.backupSource?'Backup updates':item.status==='stale'?'Delayed updates':'Unavailable'}</small></button>)}</div>
     </section>}
     <div className="cw-grid">
     {!informationView && <aside className="cw-sports">

@@ -11,6 +11,29 @@ export function SportIcon({sport}:{sport:string}) {
     mma:<><path d="M7 21v-5l-3-5a2 2 0 0 1 3-2l1 2V5a2 2 0 0 1 3 0V4a2 2 0 0 1 3 0v1a2 2 0 0 1 3 0v2a2 2 0 0 1 3 0v6l-3 4v4H7ZM8 17h9M11 5v5M14 5v5M17 7v4"/></>,
     rugby:<><path d="M3 16C4 8 10 3 19 3c2 1 3 3 2 5-2 8-8 13-16 13-2 0-3-3-2-5Z"/><path d="M4 14l5 6M15 4l5 6M4 19 20 5"/></>,
     golf:<><path d="M8 20V3l10 4-10 4M4 21h15"/><circle cx="17" cy="17" r="2"/></>,
+    volleyball:<><circle cx="12" cy="12" r="9"/><path d="M5 6c5 1 9 4 11 9M4 14c5-1 10 0 15 4M12 3c-1 4 0 8 4 12"/></>,
+    handball:<><circle cx="12" cy="12" r="9"/><path d="M8 4c1 4 4 7 9 8M5 8c3 3 4 7 3 11M16 5c-1 4 0 8 3 11"/></>,
+    cricket:<><path d="m7 3 7 7M5 5l7 7M8 16l8-8 3 3-8 8-4 1Z"/><path d="M4 21h16"/></>,
+    table_tennis:<><circle cx="9" cy="9" r="5"/><path d="m13 13 7 7M4 20h7"/></>,
+    badminton:<><path d="m5 4 7 7M12 11l7 8M4 3l4 1M6 6l4-1M8 8l4-1M10 10l4-1"/></>,
+    cycling:<><circle cx="6" cy="17" r="4"/><circle cx="18" cy="17" r="4"/><path d="m6 17 5-8 4 8m-4-8h5l2 8M9 9h3"/></>,
+    motorsport:<><circle cx="12" cy="12" r="9"/><path d="M5 15h14M7 15V9h10v6M9 9V6h6v3M8 18h2m4 0h2"/></>,
+    racing:<><path d="M5 20 9 4h6l4 16M7 15h10M8 10h8M9 5l3 4 3-4"/></>,
+    racing_formula_1:<><path d="M4 17h16M6 17l3-8h6l3 8M9 9l2-4h4l-1 4M5 20h3m8 0h3"/></>,
+    racing_nascar:<><circle cx="12" cy="12" r="9"/><path d="m5 15 5-6 3 6 5-6M6 18h12"/></>,
+    racing_harness:<><path d="M4 18h16M7 18l2-8h6l2 8M9 10V6h6v4M8 21h2m4 0h2"/></>,
+    racing_thoroughbred:<><path d="M4 17c3-5 6-7 11-6l4 3-3 4H7l-3-1Z"/><path d="m8 18-2 3m9-3 2 3M15 11l2-3 3 1"/></>,
+    aussierules:<><ellipse cx="12" cy="12" rx="9" ry="6"/><path d="M5 9c4 2 10 2 14 0M5 15c4-2 10-2 14 0"/></>,
+    rugby_league:<><path d="M3 16C4 8 10 3 19 3c2 1 3 3 2 5-2 8-8 13-16 13-2 0-3-3-2-5Z"/><path d="M7 10l10 6M7 16l10-6"/></>,
+    field_hockey:<><path d="m7 3 8 14h5v4h-7L3 5M4 21h8"/><circle cx="18" cy="18" r="2"/></>,
+    lacrosse:<><path d="M4 21 16 5"/><path d="M15 4c2-2 5 0 5 2s-2 4-4 4l-3-3Z"/><path d="M8 16l4 3"/></>,
+    water_polo:<><circle cx="12" cy="9" r="6"/><path d="M4 17c2-2 4 2 8 0s6 2 8 0M4 21c2-2 4 2 8 0s6 2 8 0"/></>,
+    darts:<><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="m3 21 7-7M3 21h4"/></>,
+    snooker:<><circle cx="12" cy="12" r="9"/><circle cx="9" cy="9" r="1" fill="currentColor"/><circle cx="15" cy="15" r="1" fill="currentColor"/><path d="m3 21 8-8"/></>,
+    esports:<><path d="M6 8h12l3 10H3L6 8Z"/><path d="M8 12v4m-2-2h4m6-1h.1m3 0h.1"/></>,
+    boxing:<><path d="M7 21v-7l-3-4a2 2 0 0 1 3-2l2 2V5a2 2 0 0 1 3 0v5m0-5a2 2 0 0 1 3 0v5m0-3a2 2 0 0 1 3 0v6l-3 4v4H7Z"/></>,
+    politics:<><path d="M4 20h16M6 20v-8h12v8M4 12l8-8 8 8M9 20v-5h6v5"/></>,
+    entertainment:<><path d="m8 4 12 4-4 12-12-4 4-12Z"/><path d="m8 4 8 12M20 8 4 16"/></>,
   };
   return <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">{paths[sport]||paths.all}</svg>;
 }
@@ -27,6 +50,7 @@ export function StatusIcon({status}:{status:string}) {
     final:<><circle cx="12" cy="12" r="9"/><path d="m8 12 3 3 5-6"/></>,
     postponed:<><circle cx="12" cy="12" r="9"/><path d="M10 8v8m4-8v8"/></>,
     cancelled:<><circle cx="12" cy="12" r="9"/><path d="m9 9 6 6m0-6-6 6"/></>,
+    canceled:<><circle cx="12" cy="12" r="9"/><path d="m9 9 6 6m0-6-6 6"/></>,
     unknown:<><circle cx="12" cy="12" r="9"/><path d="M12 7v6m0 3v.1"/></>,
   };
   return <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">{paths[status] ?? paths.unknown}</svg>;

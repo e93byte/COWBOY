@@ -56,6 +56,16 @@ function validateStore(data: StoreData): void {
       || (ticket.status === "open" ? ticket.settledAt !== null : !date(ticket.settledAt))) fail();
     if (ticket.changes !== undefined && (!Array.isArray(ticket.changes) || ticket.changes.some(change =>
       !change || !["home", "away", "draw"].includes(change.side) || !nonempty(change.selection) || !date(change.changedAt)))) fail();
+    const hasEntryMetadata = ticket.entryId !== undefined || ticket.entryIndex !== undefined || ticket.entrySize !== undefined;
+    const entryId = ticket.entryId;
+    const entryIndex = ticket.entryIndex;
+    const entrySize = ticket.entrySize;
+    const entryIndexValue = typeof entryIndex === "number" ? entryIndex : -1;
+    const entrySizeValue = typeof entrySize === "number" ? entrySize : -1;
+    const validEntryIndex = Number.isSafeInteger(entryIndexValue) && entryIndexValue >= 0;
+    const validEntrySize = Number.isSafeInteger(entrySizeValue) && entrySizeValue >= 2 && entrySizeValue <= 5;
+    if (hasEntryMetadata && (typeof entryId !== "string" || !/^[a-f0-9-]{36}$/.test(entryId)
+      || !validEntryIndex || !validEntrySize || entryIndexValue >= entrySizeValue)) fail();
     const request = JSON.stringify([ticket.userId, ticket.requestId]);
     const event = JSON.stringify([ticket.userId, ticket.league, ticket.eventId]);
     if (tickets.has(ticket.id) || requests.has(request) || events.has(event)) fail();

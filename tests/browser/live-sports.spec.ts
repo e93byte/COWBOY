@@ -15,6 +15,8 @@ test('real board shows source, real teams, locks live entry and filters leagues'
   await expect(page.getByText('Scores', {exact:true}).first()).toBeVisible();
   await expect(page.getByRole('button',{name:'Pick Boston Celtics'})).toBeEnabled();
   await expect(page.getByRole('button',{name:'Pick Buffalo Bills'})).toBeDisabled();
+  expect(await page.locator('nav[aria-label="Leagues"] button svg').count()).toBeGreaterThan(0);
+  expect(await page.locator('.cw-match-card .cw-match-meta svg').count()).toBeGreaterThan(0);
   await page.getByRole('button',{name:'NBA',exact:true}).click();
   await expect(page.getByText('Baltimore Ravens',{exact:true})).toHaveCount(0);
   await expect(page.getByText('Boston Celtics',{exact:true}).first()).toBeVisible();
@@ -842,7 +844,7 @@ test('an open Game Center refreshes play-by-play, pauses while hidden and stops 
   await expect(field.locator('.cw-football-pitch')).toHaveCSS('--ball-position','80%');
   await page.clock.fastForward(5_500);
   await expect.poll(()=>eventCalls).toBe(2);
-  await page.clock.fastForward(30_000);
+  await page.clock.fastForward(6_000);
   expect(eventCalls).toBe(2);
   keepRouting?.();
   await expect(gameCenter.getByText('Game summary unavailable. Showing the last scoreboard update.')).toBeVisible();
