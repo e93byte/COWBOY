@@ -1255,20 +1255,25 @@ export function createLiveSportsClient(options: ClientOptions = {}) {
     return copy;
   }
 
-  async function refreshScheduledBoard(target?: (typeof LIVE_LEAGUES)[number]) {
-    while (refreshing) await refreshing;
+  async function refreshScheduledBoard(target?: (typeof LIVE_LEAGUES)[number], wait = true) {
+    if (refreshing) {
+      if (wait) await refreshing;
+      return;
+    }
+    let task: Promise<LiveBoard> | undefined;
     if (target && boardCache) {
       const due = (leagueDueAt.get(target.id) ?? 0) <= now();
       const canRetry = leagueResults.get(target.id)?.league.status !== 'ok' && (retryAfter.get(target.id) ?? 0) <= now();
       if (due || canRetry) {
         retryAfter.set(target.id, now() + LIVE_SCORE_REFRESH_MS);
-        refreshing = refreshBoard(target).finally(() => { refreshing = undefined; });
-        await refreshing;
+        task = refreshBoard(target);
       }
     } else if (!boardCache || boardCache.expires <= now()) {
-      refreshing = refreshBoard().finally(() => { refreshing = undefined; });
-      await refreshing;
+      task = refreshBoard();
     }
+    if (!task) return;
+    refreshing = task.finally(() => { refreshing = undefined; });
+    if (wait) await refreshing;
   }
 
   async function loadEvent(league: string, id: string): Promise<LiveEvent | null> {

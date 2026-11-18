@@ -9,6 +9,7 @@ dist/
 .DS_Store
 npm-debug.log*
 .cowboy-data/
+.operation-hardening-tmp/
 playwright-report/
 test-results/
 next-env.d.ts
