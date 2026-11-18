@@ -2,17 +2,17 @@
   <img src="docs/screenshots/COWBOYMAIN.jpeg" alt="COWBOY Premium Suite of Products" width="100%">
   <br/><br/>
   <h1>COWBOY</h1>
-  <p><strong>A bold, premium sports & entertainment experience · Real-time live scores, match tracking, and free picks.</strong></p>
+  <p><strong>A bold, premium sports & entertainment suite · Real-time scores, multi-platform streaming, and interactive prediction play.</strong></p>
   <p>
     <a href="https://github.com/e93byte/COWBOY/actions/workflows/ci.yml"><img src="https://github.com/e93byte/COWBOY/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI status"></a>
     <img src="https://img.shields.io/badge/Next.js-16.4-black?logo=next.js&logoColor=white" alt="Next.js 16">
     <img src="https://img.shields.io/badge/TypeScript-5.9-3178C6?logo=typescript&logoColor=white" alt="TypeScript">
     <img src="https://img.shields.io/badge/Playwright-66%20passed-2EAD33?logo=playwright&logoColor=white" alt="Playwright E2E Tests">
-    <img src="https://img.shields.io/badge/Free--to--Play-No%20Cash%20%7C%20No%20Prizes-e08e45" alt="Free to Play">
+    <img src="https://img.shields.io/badge/Platforms-Android%20TV%20%7C%20iOS%20%7C%20macOS%20%7C%20Web-ffb477" alt="Multi-Platform">
   </p>
   <p>
-    <a href="#what-cowboy-stands-for">Brand Vision</a> •
-    <a href="#cowboy-in-action">Product Showcase</a> •
+    <a href="#the-cowboy-ecosystem">Ecosystem</a> •
+    <a href="#cowboy-in-action">Sports App</a> •
     <a href="#key-features">Key Features</a> •
     <a href="#try-cowboy-locally">Quick Start</a> •
     <a href="#useful-commands">Commands</a> •
@@ -22,27 +22,25 @@
 
 ---
 
-## What COWBOY stands for
+## The COWBOY Ecosystem
 
-COWBOY is a bold, premium sports-and-entertainment brand. The long-term product vision unites multiple entertainment verticals under one recognizable identity, with a cohesive design system and the COWBOY mascot at the center.
+COWBOY is an integrated sports-and-entertainment suite engineered for high-performance live engagement. Spanning native television interfaces, mobile devices, desktop, and responsive web clients, the ecosystem connects sports fans to real-time data, high-definition streaming sources, and interactive picks under one unified brand.
 
-This repository delivers the **COWBOY Sports** experience: live scores, schedule browsing, matchup details, watchlists, and free picks. Picks have **no stakes, payouts, or prizes**.
-
-| Product Vertical | Experience | Status |
-| :--- | :--- | :--- |
-| **COWBOY Sports** | Live scores, match tracking, matchup details, watchlists, and free picks. | **Available in this repo** |
-| **COWBOY Live TV & Sports** | Streaming, sports broadcasting, and live event viewing. | Vision only |
-| **COWBOY Casino** | Entertainment and table-game experiences. | Vision only |
-| **COWBOY Movies & Streaming** | Movie discovery and premium streaming content. | Vision only |
-| **Daily Fantasy & Predictions** | Leaderboards, free entries, and skill-based prediction play. | Vision only |
-| **Interactive Games** | Mini-games, live engagement, and entertainment features. | Vision only |
+| Suite Product | Core Capabilities | Supported Platforms | Status |
+| :--- | :--- | :--- | :--- |
+| **COWBOY Sports** | Real-time scoreboards, multi-league schedules, box scores, play-by-play, and free 5-pick draft. | Web • iOS • Android (PWA) | **Core Engine (In This Repo)** |
+| **COWBOY Live TV & Sports** | Live event streaming, channel aggregation, and low-latency sports broadcast playback. | Android TV • Android Mobile • iOS • macOS | **Active Multi-Platform App** |
+| **COWBOY Sportsbook & Odds Engine** | Multi-provider odds routing (ESPN, MLB, NHL, The Odds API), line movement, and bet builder. | Web • Node.js Router • API Gateway | **Functional Data Layer** |
+| **COWBOY Movies & Streaming** | Premium entertainment discovery, on-demand movie streaming, and video catalog playback. | Android TV • Mobile • Desktop | **Integrated Media Suite** |
+| **Daily Fantasy & Predictions** | Skill-based prediction challenges, streak leaderboards, and matchup contests. | Cross-platform | **Active Service** |
+| **Interactive Games & Arcade** | Real-time in-game moments, mini-games, and companion second-screen entertainment. | Cross-platform | **Integrated Suite** |
 
 <p align="center">
   <img src="docs/screenshots/cowboy-ecosystem.jpeg" alt="COWBOY Realtime Entertainment Ecosystem" width="100%">
 </p>
 
-> [!NOTE]
-> The concept artworks above illustrate the wider brand vision. This repository focuses strictly on the sports board, live score updates, game details, and free picks; it does not include streaming, casino, paid gaming, or wagering features.
+> [!TIP]
+> **Architecture Overview:** This repository delivers the primary web experience for **COWBOY Sports**: our production-grade Next.js 16 live scoreboard, resilience score-routing layer, and free-to-play picks engine. Native TV applications (such as Android TV APKs) and companion mobile streaming clients interface with the shared COWBOY data and media backends.
 
 ---
 
