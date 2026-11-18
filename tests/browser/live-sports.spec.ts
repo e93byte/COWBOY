@@ -1478,3 +1478,32 @@ test('score increases, corrections and game-status changes use distinct visible 
   await expect(row.locator('[data-score-change=correction]')).toHaveText('20');
   await expect(row.locator('[data-game-state=final][data-status-change=true]')).toHaveText('Final');
 });
+
+test('React StrictMode simulated double-mount in Game Center completes event summary without abort error', async ({ page }) => {
+  const future = new Date(Date.now() + 86400000).toISOString();
+  const game: LiveEvent = {
+    id: '401-strict-mode', league: 'nba', sport: 'basketball', leagueName: 'NBA',
+    name: 'Boston Celtics at New York Knicks', startsAt: future, status: 'scheduled',
+    statusText: 'Tomorrow', clock: null, period: null, winner: null, completed: false,
+    home: { id: 'ny', name: 'New York Knicks', shortName: 'NYK', score: null },
+    away: { id: 'bos', name: 'Boston Celtics', shortName: 'BOS', score: null },
+  };
+  let fetchCount = 0;
+  await page.route('**/api/sports', route => route.fulfill({
+    json: { events: [game], leagues: [{ id: 'nba', sport: 'basketball', name: 'NBA', status: 'ok' }], fetchedAt: new Date().toISOString(), source: 'ESPN', refreshAfterMs: 15000, stale: false },
+  }));
+  await page.route('**/api/account', route => route.fulfill({ json: { user: null } }));
+  await page.route('**/api/sports/event?**', async route => {
+    fetchCount++;
+    await new Promise(r => setTimeout(r, 60));
+    return route.fulfill({ json: { event: { ...game, venue: 'Madison Square Garden' } } });
+  });
+
+  await page.goto('/');
+  await page.getByRole('button', { name: `Details: ${game.name}` }).click();
+  const dialog = page.getByRole('dialog', { name: 'Game details' });
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole('button', { name: 'Game information' }).click();
+  await expect(dialog.getByText('Madison Square Garden')).toBeVisible();
+  expect(fetchCount).toBeGreaterThanOrEqual(1);
+});

@@ -785,6 +785,8 @@ function EventDetailContent({
   const shareable = /^[0-9]{1,16}(?:-[0-9]{1,16})?$/.test(event.id);
   const [section, setSection] = useState<GameSection>(()=>readGameSection(event));
   const [refresh, setRefresh] = useState(0);
+  const loadedEffectKey = useRef('');
+  const cleanupAbortTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const boardStatus = boardDelayed && !boardEvent?.scoreSource ? undefined : boardEvent?.status;
 
   function selectSection(next: GameSection) {
@@ -815,6 +817,7 @@ function EventDetailContent({
   }, [shareState]);
 
   useEffect(() => {
+    if (cleanupAbortTimer.current) clearTimeout(cleanupAbortTimer.current);
     let active: AbortController | undefined;
     let timer: ReturnType<typeof setTimeout> | undefined;
     let status = event.status;
@@ -824,7 +827,7 @@ function EventDetailContent({
       (status === 'live' || boardStatus === 'live');
 
     async function load() {
-      if (document.hidden || active) return;
+      if (active || (document.hidden && tried)) return;
       const controller = new AbortController();
       active = controller;
       const startedAt = Date.now();
@@ -867,11 +870,18 @@ function EventDetailContent({
     }
 
     document.addEventListener('visibilitychange', visibilityChanged);
-    void load();
+    const effectKey = `${event.id}:${event.league}:${event.status}:${boardStatus ?? ''}:${refresh}`;
+    const firstRunForKey = loadedEffectKey.current !== effectKey;
+    if (firstRunForKey) {
+      loadedEffectKey.current = effectKey;
+      void load();
+    }
     return () => {
       document.removeEventListener('visibilitychange', visibilityChanged);
       clearTimeout(timer);
-      active?.abort();
+      // Defer abort so React StrictMode can replay the effect without
+      // cancelling the request that the replayed state still needs.
+      cleanupAbortTimer.current = setTimeout(() => active?.abort(), 0);
     };
   }, [event.id, event.league, event.status, boardStatus, refresh]);
 

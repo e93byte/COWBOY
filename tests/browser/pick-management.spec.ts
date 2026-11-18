@@ -106,3 +106,98 @@ test('account deletion only sends a request after password confirmation', async 
   await expect(page.getByRole('button',{name:'Sign in',exact:true})).toBeVisible();
   expect(requests).toBe(1);
 });
+
+test('pick again restores an eligible settled or cancelled pick into draft selections', async ({ page }) => {
+  const startsAt = new Date(Date.now() + 86400000).toISOString();
+  const game = {
+    id: '401099', league: 'nba', leagueName: 'NBA', sport: 'basketball', name: 'Boston Celtics at New York Knicks',
+    startsAt, status: 'scheduled', statusText: 'Tomorrow', clock: null, period: null, winner: null, completed: false,
+    away: { id: 'bos', name: 'Boston Celtics', shortName: 'BOS', score: null },
+    home: { id: 'ny', name: 'New York Knicks', shortName: 'NYK', score: null },
+  };
+  const ticket = {
+    id: 'rebet-ticket', eventId: game.id, league: game.league, eventName: game.name, selection: game.away.name, side: 'away',
+    startsAt, createdAt: new Date().toISOString(), status: 'cancelled', settledAt: null,
+  };
+  await page.route('**/api/account', route => route.fulfill({ json: { user: { id: 'rebet-user', username: 'rebetter' } } }));
+  await page.route('**/api/sports', route => route.fulfill({
+    json: { events: [game], leagues: [{ id: 'nba', name: 'NBA', sport: 'basketball', status: 'ok' }], fetchedAt: new Date().toISOString(), source: 'ESPN', refreshAfterMs: 15000, stale: false },
+  }));
+  await page.route('**/api/picks', route => route.fulfill({ json: { tickets: [ticket] } }));
+
+  await page.goto('/picks');
+  await expect(page.getByText(ticket.eventName)).toBeVisible();
+  const rebetButton = page.getByRole('button', { name: 'Pick again' });
+  await expect(rebetButton).toBeVisible();
+  await rebetButton.click();
+
+  await expect(page.getByText('Pick restored to your draft')).toBeVisible();
+  await expect(page.locator('.cw-picks-rail .cw-selected')).toContainText(game.name);
+  await expect(page.locator('.cw-picks-rail .cw-selected')).toContainText(game.away.name);
+});
+
+test('daily participation limit restricts free pick draft entry and notifies in toast', async ({ page }) => {
+  const startsAt = new Date(Date.now() + 86400000).toISOString();
+  const game = {
+    id: '401088', league: 'nba', leagueName: 'NBA', sport: 'basketball', name: 'Boston Celtics at New York Knicks',
+    startsAt, status: 'scheduled', statusText: 'Tomorrow', clock: null, period: null, winner: null, completed: false,
+    away: { id: 'bos', name: 'Boston Celtics', shortName: 'BOS', score: null },
+    home: { id: 'ny', name: 'New York Knicks', shortName: 'NYK', score: null },
+  };
+  await page.route('**/api/account', route => route.fulfill({ json: { user: { id: 'limit-user', username: 'limiter' } } }));
+  await page.route('**/api/sports', route => route.fulfill({
+    json: { events: [game], leagues: [{ id: 'nba', name: 'NBA', sport: 'basketball', status: 'ok' }], fetchedAt: new Date().toISOString(), source: 'ESPN', refreshAfterMs: 15000, stale: false },
+  }));
+  await page.route('**/api/picks', route => route.fulfill({ json: { tickets: [] } }));
+
+  await page.addInitScript(() => {
+    localStorage.setItem('cowboy.responsible-play.v1', JSON.stringify({ dailyPicks: 0, pausedUntil: '', excluded: false }));
+  });
+
+  await page.goto('/');
+  const pickBtn = page.getByRole('button', { name: 'Pick Boston Celtics' });
+  await expect(pickBtn).toBeDisabled();
+  await expect(pickBtn).toContainText('Limit');
+
+  await page.getByRole('button', { name: 'Preferences' }).first().click();
+  await page.getByLabel('Daily pick reminder limit').selectOption('5');
+  await expect(page.getByRole('status')).toContainText('Responsible-play settings saved');
+
+  await page.getByRole('button', { name: 'Sports' }).first().click();
+  await expect(page.getByRole('button', { name: 'Pick Boston Celtics' })).toBeEnabled();
+  await page.evaluate(() => localStorage.removeItem('cowboy.responsible-play.v1'));
+});
+
+test('self-exclusion pauses free picks on this browser and disables pick entry', async ({ page }) => {
+  const startsAt = new Date(Date.now() + 86400000).toISOString();
+  const game = {
+    id: '401077', league: 'nba', leagueName: 'NBA', sport: 'basketball', name: 'Boston Celtics at New York Knicks',
+    startsAt, status: 'scheduled', statusText: 'Tomorrow', clock: null, period: null, winner: null, completed: false,
+    away: { id: 'bos', name: 'Boston Celtics', shortName: 'BOS', score: null },
+    home: { id: 'ny', name: 'New York Knicks', shortName: 'NYK', score: null },
+  };
+  await page.route('**/api/account', route => route.fulfill({ json: { user: { id: 'excl-user', username: 'excluder' } } }));
+  await page.route('**/api/sports', route => route.fulfill({
+    json: { events: [game], leagues: [{ id: 'nba', name: 'NBA', sport: 'basketball', status: 'ok' }], fetchedAt: new Date().toISOString(), source: 'ESPN', refreshAfterMs: 15000, stale: false },
+  }));
+  await page.route('**/api/picks', route => route.fulfill({ json: { tickets: [] } }));
+
+  await page.goto('/preferences');
+  const checkbox = page.getByLabel('Self-exclude from free picks on this browser');
+  await expect(checkbox).not.toBeChecked();
+  await checkbox.check();
+  await expect(page.getByRole('status')).toContainText('Responsible-play settings saved');
+
+  await page.getByRole('button', { name: 'Sports' }).first().click();
+  const pickBtn = page.getByRole('button', { name: 'Pick Boston Celtics' });
+  await expect(pickBtn).toBeDisabled();
+  await expect(pickBtn).toContainText('Excluded');
+
+  await page.getByRole('button', { name: 'Preferences' }).first().click();
+  await page.getByLabel('Self-exclude from free picks on this browser').uncheck();
+  await expect(page.getByRole('status')).toContainText('Responsible-play settings saved');
+
+  await page.getByRole('button', { name: 'Sports' }).first().click();
+  await expect(page.getByRole('button', { name: 'Pick Boston Celtics' })).toBeEnabled();
+  await page.evaluate(() => localStorage.removeItem('cowboy.responsible-play.v1'));
+});

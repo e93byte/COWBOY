@@ -1,7 +1,25 @@
 import { test, expect } from '@playwright/test';
 
+test('cold board load preserves the event hierarchy with an accessible skeleton', async ({ page }) => {
+  let release!: () => void;
+  const held = new Promise<void>(resolve=>{ release=resolve; });
+  await page.route('**/api/sports', async route=>{
+    await held;
+    await route.fulfill({json:{events:[],leagues:[],fetchedAt:new Date().toISOString(),source:'Fixture',refreshAfterMs:15000,stale:false}});
+  });
+  await page.route('**/api/account', route=>route.fulfill({json:{user:null}}));
+  await page.goto('/',{waitUntil:'domcontentloaded'});
+  const loading = page.getByRole('status',{name:'Loading games'});
+  await expect(loading).toBeVisible();
+  await expect(loading.locator('.cw-skeleton-group')).toHaveCount(2);
+  await expect(loading.locator('.cw-skeleton-game')).toHaveCount(4);
+  release();
+  await expect(loading).not.toBeVisible();
+});
+
 test('real-feed spotlight opens details and continues to a free selection', async ({ page }) => {
   await page.goto('/');
+  await expect(page.locator('.cw-league-group').first()).toBeVisible({ timeout: 15000 });
   await page.getByRole('button', { name: 'Upcoming', exact: true }).click();
   const spotlight = page.getByRole('region', { name: 'In the spotlight' });
   await expect(spotlight).toBeVisible();
@@ -27,7 +45,7 @@ test('real-feed spotlight opens details and continues to a free selection', asyn
 test('league sections collapse, sort and clear combined filters', async ({ page }) => {
   await page.goto('/');
   const group = page.locator('.cw-league-group').first();
-  await expect(group).toBeVisible();
+  await expect(group).toBeVisible({ timeout: 15000 });
   const toggle = group.getByRole('button', { name: /Collapse/ });
   await toggle.click();
   await expect(group.locator('.cw-event')).toHaveCount(0);

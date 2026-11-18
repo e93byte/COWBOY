@@ -1051,9 +1051,12 @@ export function createLiveSportsClient(options: ClientOptions = {}) {
     if (activeRequests >= 4) await new Promise<void>(resolve => requestQueue.push(resolve));
     else activeRequests++;
     let response: Response | undefined;
+    const timeoutMs = options.timeoutMs ?? (allowMissing ? 3_500 : 2_500);
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
     try {
       response = await fetcher(url, {
-        cache: 'no-store', redirect: 'error', signal: AbortSignal.timeout(options.timeoutMs ?? (allowMissing ? 3_500 : 2_500)),
+        cache: 'no-store', redirect: 'error', signal: controller.signal,
         headers: { Accept: 'application/json' },
       });
       if (allowMissing && response.status === 404) return null;
@@ -1081,6 +1084,7 @@ export function createLiveSportsClient(options: ClientOptions = {}) {
         catch { throw new LiveSportsError(`${provider} returned invalid JSON`); }
       } finally { reader.releaseLock(); }
     } finally {
+      clearTimeout(timeout);
       // HTTP failures, missing records and HTML walls still own an unread response body.
       if (response?.body && !response.bodyUsed) await response.body.cancel().catch(() => undefined);
       const next = requestQueue.shift();

@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="docs/screenshots/product-vision.png" alt="COWBOY premium product-suite showcase" width="100%">
+  <img src="docs/screenshots/COWBOYMAIN.jpeg" alt="COWBOY Premium Suite of Products" width="100%">
   <h1>COWBOY</h1>
   <p><strong>Premium suite of products</strong></p>
   <p>
@@ -26,19 +26,19 @@ This repository currently delivers the COWBOY sports experience: live sports sco
 | **Daily Fantasy & Predictions** | Leaderboards, free entries, and skill-based prediction play. | Vision only |
 | **Interactive Games** | Mini-games, live engagement, and entertainment features. | Vision only |
 
-> The top image is brand-concept artwork for the broader product vision. This repository focuses on the sports board, live score updates, game details, and free picks; it does not include streaming, casino, paid gaming, or wagering features.
+<p align="center">
+  <img src="docs/screenshots/cowboy-ecosystem.jpeg" alt="COWBOY Realtime Entertainment Ecosystem" width="100%">
+</p>
+
+> The artwork above represents the brand-concept vision for the broader entertainment ecosystem. This repository focuses strictly on the sports board, live score updates, game details, and free picks; it does not include streaming, casino, paid gaming, or wagering features.
 
 ## COWBOY in action
 
-The product showcase above leads with the brand vision. The screenshots below highlight the sports experience that is actually available in this repository.
+The screenshots below highlight the sports experience that is actually available in this repository: real live scores, matchup tracking, period-by-period progression, and draft free picks.
 
 <p align="center">
-  <img src="docs/screenshots/sports-board.png" alt="COWBOY sports board with schedules and filters" width="48%">
-  <img src="docs/screenshots/game-details.png" alt="COWBOY game details and score breakdown" width="48%">
-</p>
-
-<p align="center">
-  <img src="docs/screenshots/free-picks.png" alt="COWBOY free-pick experience" width="70%">
+  <img src="docs/screenshots/sports-board.jpeg" alt="COWBOY sports board with schedules and filters" width="49%">
+  <img src="docs/screenshots/game-details.jpeg" alt="COWBOY game details and score breakdown" width="49%">
 </p>
 
 ## Try COWBOY locally

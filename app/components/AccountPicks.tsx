@@ -19,6 +19,9 @@ export type Selection = {
   side: PickSide;
   requestId: string;
 };
+function canPick(event: LiveEvent, now: number) {
+  return event.status === 'scheduled' && Date.parse(event.startsAt) > now;
+}
 export async function api<T>(url:string, options?:RequestInit):Promise<T> {
   const res=await fetch(url,{cache:'no-store',...options,headers:{'Content-Type':'application/json',...options?.headers}});
   const data=await res.json();
@@ -236,7 +239,7 @@ const historySorts = [
 
 const historyFilters = ['all', 'open', 'live', 'settled', 'won', 'lost', 'void', 'cancelled'] as const;
 
-export function PicksHistory({tickets,busy,error,onRefresh,onUpdate,user,onSignIn,events,onGame,onBrowse,feedCurrent}:{tickets:Ticket[];busy:boolean;error:string;onRefresh:()=>void;onUpdate:(ticket: Ticket)=>void;user:User|null;onSignIn:()=>void;events:LiveEvent[];onGame:(ticket:Ticket,event?:LiveEvent)=>void;onBrowse:()=>void;feedCurrent:boolean}){
+export function PicksHistory({tickets,busy,error,onRefresh,onUpdate,user,onSignIn,events,onGame,onRebet,onBrowse,feedCurrent}:{tickets:Ticket[];busy:boolean;error:string;onRefresh:()=>void;onUpdate:(ticket: Ticket)=>void;user:User|null;onSignIn:()=>void;events:LiveEvent[];onGame:(ticket:Ticket,event?:LiveEvent)=>void;onRebet:(ticket:Ticket,event:LiveEvent)=>void;onBrowse:()=>void;feedCurrent:boolean}){
   const zone = useContext(ScheduleTimeZone);
   const [cancelling,setCancelling]=useState<Ticket|null>(null);
   const [cancelPending,setCancelPending]=useState(false);
@@ -402,6 +405,8 @@ export function PicksHistory({tickets,busy,error,onRefresh,onUpdate,user,onSignI
               </small>
               <div className="cw-tracker-actions">
                 <button onClick={()=>onGame(ticket,event)}>Game center</button>
+                {event && (ticket.status==='won' || ticket.status==='lost' || ticket.status==='cancelled' || ticket.status==='void') && canPick(event, Date.now()) &&
+                  <button onClick={()=>onRebet(ticket,event)}>Pick again</button>}
                 {beforeStart && feedCurrent && event?.status === 'scheduled' && Date.parse(event.startsAt) > Date.now() &&
                   <button disabled={busy} onClick={()=>setEditing({ticket,event})}>Edit pick</button>}
                 {beforeStart && <button className="cw-clear" aria-label={`Cancel pick: ${ticket.selection}`} disabled={busy} onClick={()=>{setCancelError('');setCancelling(ticket);}}>Cancel pick</button>}
