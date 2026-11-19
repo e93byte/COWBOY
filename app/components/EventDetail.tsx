@@ -7,6 +7,9 @@ import {ActionIcon, SportIcon, StarIcon, TabIcon} from './SportIcon';
 import {RankedTeamName, TeamMark} from './TeamMark';
 import type {LiveEvent} from './LiveWorkspace';
 import { pickName, pickSides, supportsDrawPick, type PickSide } from '../lib/pick-outcomes';
+import { consensusPercent, type PickConsensus } from '../lib/pick-consensus';
+import type { MarketReference } from '../lib/market-reference';
+import type { PlayerProps } from '../lib/player-props';
 import { ScheduleTimeZone } from './ScheduleTimeZone';
 import { ScoreProgression } from './ScoreProgression';
 import { SoccerLineups } from './SoccerLineups';
@@ -138,6 +141,7 @@ type Props = {
   watchDisabled?: boolean;
   onPick?: (side: PickSide) => void;
   picksAvailable?: boolean;
+  pickConsensus?: PickConsensus;
 };
 
 function GameLeaders({event,leaders,summaryOnly=false}: {
@@ -742,6 +746,7 @@ const gameSections = [
   {id: 'score', label: 'Score'},
   {id: 'stats', label: 'Stats'},
   {id: 'players', label: 'Players'},
+  {id: 'props', label: 'Props'},
   {id: 'timeline', label: 'Timeline'},
   {id: 'drives', label: 'Drives'},
   {id: 'matchup', label: 'Matchup'},
@@ -754,6 +759,7 @@ type GameSection = (typeof gameSections)[number]['id'];
 
 function sectionAvailable(section: GameSection, event: LiveEvent) {
   if (section === 'drives') return event.sport === 'football';
+  if (section === 'props') return ['football','basketball','baseball','hockey','soccer'].includes(event.sport) && (event.status === 'scheduled' || event.status === 'live');
   if (section === 'lineups') return event.sport === 'soccer';
   if (section === 'schedule') return !['tennis','mma'].includes(event.sport);
   if (section === 'standings') return event.sport === 'soccer' || hasRecordStandings(event.league);
@@ -770,7 +776,7 @@ function readGameSection(event: LiveEvent): GameSection {
 
 function EventDetailContent({
   event, boardEvent, boardFetchedAt, boardDelayed, ticket, ticketsLoading, ticketsError,
-  watching, onWatch, watchDisabled, onPick, picksAvailable = false, games, onGame,
+  watching, onWatch, watchDisabled, onPick, picksAvailable = false, pickConsensus, games, onGame,
 }: Props & {games: LiveEvent[]; onGame: (event: LiveEvent) => void}) {
   const zone = useContext(ScheduleTimeZone);
   const [snapshot, setSnapshot] = useState<LiveEvent | null>(null);
@@ -780,6 +786,10 @@ function EventDetailContent({
   const [stale, setStale] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
   const [shareState, setShareState] = useState<'idle'|'copied'|'manual'>('idle');
+  const [market, setMarket] = useState<MarketReference | null>(null);
+  const [props, setProps] = useState<PlayerProps | null>(null);
+  const [propsLoaded, setPropsLoaded] = useState(false);
+  const [pickShare, setPickShare] = useState<'idle'|'copied'|'manual'>('idle');
   const [shareLink, setShareLink] = useState('');
   const shareField = useRef<HTMLInputElement>(null);
   const shareable = /^[0-9]{1,16}(?:-[0-9]{1,16})?$/.test(event.id);
@@ -809,6 +819,21 @@ function EventDetailContent({
       setShareState('copied');
     } catch {
       setShareState('manual');
+    }
+  }
+
+  async function sharePickCard() {
+    if (!ticket) return;
+    const url = new URL(`/?league=${event.league}&game=${event.id}&section=pick`, window.location.origin).href;
+    const text = `My free pick on COWBOY: ${ticket.selection} — ${ticket.eventName}`;
+    if (navigator.share) {
+      try { await navigator.share({ title: 'COWBOY free pick', text, url }); setPickShare('idle'); return; } catch { /* user dismissed or share failed */ }
+    }
+    try {
+      await navigator.clipboard.writeText(`${text}\n${url}`);
+      setPickShare('copied');
+    } catch {
+      setPickShare('manual');
     }
   }
 
@@ -907,6 +932,29 @@ function EventDetailContent({
   const showTennisScores = detail.sport === 'tennis' && hasPeriodScores && (detail.status === 'live' || detail.completed);
   const entryOpen = detail.status === 'scheduled' && Date.parse(detail.startsAt) > Date.now();
 
+  useEffect(() => {
+    if (section !== 'overview' || detail.status !== 'scheduled' || !onPick) { setMarket(null); return; }
+    const controller = new AbortController();
+    const params = new URLSearchParams({ league: detail.league, id: detail.id });
+    api<{ market?: MarketReference | null }>(`/api/sports/market?${params}`, { signal: controller.signal })
+      .then(data => { if (!controller.signal.aborted) setMarket(data?.market ?? null); })
+      .catch(() => { if (!controller.signal.aborted) setMarket(null); });
+    return () => controller.abort();
+  }, [section, detail.league, detail.id, detail.status, onPick, refresh]);
+
+  useEffect(() => {
+    if (section !== 'props') { setProps(null); setPropsLoaded(false); return; }
+    const controller = new AbortController();
+    setProps(null);
+    setPropsLoaded(false);
+    const params = new URLSearchParams({ league: detail.league, id: detail.id });
+    api<{ props?: PlayerProps | null }>(`/api/sports/props?${params}`, { signal: controller.signal })
+      .then(data => { if (!controller.signal.aborted) { setProps(data?.props ?? null); setPropsLoaded(true); } })
+      .catch(() => { if (!controller.signal.aborted) setPropsLoaded(true); });
+    return () => controller.abort();
+  }, [section, detail.league, detail.id, refresh]);
+
+
   return <div className="cw-game-layout">
     <div className="cw-game-header">
       <div className="cw-game-meta">
@@ -970,17 +1018,35 @@ function EventDetailContent({
       <h3>{supportsDrawPick(detail.league)?'Predict the full-time result':'Call the winner'}</h3>
       <p className="cw-field-hint">{!entryOpen ? 'Picks are closed for this game' : entryPaused || error ? 'Picks are paused while game data is unavailable' : 'Free pick · Entry closes at game start'}</p>
       <div className={`cw-pick-options ${supportsDrawPick(detail.league) ? 'cw-three-outcomes' : ''}`}>
-        {pickSides(detail.league).map(side => (
+        {pickSides(detail.league).map(side => {
+          const share = consensusPercent(pickConsensus?.[`${detail.league}:${detail.id}`], side);
+          return (
           <button key={side} disabled={busy || !picksAvailable || entryPaused || !!error || !entryOpen}
-            aria-label={`Select ${pickName(detail,side)}`} onClick={() => onPick(side)}>
-            {pickName(detail,side)}<small>{side === 'draw' ? 'FULL TIME' : detail.fight ? 'FIGHTER' : side.toUpperCase()}</small>
+            aria-label={`Select ${pickName(detail,side)}${share !== null ? `, ${share}% of pickers chose this side` : ''}`} onClick={() => onPick(side)}>
+            {pickName(detail,side)}<small>{side === 'draw' ? 'FULL TIME' : detail.fight ? 'FIGHTER' : side.toUpperCase()}</small>{share !== null && <em className="cw-pick-share">{share}%</em>}
           </button>
-        ))}
+          );
+        })}
       </div>
+      {market && (() => {
+        const drift = (side: 'home'|'away'|'draw') => {
+          const open = market.open?.[side];
+          const now = market[side];
+          if (open === null || open === undefined || now === null) return '';
+          const delta = now - open;
+          return Math.abs(delta) >= 0.01 ? (delta > 0 ? ' ▲' : ' ▼') : '';
+        };
+        return <p className="cw-field-hint cw-market-reference">
+          Market reference · {market.provider}: {detail.away.name} {Math.round(market.away * 100)}%{drift('away')} / {detail.home.name} {Math.round(market.home * 100)}%{drift('home')}{market.draw !== null ? ` / Draw ${Math.round(market.draw * 100)}%${drift('draw')}` : ''} implied{market.open ? ', since first seen' : ''} — reference only, not a wager.
+        </p>;
+      })()}
     </section>}
     {section==='overview' && ticket && <div className="cw-game-section">
       <p>Free pick saved for <strong>{ticket.selection}</strong>.</p>
-      <button onClick={()=>selectSection('pick')}>View saved pick</button>
+      <button onClick={()=>selectSection('pick')}>View saved pick</button>{' '}
+      <button className="cw-game-copy" onClick={()=>void sharePickCard()}><ActionIcon action="share"/>Share pick</button>
+      {pickShare==='copied' && <p className="cw-field-hint" role="status">Pick card copied.</p>}
+      {pickShare==='manual' && <p className="cw-field-hint" role="status">Copy the game link above to share this pick.</p>}
     </div>}
     {section==='overview' && detail.status==='live' && snapshot?.status==='live' &&
       !stale && !error && snapshot.onIce && <OnIce event={snapshot} players={snapshot.onIce}/>}
@@ -1028,6 +1094,19 @@ function EventDetailContent({
     </section>)}
     {section==='stats' && <GameStats event={detail} summary={snapshot ?? event} busy={busy} onRefresh={()=>setRefresh(value=>value+1)}/>}
     {section==='players' && <PlayerBoxScore event={detail} scheduled={detail.status==='scheduled' && boardStatus!=='live' && boardStatus!=='final'} busy={busy} onRefresh={()=>setRefresh(value=>value+1)}/>}
+    {section==='props' && <section className="cw-game-section" aria-label="Player props reference">
+      <h3>Player props</h3>
+      {!props ? <p className="cw-game-section-note">{propsLoaded ? 'No player props are posted for this game.' : 'Loading props…'}</p> : <>
+        <ul className="cw-prop-list">
+          {props.props.map(prop => <li key={`${prop.player}:${prop.name}:${prop.line}`}>
+            <strong>{prop.player}</strong>
+            <span>{prop.name} O/U {prop.line}</span>
+            <small>O {prop.over > 0 ? `+${prop.over}` : prop.over} · U {prop.under > 0 ? `+${prop.under}` : prop.under}</small>
+          </li>)}
+        </ul>
+        <p className="cw-game-section-note">{props.book} lines · reference only, not a wager.</p>
+      </>}
+    </section>}
     {section==='timeline' && <GameTimeline event={detail} busy={busy} onRefresh={()=>setRefresh(value=>value+1)}/>}
     {section==='drives' && <FootballDrives event={detail} busy={busy} onRefresh={()=>setRefresh(value=>value+1)}/>}
     {section==='matchup' && <Matchup event={detail} matchup={(snapshot ?? event).matchup} pitchers={(snapshot ?? detail).probablePitchers} busy={busy} onRefresh={()=>setRefresh(value=>value+1)}/>}
@@ -1038,7 +1117,10 @@ function EventDetailContent({
       <h3>My free pick</h3>
       {ticket ? <><p><strong>{ticket.selection}</strong></p><p className="cw-game-section-note">{
         {open:'Awaiting a confirmed result', won:'Correct pick', lost:'Incorrect pick', void:'Voided', cancelled:'Cancelled'}[ticket.status]
-      }</p></> : ticketsLoading ? <p role="status">Loading your picks…</p>
+      }</p><button className="cw-game-copy" onClick={()=>void sharePickCard()}><ActionIcon action="share"/>Share pick</button>
+        {pickShare==='copied' && <p className="cw-field-hint" role="status">Pick card copied.</p>}
+        {pickShare==='manual' && <p className="cw-field-hint" role="status">Copy the game link above to share this pick.</p>}
+      </> : ticketsLoading ? <p role="status">Loading your picks…</p>
         : ticketsError ? <p role="alert">Could not load your picks.</p>
         : <p>No saved pick for this game.</p>}
     </section>}

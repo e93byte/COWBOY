@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import dynamic from 'next/dynamic';
 import '../live.css';
 import { AccountDialog, Modal, PickPanel, PicksHistory, api, useAccount, type Selection } from './AccountPicks';
 import { ActionIcon, SportIcon, StatusIcon, StarIcon, TabIcon, RefreshIcon, CloseIcon } from './SportIcon';
@@ -24,7 +25,13 @@ import type { LiveBoard, LiveEvent } from '../lib/live-sports';
 import { LIVE_LEAGUES } from '../lib/sports-leagues';
 import { hasActiveScores, LIVE_SCORE_REFRESH_MS, SCHEDULE_REFRESH_MS } from '../lib/score-refresh';
 import { pickName, pickSides, supportsDrawPick, type PickSide } from '../lib/pick-outcomes';
+import { consensusKey, consensusPercent } from '../lib/pick-consensus';
+import { usePickConsensus } from './pick-consensus';
 export type { LiveEvent } from '../lib/live-sports';
+// League panels fetch on mount and render nothing until data arrives, so they
+// are code-split to keep the initial board bundle small.
+const LeagueNews = dynamic(() => import('./LeagueNews'));
+const LeagueFutures = dynamic(() => import('./LeagueFutures'));
 const spotlightOptions = [
   { id: 'featured', label: 'Featured' },
   { id: 'live', label: 'Live games' },
@@ -32,7 +39,7 @@ const spotlightOptions = [
   { id: 'following', label: 'Following' },
 ] as const;
 type SpotlightMode = typeof spotlightOptions[number]['id'];
-type WorkspaceView = 'board' | 'live' | 'picks' | 'preferences' | 'help';
+export type WorkspaceView = 'board' | 'live' | 'picks' | 'preferences' | 'help';
 const boardStatuses = ['all','live','upcoming','watchlist'] as const;
 type BoardStatus = typeof boardStatuses[number];
 type LiveScope = 'all' | 'following' | 'final';
@@ -40,7 +47,9 @@ type LiveFilters = {league: string; scope: LiveScope};
 const defaultLiveFilters: LiveFilters = {league:'all',scope:'all'};
 const sportCategories = [
   ['football','Football'], ['basketball','Basketball'], ['baseball','Baseball'],
-  ['hockey','Hockey'], ['soccer','Soccer'], ['tennis','Tennis'], ['mma','MMA'], ['rugby','Rugby'], ['golf','Golf'],
+  ['hockey','Hockey'], ['soccer','Soccer'], ['tennis','Tennis'], ['mma','MMA'], ['rugby','Rugby'],
+  ['rugby_league','Rugby League'], ['aussierules','AFL'], ['lacrosse','Lacrosse'], ['volleyball','Volleyball'],
+  ['water_polo','Water Polo'], ['field_hockey','Field Hockey'], ['golf','Golf'],
 ] as const;
 const sportFilter = (value: string) => sportCategories.find(([key])=>value === 'sport-'+key)?.[0];
 
@@ -102,6 +111,11 @@ function eventKey(event: Pick<LiveEvent,'league'|'id'>) { return event.league + 
 
 function BoardLoadingSkeleton() {
   return <section className="cw-board-skeleton" role="status" aria-label="Loading games">
+    <div className="cw-skeleton-intro">
+      <span className="cw-skeleton-eyebrow"><i aria-hidden="true"/> Live board</span>
+      <strong>Loading the latest games</strong>
+      <p>Scores and schedules are updating now.</p>
+    </div>
     <span className="sr-only">Loading games…</span>
     {[0,1].map(group=><div className="cw-skeleton-group" key={group} aria-hidden="true">
       <div className="cw-skeleton-league"><i/><i/></div>
@@ -262,6 +276,8 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
   const [pending,setPending]=useState(false);
   const [pickError,setPickError]=useState('');
   const [toast,setToast]=useState('');
+  const [consensusNonce,setConsensusNonce]=useState(0);
+  const pickConsensus = usePickConsensus(consensusNonce);
   const [drawer,setDrawer]=useState(false);
   const [detail,setDetail]=useState<LiveEvent|null>(null);
   const [sharedGameState, setSharedGameState] = useState<'loading'|'unavailable'|null>(null);
@@ -463,6 +479,7 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
         method:'POST',body:JSON.stringify(picks.length === 1 ? picks[0] : {picks}),
       });
       await account.loadTickets();
+      setConsensusNonce(nonce => nonce + 1);
       setSelections([]);
       setReview(false);
       setDrawer(false);
@@ -671,13 +688,13 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
     return (sort==='status'?priority(a)-priority(b):0)||Date.parse(a.startsAt)-Date.parse(b.startsAt);
   });
   const groups=(board?.leagues||[]).flatMap(item=>{
-    const groups = new Map<string,{id:string;name:string;sport:string;events:LiveEvent[]}>();
+    const groups = new Map<string,{id:string;leagueId:string;name:string;sport:string;events:LiveEvent[]}>();
     for (const event of ranked.filter(event=>event.league===item.id)) {
       const tournament = event.sport === 'tennis' ? boardTournamentName(event) : undefined;
       const id = event.fight ? `ufc:${event.fight.cardId}` : tournament ? `${item.id}:tournament:${tournament}` : item.id;
       let group = groups.get(id);
       if (!group) {
-        group = {id,name:event.fight?.cardName ?? tournament ?? item.name,sport:item.sport,events:[]};
+        group = {id,leagueId:item.id,name:event.fight?.cardName ?? tournament ?? item.name,sport:item.sport,events:[]};
         groups.set(id,group);
       }
       group.events.push(event);
@@ -718,6 +735,29 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
   const leagueCounts = new Map<string, number>();
   for (const event of leagueEvents) leagueCounts.set(event.league, (leagueCounts.get(event.league) ?? 0) + 1);
   const availableLeagues = board?.leagues ?? [];
+  const leagueMeta = new Map(availableLeagues.map(item=>[item.id,item]));
+  const ageText = (iso: string | undefined) => {
+    if (!iso) return null;
+    const seconds = Math.max(0, Math.round((now - Date.parse(iso)) / 1000));
+    if (!Number.isFinite(seconds)) return null;
+    if (seconds < 60) return `${seconds}s`;
+    if (seconds < 3600) return `${Math.floor(seconds / 60)}m`;
+    return `${Math.floor(seconds / 3600)}h`;
+  };
+  const leagueFreshness = (leagueId: string) => {
+    const meta = leagueMeta.get(leagueId);
+    if (!meta || meta.status === 'ok') return null;
+    const stamp = meta.scoresUpdatedAt ?? meta.lastSuccessAt;
+    const age = ageText(stamp);
+    const state = meta.status === 'error' ? 'Unavailable' : meta.backupSource ? `Backup · ${meta.backupSource}` : 'Delayed';
+    return `${state}${age ? ` · ${age} ago` : ''}`;
+  };
+  const eventUpdated = (event: LiveEvent) => {
+    if (event.status !== 'live') return null;
+    const meta = leagueMeta.get(event.league);
+    const age = ageText(meta?.scoresUpdatedAt ?? meta?.lastSuccessAt);
+    return age ? `updated ${age} ago` : null;
+  };
   const deviceFollows = view === 'board' && filter === 'watchlist' ? subscriptions.importable(allEvents,availableLeagues) : [];
   const pickedLeague = availableLeagues.find(item=>item.id===league);
   const leagueSport = selectedSport ?? pickedLeague?.sport;
@@ -992,9 +1032,10 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
           {(query||(!liveView&&filter!=='all')||league!=='all'||dateFilter!=='all')&&<button onClick={resetFilters}>Clear filters</button>}
         </div>
       </div>
-      {golfView ? <GolfLeaderboard events={golfEvents}/> : !board&&busy?<BoardLoadingSkeleton/>:events.length===0?<div className="cw-empty"><h3>{error?'No games available':liveView?liveEmpty[0]:'No games in this view'}</h3><p>{error?'Refresh the sports feed to try again.':liveView?liveEmpty[1]:filter==='watchlist'?'Follow a team or league, or star a game to add it here.':dateFilter!=='all'?'Choose another schedule date or clear the filters.':'Try another league, status, or search.'}</p></div>:<section className="cw-events" aria-label="Games"><div className="cw-event-head"><span>EVENT / SCORE</span>{!liveView&&<span>FREE WINNER PICK</span>}</div>{displayedGroups.map(group=><section className="cw-league-group" key={group.id} aria-label={`${group.name} ${group.sport==='mma'?'bouts':'games'}`}><button className="cw-league-toggle" aria-expanded={!collapsed.includes(group.id)} aria-label={`${collapsed.includes(group.id)?'Expand':'Collapse'} ${group.name}`} onClick={()=>setCollapsed(old=>old.includes(group.id)?old.filter(id=>id!==group.id):[...old,group.id])}><SportIcon sport={group.sport}/><strong>{group.name}</strong><small>{group.events.length} {group.sport==='mma'?'bouts':'games'}</small><span aria-hidden="true">{collapsed.includes(group.id)?'+':'−'}</span></button>{!collapsed.includes(group.id)&&group.events.slice(0,showAllGroups.includes(group.id) || (league==='ufc' && group.sport==='mma') ? undefined : homeGroupLimit).map(e=><article key={e.league+e.id} className="cw-event" data-event-status={e.status}>
+      {view==='board' && !liveView && pickedLeague && <><LeagueNews league={pickedLeague.id} name={pickedLeague.name}/><LeagueFutures league={pickedLeague.id} name={pickedLeague.name}/></>}
+      {golfView ? <GolfLeaderboard events={golfEvents}/> : !board&&busy?<BoardLoadingSkeleton/>:events.length===0?<div className="cw-empty"><h3>{error?'No games available':liveView?liveEmpty[0]:'No games in this view'}</h3><p>{error?'Refresh the sports feed to try again.':liveView?liveEmpty[1]:filter==='watchlist'?'Follow a team or league, or star a game to add it here.':dateFilter!=='all'?'Choose another schedule date or clear the filters.':'Try another league, status, or search.'}</p></div>:<section className="cw-events" aria-label="Games"><div className="cw-event-head"><span>EVENT / SCORE</span>{!liveView&&<span>FREE WINNER PICK</span>}</div>{displayedGroups.map(group=><section className="cw-league-group" key={group.id} aria-label={`${group.name} ${group.sport==='mma'?'bouts':'games'}`}><button className="cw-league-toggle" aria-expanded={!collapsed.includes(group.id)} aria-label={`${collapsed.includes(group.id)?'Expand':'Collapse'} ${group.name}`} onClick={()=>setCollapsed(old=>old.includes(group.id)?old.filter(id=>id!==group.id):[...old,group.id])}><SportIcon sport={group.sport}/><strong>{group.name}</strong><small>{group.events.length} {group.sport==='mma'?'bouts':'games'}</small>{leagueFreshness(group.leagueId) && <small className="cw-league-fresh">{leagueFreshness(group.leagueId)}</small>}<span aria-hidden="true">{collapsed.includes(group.id)?'+':'−'}</span></button>{!collapsed.includes(group.id)&&group.events.slice(0,showAllGroups.includes(group.id) || (league==='ufc' && group.sport==='mma') ? undefined : homeGroupLimit).map(e=><article key={e.league+e.id} className="cw-event" data-event-status={e.status}>
         <div className="cw-event-info">
-          <div className="cw-event-meta"><SportIcon sport={e.sport}/><b>{e.leagueName}</b>{e.fight?.weightClass && <span>{e.fight.weightClass}</span>}<GameStatus status={e.status}>{e.status==='live'?'LIVE · ':''}{e.statusText}{e.shootoutScores&&` · Penalties ${e.shootoutScores.away}–${e.shootoutScores.home}`}{e.status==='live'&&e.clock&&!e.statusText.includes(e.clock)?` · ${e.clock}`:''}</GameStatus><button className="cw-watch" disabled={subscriptions.disabled} aria-label={`${watched.includes(e.league+':'+e.id)?'Unwatch':'Watch'} ${e.name}`} aria-pressed={watched.includes(e.league+':'+e.id)} onClick={()=>toggleWatch(e)}><StarIcon filled={watched.includes(e.league+':'+e.id)}/></button></div>
+          <div className="cw-event-meta"><SportIcon sport={e.sport}/><b>{e.leagueName}</b>{e.fight?.weightClass && <span>{e.fight.weightClass}</span>}<GameStatus status={e.status}>{e.status==='live'?'LIVE · ':''}{e.statusText}{e.shootoutScores&&` · Penalties ${e.shootoutScores.away}–${e.shootoutScores.home}`}{e.status==='live'&&e.clock&&!e.statusText.includes(e.clock)?` · ${e.clock}`:''}</GameStatus>{eventUpdated(e) && <small className="cw-event-updated">{eventUpdated(e)}</small>}<button className="cw-watch" disabled={subscriptions.disabled} aria-label={`${watched.includes(e.league+':'+e.id)?'Unwatch':'Watch'} ${e.name}`} aria-pressed={watched.includes(e.league+':'+e.id)} onClick={()=>toggleWatch(e)}><StarIcon filled={watched.includes(e.league+':'+e.id)}/></button></div>
           <button className="cw-event-detail" aria-label={`Details: ${e.name}`} onClick={()=>openGame(e)}><div className="cw-team"><span className="cw-team-identity"><TeamMark team={e.away}/><RankedTeamName team={e.away}/></span><BoardScore event={e} side="away"/></div><div className="cw-team"><span className="cw-team-identity"><TeamMark team={e.home}/><RankedTeamName team={e.home}/></span><BoardScore event={e} side="home"/></div></button>
           {!liveView&&<div className="cw-event-time"><time dateTime={e.startsAt}>{scheduleTime(e.startsAt,zone)}</time> <span>{canPick(e,now)?'Pre-game':'Entry locked'}</span><button onClick={()=>openGame(e)} aria-label={`Open event information for ${e.name}`}>Details</button></div>}
         </div>
@@ -1003,7 +1044,10 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
           {e.status==='live' && <button className="cw-compare-toggle" id={'cw-compare-'+eventKey(e)} aria-label={`Compare ${e.name}`}
             aria-pressed={comparedKeys.has(eventKey(e))} disabled={compared.length>=comparisonLimit&&!comparedKeys.has(eventKey(e))}
             onClick={()=>toggleComparison(e)}><ActionIcon action="compare"/>{comparedKeys.has(eventKey(e))?'Comparing':'Compare'}</button>}
-        </div>:<div className="cw-pick-options">{pickSides(e.league).map(side=><button key={side} aria-label={`Pick ${pickName(e,side)}`} aria-pressed={selectionsByGame.get(eventKey(e))?.side===side} onClick={()=>togglePick(e,side)} disabled={pending||!eligiblePick(e)||(selections.length>=5&&!selectionsByGame.has(eventKey(e)))||(dailyLimitReached&&!selectionsByGame.has(eventKey(e)))}><span>{pickName(e,side,'shortName')}</span><small>{selfExcluded?'Excluded':dailyLimitReached?'Limit':canPick(e,now)?side==='draw'?'Pick draw':'Pick winner':'Closed'}</small></button>)}</div>}
+        </div>:<div className="cw-pick-options">{pickSides(e.league).map(side=>{
+          const share = consensusPercent(pickConsensus[consensusKey(e.league,e.id)], side);
+          return <button key={side} aria-label={`Pick ${pickName(e,side)}${share !== null ? `, ${share}% of pickers chose this side` : ''}`} aria-pressed={selectionsByGame.get(eventKey(e))?.side===side} onClick={()=>togglePick(e,side)} disabled={pending||!eligiblePick(e)||(selections.length>=5&&!selectionsByGame.has(eventKey(e)))||(dailyLimitReached&&!selectionsByGame.has(eventKey(e)))}><span>{pickName(e,side,'shortName')}</span><small>{selfExcluded?'Excluded':dailyLimitReached?'Limit':canPick(e,now)?side==='draw'?'Pick draw':'Pick winner':'Closed'}</small>{share !== null && <em className="cw-pick-share">{share}%</em>}</button>;
+        })}</div>}
       </article>)}{!collapsed.includes(group.id)&&group.events.length>homeGroupLimit&&league!=='ufc'&&(curatedHome&&!showFullBoard
         ? <button className="cw-show-more" onClick={()=>selectLeague(group.events[0].league)}>View all {group.events.length} {group.sport==='mma'?'bouts':'games'} in {group.name}</button>
         : <button className="cw-show-more" aria-expanded={showAllGroups.includes(group.id)} onClick={()=>setShowAllGroups(old=>old.includes(group.id)?old.filter(id=>id!==group.id):[...old,group.id])}>{showAllGroups.includes(group.id)?`Show fewer ${group.sport==='mma'?'bouts':'games'}`:`Show all ${group.events.length} ${group.sport==='mma'?'bouts':'games'}`}</button>)}</section>)}{curatedHome&&<button className="cw-all-leagues" aria-expanded={showFullBoard} onClick={()=>setShowFullBoard(value=>!value)}>{showFullBoard?'Show featured leagues':`View all ${groups.length} leagues`}<span aria-hidden="true">{showFullBoard?'↑':'↓'}</span></button>}</section>}
@@ -1045,7 +1089,7 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
       boardDelayed={!currentLeague(detail.league)}
       watching={watched.includes(detail.league+':'+detail.id)}
       onWatch={()=>toggleWatch(detail)} watchDisabled={subscriptions.disabled}
-      onClose={closeGame} onPick={view==='picks'?undefined:side=>{togglePick(detail,side);closeGame();if(window.innerWidth<=700)setDrawer(true);}} picksAvailable={!pending&&eligiblePick(board?.events.find(event=>eventKey(event)===eventKey(detail)))&&(selections.length<5||selectionsByGame.has(eventKey(detail)))}/>}
+      onClose={closeGame} onPick={view==='picks'?undefined:side=>{togglePick(detail,side);closeGame();if(window.innerWidth<=700)setDrawer(true);}} picksAvailable={!pending&&eligiblePick(board?.events.find(event=>eventKey(event)===eventKey(detail)))&&(selections.length<5||selectionsByGame.has(eventKey(detail)))} pickConsensus={pickConsensus}/>}
     {review && selections.length>0 && <Modal title={selections.length===1?'Review your free pick':'Review your free picks'} locked={pending} onClose={()=>setReview(false)}>
       {selections.map(({event,side,requestId}) => <div className="cw-review-pick" key={requestId}>
         <p className="cw-dialog-copy">{event.name}</p>

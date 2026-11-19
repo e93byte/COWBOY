@@ -1,6 +1,9 @@
 export const LIVE_SCORE_REFRESH_MS = 1_500;
 export const SCHEDULE_REFRESH_MS = 8_000;
 export const SCORE_RETRY_MS = 5_000;
+export const PACING_MIN_MS = 70;
+export const PACING_MAX_MS = 700;
+export const TTL_STALE_WINDOW_MS = 1_800_000; // 30 minutes
 
 type RefreshableScores = {
   events: readonly {status: string; startsAt: string}[];

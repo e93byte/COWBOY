@@ -1,6 +1,6 @@
 'use client';
 
-import {useContext, useEffect, useState} from 'react';
+import {useContext, useEffect, useRef, useState} from 'react';
 import type {LiveEvent} from '../lib/live-sports';
 import {Modal} from './AccountPicks';
 import {ScheduleTimeZone} from './ScheduleTimeZone';
@@ -39,9 +39,16 @@ function quietAt(now: number, settings: QuietHours) {
     : clock >= settings.start || clock < settings.end;
 }
 
+type BrowserPermission = NotificationPermission | 'unsupported';
+
 export function useGameAlerts(moments: GameMoment[], scheduled: LiveEvent[], now: number) {
   const [settings, setSettings] = useState(defaultSettings);
   const [read, setRead] = useState<Set<string>>(() => new Set());
+  // Notification is browser-only; start as 'unsupported' so SSR and the first
+  // client render match, then resolve the real permission after mount.
+  const [browser, setBrowser] = useState<BrowserPermission>('unsupported');
+  const [browserOptIn, setBrowserOptIn] = useState(false);
+  const notified = useRef<Set<string>>(new Set());
   useEffect(() => {
     try {
       const saved = JSON.parse(localStorage.getItem('cowboy.gameAlerts') || 'null');
@@ -54,8 +61,29 @@ export function useGameAlerts(moments: GameMoment[], scheduled: LiveEvent[], now
             ? {enabled:quiet.enabled === true,start:quiet.start,end:quiet.end} : defaultSettings.quiet,
         });
       }
+      setBrowserOptIn(localStorage.getItem('cowboy.gameAlerts.browser') === '1');
+      notified.current = new Set(JSON.parse(localStorage.getItem('cowboy.alerts.notified') || '[]'));
+      setBrowser(typeof Notification === 'undefined' ? 'unsupported' : Notification.permission);
     } catch {}
   }, []);
+
+  const browserOn = browserOptIn && browser === 'granted';
+  useEffect(() => {
+    if (!browserOn || quietAt(now, settings.quiet)) return;
+    const fresh = entries.filter(moment => !read.has(moment.id) && !notified.current.has(moment.id)).slice(0, 5);
+    if (!fresh.length) return;
+    for (const moment of fresh) {
+      notified.current.add(moment.id);
+      try {
+        new Notification(moment.label, { body: moment.event.name, tag: moment.id });
+      } catch {}
+    }
+    try {
+      localStorage.setItem('cowboy.alerts.notified', JSON.stringify([...notified.current].slice(-200)));
+    } catch {}
+    // entries/read/settings are intentionally not deps: dedupe is by moment id.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [browserOn, now]);
 
   const reminders: GameMoment[] = now && settings.types.includes('reminder')
     ? scheduled.filter(event => {
@@ -85,8 +113,21 @@ export function useGameAlerts(moments: GameMoment[], scheduled: LiveEvent[], now
       return new Set([...previous, ...ids].filter(id => current.has(id)));
     });
   }
+  async function setBrowserAlerts(on: boolean) {
+    if (on && browser !== 'unsupported') {
+      const permission = browser === 'granted' ? 'granted' : await Notification.requestPermission();
+      setBrowser(permission);
+      const enabled = permission === 'granted';
+      setBrowserOptIn(enabled);
+      try { localStorage.setItem('cowboy.gameAlerts.browser', enabled ? '1' : '0'); } catch {}
+    } else if (!on) {
+      setBrowserOptIn(false);
+      try { localStorage.setItem('cowboy.gameAlerts.browser', '0'); } catch {}
+    }
+  }
   return {settings, entries, read, quiet:quietAt(now,settings.quiet),
-    unread: entries.filter(moment => !read.has(moment.id)).length, toggle, changeQuiet, markRead};
+    unread: entries.filter(moment => !read.has(moment.id)).length, toggle, changeQuiet, markRead,
+    browser, browserOn, setBrowserAlerts};
 }
 
 export function GameMomentList({moments, onGame, read}: {
@@ -136,6 +177,17 @@ export function GameAlertSettings({alerts}: {alerts: ReturnType<typeof useGameAl
         </div>
         <p className="cw-field-hint">{alerts.quiet ? 'Quiet hours active. Unread badge paused.' : 'Uses your device time. Updates stay available.'}</p>
         {quiet.start === quiet.end && <p className="cw-form-error">Choose different start and end times.</p>}
+      </>}
+    </fieldset>
+    <fieldset className="cw-alert-types">
+      <legend>Device notifications</legend>
+      {alerts.browser === 'unsupported' ? <p className="cw-field-hint">This browser does not support notifications.</p> : <>
+        <label><input type="checkbox" checked={alerts.browserOn}
+          disabled={alerts.browser === 'denied'}
+          onChange={event=>void alerts.setBrowserAlerts(event.target.checked)}/>
+          Show browser notifications for followed games</label>
+        {alerts.browser === 'denied' && <p className="cw-field-hint">Notifications are blocked. Allow them in your browser settings to enable this.</p>}
+        {alerts.browserOn && <p className="cw-field-hint">Notifications only appear while COWBOY is open in a tab.</p>}
       </>}
     </fieldset>
   </>;

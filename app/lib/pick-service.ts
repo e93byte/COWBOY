@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { AccountError, AccountStore, type StoredPick } from "./account-store";
 import { LIVE_LEAGUES, type LiveEvent } from "./live-sports";
 import { pickName, supportsDrawPick, type PickSide } from "./pick-outcomes";
+import { buildPickConsensus, type PickConsensus } from "./pick-consensus";
 
 export type PickChange = {
   side: PickSide;
@@ -78,6 +79,12 @@ export class PickService {
       const user = this.store.requireUser(data, token);
       return data.tickets.filter((ticket) => ticket.userId === user.id).map(publicTicket).reverse();
     }, false);
+  }
+
+  // Public, anonymous aggregate: counts only, never user identities, and only
+  // once enough pickers make the percentages non-identifying.
+  async consensus(): Promise<PickConsensus> {
+    return this.store.transaction((data) => buildPickConsensus(data.tickets), false);
   }
 
   private async changeOpenPick(token: string | null, id: unknown, update: (ticket: StoredPick, event: LiveEvent, now: number) => void) {

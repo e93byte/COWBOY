@@ -18,6 +18,17 @@ const expected = [
   { id: 'nationsleague', sport: 'soccer', path: 'soccer/uefa.nations', home: 'Faroe Islands', away: 'Moldova', winner: 'home' },
   { id: 'nwsl', sport: 'soccer', path: 'soccer/usa.nwsl', home: 'Gotham FC', away: 'Kansas City Current', winner: 'away' },
   { id: 'wsl', sport: 'soccer', path: 'soccer/eng.w.1', home: 'Aston Villa', away: 'Birmingham City', winner: 'home' },
+  { id: 'bl2', sport: 'soccer', path: 'soccer/ger.2', home: 'Arminia Bielefeld', away: '1. FC Magdeburg' },
+  { id: 'dfb_pokal', sport: 'soccer', path: 'soccer/ger.dfb_pokal', home: 'Holstein Kiel', away: 'FC Cologne' },
+  { id: 'afl', sport: 'aussierules', path: 'australian-football/afl', home: 'Sydney Swans', away: 'Geelong Cats' },
+  { id: 'nll', sport: 'lacrosse', path: 'lacrosse/nll', home: 'Oshawa FireWolves', away: 'Saskatchewan Rush' },
+  { id: 'nrl', sport: 'rugby_league', path: 'rugby-league/3', home: 'Roosters', away: 'Knights', winner: 'home' },
+  { id: 'mvb', sport: 'volleyball', path: 'volleyball/mens-college-volleyball', home: 'UC Santa Barbara Gauchos', away: 'Concordia University Irvine Golden Eagles' },
+  { id: 'wvb', sport: 'volleyball', path: 'volleyball/womens-college-volleyball', home: 'New Mexico Lobos', away: 'Wyoming Cowboys', winner: 'away' },
+  { id: 'wwp', sport: 'water_polo', path: 'water-polo/womens-college-water-polo', home: 'USC Trojans', away: 'California Golden Bears', winner: 'home' },
+  { id: 'wfh', sport: 'field_hockey', path: 'field-hockey/womens-college-field-hockey', home: 'Maryland Terrapins', away: 'Harvard Crimson' },
+  { id: 'bellator', sport: 'mma', path: 'mma/bellator', home: 'Darragh Kelly', away: 'Dmytrii Hrytsenko', winner: 'home' },
+  { id: 'pfl', sport: 'mma', path: 'mma/pfl', home: 'Lorenzo Parente', away: 'Stiven Shehu' },
 ] as const;
 
 for (const entry of expected) {
@@ -28,7 +39,9 @@ for (const entry of expected) {
     assert.equal(config.path, entry.path);
     assert.equal(samples[entry.id]._source, `https://site.api.espn.com/apis/site/v2/sports/${config.path}/scoreboard`);
     const [event] = normalizeScoreboard(entry.id, samples[entry.id]);
-    assert.equal(event.id, samples[entry.id].events[0].id);
+    const firstEvent = samples[entry.id].events[0];
+    // MMA scoreboards are fight cards: each bout is a competition with its own id.
+    assert.equal(event.id, entry.sport === 'mma' ? firstEvent.competitions[0].id : firstEvent.id);
     assert.equal(event.home.name, entry.home);
     assert.equal(event.away.name, entry.away);
     const winner = 'winner' in entry ? entry.winner : null;
@@ -61,6 +74,11 @@ test('expanded leagues are fetched through the same bounded board and source-ver
     const detail = await client.getLiveEvent(entry.id, event.id);
     assert.equal(detail?.id, event.id);
     assert.equal(detail?.home.name, entry.home);
-    assert.ok(calls.includes(`https://site.api.espn.com/apis/site/v2/sports/${entry.path}/summary?event=${event.id}`));
+    // MMA details resolve through the scoreboard cache, not /summary.
+    if (entry.sport === 'mma') {
+      assert.ok(calls.includes(`https://site.api.espn.com/apis/site/v2/sports/${entry.path}/scoreboard`));
+    } else {
+      assert.ok(calls.includes(`https://site.api.espn.com/apis/site/v2/sports/${entry.path}/summary?event=${event.id}`));
+    }
   }
 });

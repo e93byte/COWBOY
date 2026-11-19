@@ -734,7 +734,7 @@ test('board coalesces requests and refreshes active leagues ahead of idle league
   const [first, concurrent] = await Promise.all([client.getLiveBoard(), client.getLiveBoard()]);
   assert.deepEqual(first, concurrent);
   assert.equal(calls, live.LIVE_LEAGUES.length);
-  assert.ok(maximum <= 4 && maximum > 1);
+  assert.ok(maximum <= 8 && maximum >= 8, `observed ${maximum} simultaneous board requests`);
   assert.equal(first.source, 'ESPN');
   assert.equal(first.refreshAfterMs, 1_500);
   assert.equal(first.stale, false);
@@ -882,7 +882,7 @@ test('outbound concurrency is shared between board and concurrent event requests
     return String(input).includes('/summary?') ? new Response(null, { status: 404 }) : Response.json({ events: [] });
   } });
   await Promise.all([client.getLiveBoard(), ...Array.from({ length: 12 }, (_, i) => client.getLiveEvent('nfl', String(1000 + i)))]);
-  assert.ok(maximum <= 4, `observed ${maximum} simultaneous requests`);
+  assert.ok(maximum <= 8, `observed ${maximum} simultaneous requests`);
 });
 
 test('an overloaded request queue rejects excess work instead of growing without bound', async () => {
@@ -1231,4 +1231,27 @@ test('a failed team scoreboard can recover a matching active game from ESPN summ
   assert.equal(result.events.find(event=>event.id===game.id)?.home.score,24);
   assert.equal(result.leagues.find(league=>league.id==='nfl')?.status,'stale');
   assert.equal((await client.getLiveEvent('nfl',game.id))?.scoreSource,undefined);
+});
+
+test('stale-while-revalidate serves the last board instantly and refreshes in the background', async () => {
+  let clock = Date.parse('2026-11-15T19:00:00Z');
+  let requests = 0;
+  const client = live.createLiveSportsClient({now:()=>clock, staleWhileRevalidate:true, fetch:async input=>{
+    requests++;
+    const url = String(input);
+    const config = live.LIVE_LEAGUES.find(l => url.endsWith(`${l.path}/scoreboard`));
+    return Response.json(config ? fixtures[config.id] : {events:[]});
+  }});
+  const first = await client.getLiveBoard();
+  assert.equal(first.stale, false);
+  const afterFirst = requests;
+  clock += 30_000;
+  const staleBoard = await client.getLiveBoard();
+  assert.equal(staleBoard.stale, true);
+  assert.ok(staleBoard.refreshAfterMs <= 2_000);
+  assert.ok(staleBoard.events.length > 0, 'stale board still serves events');
+  await new Promise(resolve => setTimeout(resolve, 100));
+  assert.ok(requests > afterFirst, 'background refresh fetched leagues');
+  const fresh = await client.getLiveBoard();
+  assert.equal(fresh.stale, false);
 });

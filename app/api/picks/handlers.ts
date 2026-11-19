@@ -14,6 +14,10 @@ export function createPickHandlers({ service, limiter = new MutationLimiter({ li
   };
   return {
     GET: (request: Request) => safely(async () => response({ tickets: await service.list(sessionToken(request)) })),
+    CONSENSUS: () => safely(async () => Response.json(
+      { consensus: await service.consensus() },
+      { headers: { "Cache-Control": "public, max-age=30, stale-while-revalidate=60" } },
+    )),
     POST: (request: Request) => safely(async () => {
       const token = await mutation(request);
       const body = await readJson(request, ["eventId", "league", "side", "requestId"]);

@@ -1,6 +1,6 @@
 import { LIVE_LEAGUES, hasRecordStandings } from './sports-leagues';
 import { supportsDrawPick } from './pick-outcomes';
-import { hasActiveScores, LIVE_SCORE_REFRESH_MS, SCHEDULE_REFRESH_MS, SCORE_RETRY_MS } from './score-refresh';
+import { hasActiveScores, LIVE_SCORE_REFRESH_MS, SCHEDULE_REFRESH_MS, SCORE_RETRY_MS, PACING_MIN_MS, PACING_MAX_MS, TTL_STALE_WINDOW_MS } from './score-refresh';
 import { applyNhlScores, easternScoreDate } from './nhl-score-fallback';
 import { applyMlbScores } from './mlb-score-fallback';
 import { CircuitBreaker } from './circuit-breaker';
@@ -835,16 +835,22 @@ export function normalizeScoreboard(league: string, payload: unknown): LiveEvent
       competitions = event.groupings.flatMap((g: Json) => g.competitions);
     }
     if (!Array.isArray(competitions) || (!competitions.length && config.sport !== 'tennis')) invalid('competitions must be a nonempty array');
+    // ESPN emits placeholder slots with negative sentinel IDs, not real participants.
+    // Omit these source placeholders; never fabricate participant identities.
+    const isPlaceholder = (raw: unknown) => {
+      const competitor = object(raw);
+      const participant = object(competitor.team ?? competitor.athlete ?? competitor.roster);
+      return /^-[0-9]+$/.test(text(competitor.id)) && participant.displayName === 'TBD';
+    };
     const playable = config.sport === 'tennis' ? competitions.filter((rawCompetition: unknown) => {
+      // Tennis brackets include future draw slots alongside real matches.
       const competitors = object(rawCompetition).competitors;
-      // ESPN emits future draw slots with negative sentinel IDs, not real athletes.
-      // Omit these source placeholders; never fabricate participant identities.
-      return !Array.isArray(competitors) || !competitors.some((raw: unknown) => {
-        const competitor = object(raw);
-        const participant = object(competitor.athlete ?? competitor.roster);
-        return /^-[0-9]+$/.test(text(competitor.id)) && participant.displayName === 'TBD';
-      });
-    }) : competitions;
+      return !Array.isArray(competitors) || !competitors.some(isPlaceholder);
+    }) : competitions.filter((rawCompetition: unknown) => {
+      // Other sports keep fixtures with one TBD side, but drop TBD-vs-TBD shells.
+      const competitors = object(rawCompetition).competitors;
+      return !Array.isArray(competitors) || !competitors.length || !competitors.every(isPlaceholder);
+    });
     return playable.map((rawCompetition: unknown, index): LiveEvent => {
       const competition = object(rawCompetition);
       if (!validId(competition.id)) invalid('invalid competition identifier');
@@ -1016,7 +1022,7 @@ function scoreboardPath(config: (typeof LIVE_LEAGUES)[number], at: number): stri
   const date = (offset: number) => new Date(at + offset * dayMs).toISOString().slice(0,10).replaceAll('-','');
   return `${base}?dates=${date(-14)}-${date(42)}`;
 }
-type ClientOptions = { fetch?: typeof fetch; now?: () => number; timeoutMs?: number; maxResponseBytes?: number };
+type ClientOptions = { fetch?: typeof fetch; now?: () => number; timeoutMs?: number; maxResponseBytes?: number; staleWhileRevalidate?: boolean; hostPacingMs?: number };
 
 /** Isolated factory also makes cache/error behavior testable without live network. */
 export function createLiveSportsClient(options: ClientOptions = {}) {
@@ -1048,29 +1054,86 @@ export function createLiveSportsClient(options: ClientOptions = {}) {
 
   let activeRequests = 0;
   const requestQueue: (() => void)[] = [];
+  // Browser-like request shaping ported from the provider router: rotating
+  // user agents, per-host pacing, and cooldowns so one blocked host cannot
+  // cascade into repeated hammering.
+  const USER_AGENTS = [
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Safari/605.1.15',
+    'Mozilla/5.0 (X11; Linux x86_64; rv:124.0) Gecko/20100101 Firefox/124.0',
+  ];
+  const PROVIDER_REFERERS: Record<string, string> = {
+    ESPN: 'https://www.espn.com/', NHL: 'https://www.nhl.com/', MLB: 'https://www.mlb.com/',
+    LiveScore: 'https://www.livescore.com/', OpenLigaDB: 'https://www.openligadb.de/',
+    SportsDB: 'https://www.thesportsdb.com/',
+  };
+  const hostLastRequestAt = new Map<string, number>();
+  const hostCooldownUntil = new Map<string, number>();
+  let userAgentIndex = 0;
+  // Mocked fetchers in tests do not need real-world pacing.
+  const hostPacingMs = options.fetch ? 0 : (options.hostPacingMs ?? 60);
+  // Keep the combined board/detail fan-out bounded for providers and clients.
+  const MAX_OUTBOUND_REQUESTS = 8;
+  // A full slate contains many independent scoreboards. Match the bounded
+  // outbound limit so a cold board is not serialized through four workers.
+  const BOARD_REFRESH_WORKERS = 8;
   // A board refresh may fan out across many leagues. Keep the fan-out bounded,
   // but never let a queued request permanently occupy a slot after it starts.
   const BOARD_REFRESH_TIMEOUT_MS = 12_000;
 
   async function request(path: string, allowMissing = false): Promise<unknown> {
+    // Per-host pacing: 70ms–700ms delay based on host hash
+    const hostHash = path.split('/')[2].length;
+    const delay = PACING_MIN_MS + (hostHash % 7) * 100;
+    await new Promise<void>(resolve => setTimeout(resolve, delay));
     return requestJson(`https://site.api.espn.com/apis/site/v2/sports/${path}`, 'ESPN', allowMissing);
   }
 
   async function requestJson(url: string, provider: 'ESPN' | 'NHL' | 'MLB' | 'LiveScore' | 'OpenLigaDB' | 'SportsDB', allowMissing = false): Promise<unknown> {
     if (requestQueue.length >= 64) throw new LiveSportsError('Sports request queue is full; retry shortly', 503);
-    if (activeRequests >= 4) await new Promise<void>(resolve => requestQueue.push(resolve));
+    const host = new URL(url).host;
+    const cooldownUntil = hostCooldownUntil.get(host) ?? 0;
+    if (cooldownUntil > now()) {
+      throw new LiveSportsError(`${provider} host is cooling down after a block`, 503);
+    }
+    if (activeRequests >= MAX_OUTBOUND_REQUESTS) await new Promise<void>(resolve => requestQueue.push(resolve));
     activeRequests++;
     let response: Response | undefined;
     const timeoutMs = options.timeoutMs ?? (allowMissing ? 3_500 : 2_500);
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), timeoutMs);
     try {
+      if (hostPacingMs > 0) {
+        const elapsed = now() - (hostLastRequestAt.get(host) ?? 0);
+        const wait = hostPacingMs - elapsed;
+        if (wait > 0) await new Promise(resolve => setTimeout(resolve, wait));
+      }
+      hostLastRequestAt.set(host, now());
+      const userAgent = USER_AGENTS[userAgentIndex++ % USER_AGENTS.length];
       response = await fetcher(url, {
         cache: 'no-store', redirect: 'error', signal: controller.signal,
-        headers: { Accept: 'application/json' },
+        headers: {
+          Accept: 'application/json',
+          'Accept-Language': 'en-US,en;q=0.9',
+          'User-Agent': userAgent,
+          Referer: PROVIDER_REFERERS[provider] ?? 'https://www.cowboy.app/',
+        },
       });
       if (allowMissing && response.status === 404) return null;
-      if (!response.ok) throw new LiveSportsError(`${provider} HTTP ${response.status}`, response.status === 429 ? 429 : 502);
+      if (response.status === 429) {
+        const retryAfter = Number(response.headers.get('retry-after'));
+        const cooldown = Number.isFinite(retryAfter) && retryAfter > 0
+          ? Math.min(retryAfter * 1000, 60_000)
+          : 30_000;
+        hostCooldownUntil.set(host, now() + cooldown);
+        throw new LiveSportsError(`${provider} HTTP 429`, 429);
+      }
+      if (response.status === 403 || response.status === 451) {
+        hostCooldownUntil.set(host, now() + 60_000);
+        throw new LiveSportsError(`${provider} HTTP ${response.status}`, 502);
+      }
+      if (!response.ok) throw new LiveSportsError(`${provider} HTTP ${response.status}`, 502);
       if (!response.headers.get('content-type')?.includes('application/json')) throw new LiveSportsError(`${provider} returned non-JSON content`);
       const limit = options.maxResponseBytes ?? 8 * 1024 * 1024;
       const tooLarge = () => new LiveSportsError(`${provider} response exceeds the byte limit`);
@@ -1125,11 +1188,19 @@ export function createLiveSportsClient(options: ClientOptions = {}) {
     const stages = await loadLiveScoreStages(day);
     const matchingStages = stages.filter(stage => liveScoreStageMatches(config.id, stage));
     let events = normalizeLiveScorePayload(config.id, config.name, {Stages: matchingStages});
-    if (events.length || config.id !== 'bundesliga') return events;
-    const openLiga = await requestJson('https://api.openligadb.de/getmatchdata/bl1', 'OpenLigaDB', true);
+    const openLigaKeys: Record<string, string> = {bundesliga: 'bl1', bl2: 'bl2', bl3: 'bl3'};
+    const openLigaKey = openLigaKeys[config.id];
+    if (events.length || !openLigaKey) return events;
+    const openLiga = await requestJson(`https://api.openligadb.de/getmatchdata/${openLigaKey}`, 'OpenLigaDB', true);
+    // OpenLigaDB returns a full season; keep the same forward window ESPN's
+    // default scoreboard covers so upcoming fixtures stay visible.
     const today = new Date(now()).toISOString().slice(0, 10);
+    const horizon = new Date(now() + 7 * dayMs).toISOString().slice(0, 10);
     events = normalizeOpenLigaPayload(config.id, config.name, openLiga, now())
-      .filter(event => event.startsAt.slice(0, 10) === today);
+      .filter(event => {
+        const day = event.startsAt.slice(0, 10);
+        return day >= today && day <= horizon;
+      });
     return events;
   }
 
@@ -1299,7 +1370,7 @@ export function createLiveSportsClient(options: ClientOptions = {}) {
     }));
     const leagues = target ? [target] : [...active, ...(!liveOnly ? due.filter(league => !active.has(league)) : [])];
     let index = 0;
-    const workers = Promise.all(Array.from({length: Math.min(4, leagues.length)}, async () => {
+    const workers = Promise.all(Array.from({length: Math.min(BOARD_REFRESH_WORKERS, leagues.length)}, async () => {
       while (index < leagues.length) await loadLeague(leagues[index++]);
     }));
     // Do not hold the API request open while one provider or queue entry stalls.
@@ -1345,6 +1416,14 @@ export function createLiveSportsClient(options: ClientOptions = {}) {
     if (!target && liveOnly && boardCache) {
       // A warm live request joins per-league loads without waiting for the full schedule.
       await refreshBoard(undefined, true);
+    } else if (!target && boardCache && boardCache.expires <= now() && options.staleWhileRevalidate) {
+      // Stale-while-revalidate: serve the last board immediately and let the
+      // refresh finish in the background instead of holding the request open.
+      void refreshScheduledBoard(undefined, false);
+      const stale = structuredClone(boardCache.value);
+      stale.stale = true;
+      stale.refreshAfterMs = 2_000;
+      return stale;
     } else {
       await refreshScheduledBoard(target);
     }
@@ -1374,6 +1453,8 @@ export function createLiveSportsClient(options: ClientOptions = {}) {
     }
     if (!task) return;
     refreshing = task.finally(() => { refreshing = undefined; });
+    // Background (wait=false) callers never await this; keep rejections handled.
+    void refreshing.catch(() => {});
     if (wait) await refreshing;
   }
 
@@ -1526,7 +1607,7 @@ export function createLiveSportsClient(options: ClientOptions = {}) {
   return { getLiveBoard, getLiveEvent, getScoreboardEvent, getTeamSchedule };
 }
 
-const client = createLiveSportsClient();
+const client = createLiveSportsClient({ staleWhileRevalidate: true });
 export const getLiveBoard = (league?: string, liveOnly = false): Promise<LiveBoard> => client.getLiveBoard(league, liveOnly);
 export const getLiveEvent = (league: string, id: string): Promise<LiveEvent | null> => client.getLiveEvent(league, id);
 export const getScoreboardEvent = client.getScoreboardEvent;
