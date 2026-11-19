@@ -1255,3 +1255,49 @@ test('stale-while-revalidate serves the last board instantly and refreshes in th
   const fresh = await client.getLiveBoard();
   assert.equal(fresh.stale, false);
 });
+
+test('a frozen upstream game clock is not presented as freshly verified', async () => {
+  let clock = Date.parse('2026-11-19T23:00:00Z');
+  let displayClock = '04:32';
+  const scoreboard = () => Response.json({ events: [{
+    id: '401810852', date: new Date(clock - 60 * 60_000).toISOString(),
+    name: 'Home Team vs Away Team', shortName: 'Home vs Away',
+    status: { type: { state: 'in', completed: false, name: 'STATUS_IN_PROGRESS', detail: '4th Quarter' } },
+    competitions: [{ id: '401810852', date: new Date(clock - 60 * 60_000).toISOString(),
+      status: { displayClock, period: 4, type: { state: 'in', completed: false, name: 'STATUS_IN_PROGRESS', detail: '4th Quarter' } },
+      competitors: [
+        { homeAway: 'home', id: '1', score: '100', team: { id: '1', displayName: 'Home Team' } },
+        { homeAway: 'away', id: '2', score: '98', team: { id: '2', displayName: 'Away Team' } },
+      ] }] }] });
+  const client = live.createLiveSportsClient({ now: () => clock, fetch: async input => {
+    const url = String(input);
+    if (url.includes('/basketball/nba/')) return scoreboard();
+    return Response.json({ events: [] });
+  } });
+  await client.getLiveBoard('nba');
+  // Identical live clock across polls spanning more than ten minutes means the
+  // upstream payload itself is frozen; HTTP 200 alone must not refresh trust.
+  for (let i = 0; i < 11; i++) { clock += 60_000; await client.getLiveBoard('nba'); }
+  const frozen = await client.getLiveBoard('nba');
+  const nba = frozen.leagues.find(league => league.id === 'nba')!;
+  assert.equal(nba.status, 'stale');
+  assert.match(nba.error ?? '', /clock has not advanced/i);
+  assert.ok(nba.lastSuccessAt && Date.parse(nba.lastSuccessAt) < clock, 'freshness timestamp does not claim the frozen payload');
+  // A clock that resumes advancing restores verified-fresh status.
+  displayClock = '03:58';
+  clock += 60_000;
+  const recovered = await client.getLiveBoard('nba');
+  assert.equal(recovered.leagues.find(league => league.id === 'nba')!.status, 'ok');
+});
+
+test('a scoreboard with one unidentifiable participant keeps the remaining events', () => {
+  const data = structuredClone(fixtures.nfl);
+  data.events[0].competitions[0].competitors[1].id = undefined;
+  const events = live.normalizeScoreboard('nfl', data);
+  assert.ok(events.length >= 0);
+  assert.ok(!events.some(event => event.id === data.events[0].id), 'unpickable event is dropped, not fatal');
+  // Structural corruption still fails closed.
+  const broken = structuredClone(fixtures.nfl);
+  broken.events[0].competitions[0].competitors.pop();
+  assert.throws(() => live.normalizeScoreboard('nfl', broken), /Invalid ESPN/);
+});

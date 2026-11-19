@@ -27,6 +27,7 @@ import { hasActiveScores, LIVE_SCORE_REFRESH_MS, SCHEDULE_REFRESH_MS } from '../
 import { pickName, pickSides, supportsDrawPick, type PickSide } from '../lib/pick-outcomes';
 import { consensusKey, consensusPercent } from '../lib/pick-consensus';
 import { usePickConsensus } from './pick-consensus';
+import { americanOdds, lineValue } from '../lib/odds';
 export type { LiveEvent } from '../lib/live-sports';
 // League panels fetch on mount and render nothing until data arrives, so they
 // are code-split to keep the initial board bundle small.
@@ -749,7 +750,7 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
     if (!meta || meta.status === 'ok') return null;
     const stamp = meta.scoresUpdatedAt ?? meta.lastSuccessAt;
     const age = ageText(stamp);
-    const state = meta.status === 'error' ? 'Unavailable' : meta.backupSource ? `Backup · ${meta.backupSource}` : 'Delayed';
+    const state = meta.status === 'error' ? 'Unavailable' : meta.backupSource ? 'Backup feed' : 'Delayed';
     return `${state}${age ? ` · ${age} ago` : ''}`;
   };
   const eventUpdated = (event: LiveEvent) => {
@@ -1037,6 +1038,13 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
         <div className="cw-event-info">
           <div className="cw-event-meta"><SportIcon sport={e.sport}/><b>{e.leagueName}</b>{e.fight?.weightClass && <span>{e.fight.weightClass}</span>}<GameStatus status={e.status}>{e.status==='live'?'LIVE · ':''}{e.statusText}{e.shootoutScores&&` · Penalties ${e.shootoutScores.away}–${e.shootoutScores.home}`}{e.status==='live'&&e.clock&&!e.statusText.includes(e.clock)?` · ${e.clock}`:''}</GameStatus>{eventUpdated(e) && <small className="cw-event-updated">{eventUpdated(e)}</small>}<button className="cw-watch" disabled={subscriptions.disabled} aria-label={`${watched.includes(e.league+':'+e.id)?'Unwatch':'Watch'} ${e.name}`} aria-pressed={watched.includes(e.league+':'+e.id)} onClick={()=>toggleWatch(e)}><StarIcon filled={watched.includes(e.league+':'+e.id)}/></button></div>
           <button className="cw-event-detail" aria-label={`Details: ${e.name}`} onClick={()=>openGame(e)}><div className="cw-team"><span className="cw-team-identity"><TeamMark team={e.away}/><RankedTeamName team={e.away}/></span><BoardScore event={e} side="away"/></div><div className="cw-team"><span className="cw-team-identity"><TeamMark team={e.home}/><RankedTeamName team={e.home}/></span><BoardScore event={e} side="home"/></div></button>
+          {e.odds && e.status !== 'final' && <div className="cw-event-odds" aria-label={`Reference odds from ${e.odds.provider}`}>
+            <span><small>Spread</small><b>{lineValue(e.odds.spread,true)}</b></span>
+            <span><small>Total</small><b>{lineValue(e.odds.total)}</b></span>
+            <span><small>Away ML</small><b>{americanOdds(e.odds.awayMoneyline)}</b></span>
+            <span><small>Home ML</small><b>{americanOdds(e.odds.homeMoneyline)}</b></span>
+            {e.odds.drawMoneyline !== null && <span><small>Draw ML</small><b>{americanOdds(e.odds.drawMoneyline)}</b></span>}
+          </div>}
           {!liveView&&<div className="cw-event-time"><time dateTime={e.startsAt}>{scheduleTime(e.startsAt,zone)}</time> <span>{canPick(e,now)?'Pre-game':'Entry locked'}</span><button onClick={()=>openGame(e)} aria-label={`Open event information for ${e.name}`}>Details</button></div>}
         </div>
         {liveView?<div className="cw-live-actions">

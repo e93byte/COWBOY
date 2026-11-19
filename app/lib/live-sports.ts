@@ -127,6 +127,25 @@ type FootballDrive = {
   clock: string | null;
 };
 
+export type GameOdds = {
+  provider: string;
+  spread: number | null;
+  total: number | null;
+  homeMoneyline: number | null;
+  awayMoneyline: number | null;
+  drawMoneyline: number | null;
+  homeSpreadPrice: number | null;
+  awaySpreadPrice: number | null;
+  overPrice: number | null;
+  underPrice: number | null;
+  openSpread: number | null;
+  openTotal: number | null;
+  openHomeMoneyline: number | null;
+  openAwayMoneyline: number | null;
+  openDrawMoneyline: number | null;
+  favorite: 'home' | 'away' | null;
+};
+
 export type LiveEvent = {
   id: string;
   league: string;
@@ -162,6 +181,10 @@ export type LiveEvent = {
   nbaStandings?: {title:string; rows:RecordStanding[]}[];
   recordStandings?: {title:string; rows:RecordStanding[]}[];
   fight?: FightCard;
+  /** Posted sportsbook lines. Reference context only — never a wager. */
+  odds?: GameOdds;
+  /** Additional books from the ESPN pick-center feed, when available. */
+  oddsBooks?: GameOdds[];
   providerUrl?: string;
   scoreSource?: 'NHL' | 'MLB' | 'ESPN summary' | 'LiveScore' | 'OpenLigaDB' | 'SportsDB';
   winner: 'home' | 'away' | 'draw' | null;
@@ -821,6 +844,93 @@ function normalizeBroadcasts(competition: Json): NonNullable<LiveEvent['broadcas
   return [...broadcasts.values()].filter(item=>item.region || !knownRegions.has(item.name.toLowerCase())).slice(0,8);
 }
 
+function finiteLine(value: unknown, min: number, max: number): number | null {
+  const parsed = typeof value === 'number' ? value
+    : typeof value === 'string' && value.trim() ? Number(value) : NaN;
+  return Number.isFinite(parsed) && parsed >= min && parsed <= max ? parsed : null;
+}
+
+function americanLine(value: unknown): number | null {
+  const parsed = finiteLine(value, -100_000, 100_000);
+  return parsed !== null && Math.abs(parsed) >= 100 ? parsed : null;
+}
+
+function spreadLine(value: unknown): number | null {
+  return finiteLine(value, -200, 200);
+}
+
+function totalLine(value: unknown): number | null {
+  const raw = typeof value === 'string' ? value.trim().replace(/^[ou]\s*/i, '') : value;
+  return finiteLine(raw, 0, 2_000);
+}
+
+/**
+ * Normalize one ESPN odds row. ESPN embeds DraftKings prices in every
+ * scoreboard competition, so odds cost no extra provider request.
+ */
+export function normalizeOdds(raw: unknown): GameOdds | null {
+  const item = object(raw);
+  if (!Object.keys(item).length) return null;
+  const provider = text(object(item.provider).name).trim().slice(0, 60);
+  const moneyline = object(item.moneyline);
+  const home = object(moneyline.home);
+  const away = object(moneyline.away);
+  const draw = object(moneyline.draw);
+  const homeClose = object(home.close);
+  const awayClose = object(away.close);
+  const drawClose = object(draw.close);
+  const point = object(item.pointSpread);
+  const pointHome = object(point.home);
+  const pointAway = object(point.away);
+  const total = object(item.total);
+  const totalOver = object(total.over);
+  const totalUnder = object(total.under);
+  const homeTeam = object(item.homeTeamOdds);
+  const awayTeam = object(item.awayTeamOdds);
+  const spread = spreadLine(item.spread) ?? spreadLine(object(pointHome.close).line);
+  const totalValue = totalLine(item.overUnder) ?? totalLine(object(totalOver.close).line);
+  const homeMoneyline = americanLine(homeClose.odds) ?? americanLine(homeTeam.moneyLine);
+  const awayMoneyline = americanLine(awayClose.odds) ?? americanLine(awayTeam.moneyLine);
+  const drawMoneyline = americanLine(drawClose.odds) ?? americanLine(object(item.drawOdds).moneyLine);
+  if (spread === null && totalValue === null && homeMoneyline === null && awayMoneyline === null) return null;
+  return {
+    provider: provider || 'Sportsbook',
+    spread, total: totalValue, homeMoneyline, awayMoneyline, drawMoneyline,
+    homeSpreadPrice: americanLine(object(pointHome.close).odds),
+    awaySpreadPrice: americanLine(object(pointAway.close).odds),
+    overPrice: americanLine(object(totalOver.close).odds),
+    underPrice: americanLine(object(totalUnder.close).odds),
+    openSpread: spreadLine(object(pointHome.open).line),
+    openTotal: totalLine(object(totalOver.open).line),
+    openHomeMoneyline: americanLine(object(home.open).odds),
+    openAwayMoneyline: americanLine(object(away.open).odds),
+    openDrawMoneyline: americanLine(object(draw.open).odds),
+    favorite: homeTeam.favorite === true ? 'home' : awayTeam.favorite === true ? 'away' : null,
+  };
+}
+
+function selectOdds(raw: unknown): GameOdds | null {
+  const rows = Array.isArray(raw) ? raw : raw ? [raw] : [];
+  const odds = rows.map(normalizeOdds).filter((value): value is GameOdds => Boolean(value));
+  return odds.find(item => /draftkings/i.test(item.provider)) ?? odds[0] ?? null;
+}
+
+function dedupeOdds(rows: unknown): GameOdds[] {
+  const values = (Array.isArray(rows) ? rows : []).map(normalizeOdds)
+    .filter((value): value is GameOdds => Boolean(value));
+  const seen = new Set<string>();
+  const unique: GameOdds[] = [];
+  for (const value of values) {
+    const key = JSON.stringify([value.provider, value.spread, value.total,
+      value.homeMoneyline, value.awayMoneyline, value.drawMoneyline]);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    unique.push(value);
+    if (unique.length >= 8) break;
+  }
+  return unique;
+}
+
 export function normalizeScoreboard(league: string, payload: unknown): LiveEvent[] {
   const config = leagueConfig(league);
   const data = object(payload);
@@ -842,14 +952,24 @@ export function normalizeScoreboard(league: string, payload: unknown): LiveEvent
       const participant = object(competitor.team ?? competitor.athlete ?? competitor.roster);
       return /^-[0-9]+$/.test(text(competitor.id)) && participant.displayName === 'TBD';
     };
+    // A competition with an unidentifiable participant can never be picked, so
+    // it is filtered out before mapping. Without this, one malformed upstream
+    // row (for example a draw slot missing its athlete id) would fail the
+    // entire league scoreboard.
+    const hasPickableSides = (rawCompetition: unknown) => {
+      const competitors = object(rawCompetition).competitors;
+      return !Array.isArray(competitors) || competitors.every(raw => validId(object(raw).id));
+    };
     const playable = config.sport === 'tennis' ? competitions.filter((rawCompetition: unknown) => {
       // Tennis brackets include future draw slots alongside real matches.
       const competitors = object(rawCompetition).competitors;
-      return !Array.isArray(competitors) || !competitors.some(isPlaceholder);
+      return hasPickableSides(rawCompetition) &&
+        (!Array.isArray(competitors) || !competitors.some(isPlaceholder));
     }) : competitions.filter((rawCompetition: unknown) => {
       // Other sports keep fixtures with one TBD side, but drop TBD-vs-TBD shells.
       const competitors = object(rawCompetition).competitors;
-      return !Array.isArray(competitors) || !competitors.length || !competitors.every(isPlaceholder);
+      return hasPickableSides(rawCompetition) &&
+        (!Array.isArray(competitors) || !competitors.length || !competitors.every(isPlaceholder));
     });
     return playable.map((rawCompetition: unknown, index): LiveEvent => {
       const competition = object(rawCompetition);
@@ -937,6 +1057,7 @@ export function normalizeScoreboard(league: string, payload: unknown): LiveEvent
       const probableAway = league === 'mlb' ? normalizeProbablePitcher(awayRaw) : undefined;
       const probableHome = league === 'mlb' ? normalizeProbablePitcher(homeRaw) : undefined;
       const broadcasts = normalizedStatus === 'scheduled' || normalizedStatus === 'live' ? normalizeBroadcasts(competition) : [];
+      const odds = selectOdds(competition.odds);
       const situation = object(competition.situation);
       const footballPosition = config.sport === 'football' && code === 'STATUS_IN_PROGRESS' && normalizedStatus === 'live'
         ? normalizeFootballPosition(situation, situation.possession, away, home)
@@ -957,6 +1078,7 @@ export function normalizeScoreboard(league: string, payload: unknown): LiveEvent
         }} : {}),
         ...(soccerAggregate ? {soccerAggregate} : {}),
         ...(footballPosition ? {footballPosition} : {}),
+        ...(odds ? { odds } : {}),
         ...(neutral && homeRaw && awayRaw ? normalizeFightCard(event,competition,index,awayRaw,homeRaw) : {}),
       };
     });
@@ -1039,6 +1161,11 @@ export function createLiveSportsClient(options: ClientOptions = {}) {
   const espnBackoffUntil = new Map<string, number>();
   const summaryBackoffUntil = new Map<string, number>();
   const espnCircuit = new CircuitBreaker({ failureThreshold: 3, cooldownMs: 30_000, now });
+  // A provider can answer HTTP 200 with a cached scoreboard whose game clock
+  // never advances. Track the live-clock signature per league and stop
+  // presenting it as freshly verified once it stays identical too long.
+  const FROZEN_UPSTREAM_CLOCK_MS = 10 * 60_000;
+  const liveClockWatch = new Map<string, { sig: string; since: number }>();
   const leagueLoads = new Map<string, Promise<void>>();
   const backupBackoffUntil = new Map<string,number>();
   let liveScoreStagesCache: {day:string; stages:Json[]; expires:number} | undefined;
@@ -1070,6 +1197,16 @@ export function createLiveSportsClient(options: ClientOptions = {}) {
   };
   const hostLastRequestAt = new Map<string, number>();
   const hostCooldownUntil = new Map<string, number>();
+  // Cooldowns are scoped to a sport family rather than the whole host: a 429 on
+  // one league's scoreboard should not silence unrelated sports, while repeated
+  // hammering inside the affected family is still suppressed.
+  const cooldownKey = (url: string): string => {
+    const parsed = new URL(url);
+    const parts = parsed.pathname.split('/').filter(Boolean);
+    const sportsIndex = parts.indexOf('sports');
+    const family = sportsIndex >= 0 ? parts[sportsIndex + 1] : parts[0];
+    return `${parsed.host}/${family ?? ''}`;
+  };
   let userAgentIndex = 0;
   // Mocked fetchers in tests do not need real-world pacing.
   const hostPacingMs = options.fetch ? 0 : (options.hostPacingMs ?? 60);
@@ -1083,17 +1220,22 @@ export function createLiveSportsClient(options: ClientOptions = {}) {
   const BOARD_REFRESH_TIMEOUT_MS = 12_000;
 
   async function request(path: string, allowMissing = false): Promise<unknown> {
-    // Per-host pacing: 70ms–700ms delay based on host hash
-    const hostHash = path.split('/')[2].length;
-    const delay = PACING_MIN_MS + (hostHash % 7) * 100;
-    await new Promise<void>(resolve => setTimeout(resolve, delay));
+    // Per-host pacing: 70ms–700ms delay based on host hash. Mocked fetchers in
+    // tests skip it, exactly like hostPacingMs below; production keeps the
+    // full jitter. A stale-while-revalidate refresh must begin its network
+    // work promptly rather than waiting out an artificial delay.
+    if (!options.fetch) {
+      const hostHash = path.split('/')[2].length;
+      const delay = PACING_MIN_MS + (hostHash % 7) * 100;
+      await new Promise<void>(resolve => setTimeout(resolve, delay));
+    }
     return requestJson(`https://site.api.espn.com/apis/site/v2/sports/${path}`, 'ESPN', allowMissing);
   }
 
   async function requestJson(url: string, provider: 'ESPN' | 'NHL' | 'MLB' | 'LiveScore' | 'OpenLigaDB' | 'SportsDB', allowMissing = false): Promise<unknown> {
     if (requestQueue.length >= 64) throw new LiveSportsError('Sports request queue is full; retry shortly', 503);
     const host = new URL(url).host;
-    const cooldownUntil = hostCooldownUntil.get(host) ?? 0;
+    const cooldownUntil = hostCooldownUntil.get(cooldownKey(url)) ?? 0;
     if (cooldownUntil > now()) {
       throw new LiveSportsError(`${provider} host is cooling down after a block`, 503);
     }
@@ -1126,11 +1268,11 @@ export function createLiveSportsClient(options: ClientOptions = {}) {
         const cooldown = Number.isFinite(retryAfter) && retryAfter > 0
           ? Math.min(retryAfter * 1000, 60_000)
           : 30_000;
-        hostCooldownUntil.set(host, now() + cooldown);
+        hostCooldownUntil.set(cooldownKey(url), now() + cooldown);
         throw new LiveSportsError(`${provider} HTTP 429`, 429);
       }
       if (response.status === 403 || response.status === 451) {
-        hostCooldownUntil.set(host, now() + 60_000);
+        hostCooldownUntil.set(cooldownKey(url), now() + 60_000);
         throw new LiveSportsError(`${provider} HTTP ${response.status}`, 502);
       }
       if (!response.ok) throw new LiveSportsError(`${provider} HTTP ${response.status}`, 502);
@@ -1253,8 +1395,21 @@ export function createLiveSportsClient(options: ClientOptions = {}) {
       const at = now();
       leagueDueAt.set(config.id, at + (hasActiveScores(data, at) ? LIVE_SCORE_REFRESH_MS : SCHEDULE_REFRESH_MS));
       lastGood.set(config.id, {...data, at});
+      // Only events carrying a real running clock participate; clockless
+      // sports (tennis sets, golf, halftime breaks) cannot be judged frozen.
+      const clocked = data.events.filter(event => event.status === 'live' &&
+        typeof event.clock === 'string' && /^[0-9]{1,2}:[0-5][0-9]$/.test(event.clock) && event.clock !== '0:00');
+      const sig = clocked.map(event => [event.id, event.statusText, event.period ?? '', event.clock,
+        event.home.score, event.away.score].join('|')).sort().join(';');
+      const watch = liveClockWatch.get(config.id);
+      const frozen = clocked.length > 0 && watch?.sig === sig && at - watch.since >= FROZEN_UPSTREAM_CLOCK_MS;
+      liveClockWatch.set(config.id, { sig, since: watch?.sig === sig ? watch.since : at });
+      const priorSuccess = leagueResults.get(config.id)?.league.lastSuccessAt;
       leagueResults.set(config.id, {
-        ...data, league: {...metadata, status: 'ok', lastSuccessAt: new Date(at).toISOString()},
+        ...data, league: {...metadata,
+          status: frozen ? 'stale' : 'ok',
+          ...(frozen ? { error: 'Live clock has not advanced; upstream data may be frozen' } : {}),
+          lastSuccessAt: frozen && priorSuccess ? priorSuccess : new Date(at).toISOString()},
       });
     } catch (error) {
       if (circuitAttempted) espnCircuit.failure(circuitKey);
@@ -1483,6 +1638,11 @@ export function createLiveSportsClient(options: ClientOptions = {}) {
     const events = normalizeScoreboard(league, { events: [data.header] });
     const event = events.find(event => event.id === id);
     if (!event) throw new LiveSportsError('ESPN event identity mismatch');
+    // The summary carries a pick-center board that can include more books and
+    // fresher prices than the scoreboard snapshot.
+    const oddsBooks = dedupeOdds([...(Array.isArray(data.odds) ? data.odds : []),
+      ...(Array.isArray(data.pickcenter) ? data.pickcenter : [])]);
+    const primaryOdds = oddsBooks.find(book => /draftkings/i.test(book.provider)) ?? oddsBooks[0] ?? event.odds;
     const venue = text(object(object(data.gameInfo).venue).fullName).trim();
     const hasStarted = event.status === 'live' || event.completed;
     const teamStats = hasStarted ? normalizeBoxScore(data, event) : [];
@@ -1519,6 +1679,8 @@ export function createLiveSportsClient(options: ClientOptions = {}) {
       ...(soccerLineups ? {soccerLineups} : {}),
       ...(soccerStandings.length ? {soccerStandings} : {}),
       ...(recordStandings.length ? (league === 'nba' ? {nbaStandings: recordStandings} : {recordStandings}) : {}),
+      ...(primaryOdds ? { odds: primaryOdds } : {}),
+      ...(oddsBooks.length > 1 ? { oddsBooks } : {}),
     };
   }
 
