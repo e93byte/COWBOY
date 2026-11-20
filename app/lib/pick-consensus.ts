@@ -13,7 +13,7 @@ export function consensusKey(league: string, eventId: string): string {
 }
 
 export function consensusPercent(entry: PickConsensusEntry | undefined, side: PickSide): number | null {
-  if (!entry || entry.total < CONSENSUS_MINIMUM) return null;
+  if (!entry || entry.total < CONSENSUS_MINIMUM || side === "over" || side === "under") return null;
   const count = entry[side];
   if (!count) return 0;
   return Math.round((count / entry.total) * 100);
@@ -22,8 +22,9 @@ export function consensusPercent(entry: PickConsensusEntry | undefined, side: Pi
 export function buildPickConsensus(tickets: StoredPick[]): PickConsensus {
   const counts = new Map<string, { home: number; away: number; draw: number }>();
   for (const ticket of tickets) {
-    // Voided and cancelled picks are not calls on the game.
-    if (ticket.status === "void" || ticket.status === "cancelled") continue;
+    // Voided and cancelled picks are not calls on the game. Consensus covers
+    // moneyline picks only; spread/total percentages would mix denominators.
+    if (ticket.status === "void" || ticket.status === "cancelled" || (ticket.market ?? "moneyline") !== "moneyline") continue;
     const key = consensusKey(ticket.league, ticket.eventId);
     const entry = counts.get(key) ?? { home: 0, away: 0, draw: 0 };
     if (ticket.side === "home" || ticket.side === "away" || ticket.side === "draw") entry[ticket.side] += 1;

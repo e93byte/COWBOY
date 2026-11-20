@@ -2035,3 +2035,30 @@
 .cw-futures-list strong{font:10px monospace;color:#ffc593;font-variant-numeric:tabular-nums}
 .cw-futures-board{padding:0 0 8px}
 .cw-futures-board h4{margin:0;padding:8px 14px 0;font-size:10px;font-weight:600;letter-spacing:.4px;color:#b3a194;text-transform:uppercase}
+
+/* Posted sportsbook lines (reference only) */
+.cw-event-odds{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-top:7px;padding-top:7px;border-top:1px solid #302b2e;font-variant-numeric:tabular-nums}
+.cw-event-odds>span{display:flex;align-items:baseline;gap:5px;min-width:0}
+.cw-event-odds small{font:8px monospace;letter-spacing:.4px;color:#9b918a;text-transform:uppercase;white-space:nowrap}
+.cw-event-odds b{font:600 10px monospace;color:#e3c3a5;white-space:nowrap}
+.cw-odds-board{display:grid;gap:0;margin-top:12px;border:1px solid #403a36;border-radius:8px;overflow:hidden}
+.cw-odds-head,.cw-odds-row{display:grid;grid-template-columns:var(--odds-columns,1.1fr 1fr 1fr);gap:8px;align-items:center;padding:9px 11px}
+.cw-odds-head{background:#2a2528;font:8px monospace;letter-spacing:.6px;color:#b7a89d;text-transform:uppercase}
+.cw-odds-row{border-top:1px solid #37312f;font-size:12px}
+.cw-odds-row>[role=rowheader]{color:#b8aba1;font-size:10px;letter-spacing:.3px}
+.cw-odds-price{display:flex;flex-direction:column;gap:2px;font:600 12px monospace;color:#efd2b6}
+.cw-odds-price small{font:9px monospace;color:#9d938c;font-weight:400}
+.cw-odds-moves{margin-top:14px}
+.cw-odds-moves h4,.cw-odds-books h4{font-size:11px;color:#d9c1a8;margin-bottom:7px}
+.cw-odds-moves ul{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.cw-odds-moves li{display:flex;justify-content:space-between;gap:10px;font-size:11px;color:#b3a69d;border-bottom:1px solid #332e2c;padding-bottom:6px}
+.cw-odds-moves strong{color:#ffc18b;font:600 11px monospace}
+.cw-odds-books{margin-top:14px;overflow-x:auto}
+.cw-odds-books table{width:100%;border-collapse:collapse;font-size:10px;min-width:420px}
+.cw-odds-books th{text-align:left;font:8px monospace;letter-spacing:.5px;color:#a99c92;padding:7px 6px;border-bottom:1px solid #403a36;text-transform:uppercase}
+.cw-odds-books td{padding:7px 6px;border-bottom:1px solid #302b2e;font-variant-numeric:tabular-nums;color:#d9c8b9}
+@media(max-width:700px){.cw-event-odds{gap:8px;margin-top:5px}.cw-event-odds small{font-size:7px}.cw-event-odds b{font-size:9px}.cw-odds-head,.cw-odds-row{padding:8px;gap:5px;font-size:11px}.cw-odds-row>[role=rowheader]{font-size:9px}}
+.cw-market-tabs{display:flex;gap:4px;margin:10px 0 8px}
+.cowboy-live .cw-market-tabs button{flex:1;min-height:30px;padding:5px 8px;font-size:10px;letter-spacing:.6px;text-transform:uppercase;background:#232227;border-color:#3c383d;color:#b6ada6;border-radius:5px}
+.cowboy-live .cw-market-tabs button[aria-pressed=true]{background:#3a2c22;border-color:#a06a3d;color:#ffc18b}
+.cowboy-live .cw-market-tabs button:disabled{opacity:.4}

@@ -6,7 +6,9 @@ import {Modal, api, type Ticket} from './AccountPicks';
 import {ActionIcon, SportIcon, StarIcon, TabIcon} from './SportIcon';
 import {RankedTeamName, TeamMark} from './TeamMark';
 import type {LiveEvent} from './LiveWorkspace';
-import { pickName, pickSides, supportsDrawPick, type PickSide } from '../lib/pick-outcomes';
+import type { GameOdds } from '../lib/live-sports';
+import { americanOdds, impliedProbability, lineMovement, lineValue } from '../lib/odds';
+import { pickName, pickSides, postedPickLine, supportsDrawPick, type PickMarket, type PickSide } from '../lib/pick-outcomes';
 import { consensusPercent, type PickConsensus } from '../lib/pick-consensus';
 import type { MarketReference } from '../lib/market-reference';
 import type { PlayerProps } from '../lib/player-props';
@@ -139,7 +141,7 @@ type Props = {
   watching: boolean;
   onWatch: () => void;
   watchDisabled?: boolean;
-  onPick?: (side: PickSide) => void;
+  onPick?: (side: PickSide, market?: PickMarket) => void;
   picksAvailable?: boolean;
   pickConsensus?: PickConsensus;
 };
@@ -741,8 +743,67 @@ function TeamSchedule({event, games, onGame}: {
   </section>;
 }
 
+function GameOddsPanel({event}:{event:LiveEvent}) {
+  const books = [...(event.oddsBooks?.length ? event.oddsBooks : event.odds ? [event.odds] : [])]
+    .sort((a,b) => Number(/draftkings/i.test(b.provider)) - Number(/draftkings/i.test(a.provider)));
+  if (!books.length) return <section className="cw-game-section" aria-label="Reference odds">
+    <h3>Reference odds</h3>
+    <p className="cw-game-section-note">No posted lines are available for this game.</p>
+  </section>;
+  const primary = books[0];
+  const draw = primary.drawMoneyline !== null;
+  const price = (value: number | null) => <span className="cw-odds-price">{americanOdds(value)}<small>{impliedProbability(value)}</small></span>;
+  const moves = [
+    ['Away moneyline', lineMovement(primary.openAwayMoneyline, primary.awayMoneyline)],
+    ['Home moneyline', lineMovement(primary.openHomeMoneyline, primary.homeMoneyline)],
+    ['Draw moneyline', lineMovement(primary.openDrawMoneyline, primary.drawMoneyline)],
+    ['Spread', lineMovement(primary.openSpread, primary.spread)],
+    ['Total', lineMovement(primary.openTotal, primary.total)],
+  ].filter((entry): entry is [string, string] => Boolean(entry[1]));
+  const bookKey = (book: GameOdds) => `${book.provider}:${book.spread}:${book.total}:${book.homeMoneyline}:${book.awayMoneyline}`;
+  return <section className="cw-game-section" aria-label="Reference odds">
+    <h3>Reference odds</h3>
+    <p className="cw-game-section-note">{primary.provider} lines via ESPN{primary.favorite ? ` · ${event[primary.favorite].shortName} favorite` : ''}. Display only — not a wager.</p>
+    <div className="cw-odds-board" role="table" aria-label="Moneyline, spread, and total">
+      <div className="cw-odds-head" role="row" style={{'--odds-columns': draw ? '1.1fr 1fr 1fr 1fr' : '1.1fr 1fr 1fr'} as CSSProperties}>
+        <span role="columnheader">Market</span><span role="columnheader">{event.away.shortName}</span><span role="columnheader">{event.home.shortName}</span>{draw && <span role="columnheader">Draw</span>}
+      </div>
+      <div className="cw-odds-row" role="row" style={{'--odds-columns': draw ? '1.1fr 1fr 1fr 1fr' : '1.1fr 1fr 1fr'} as CSSProperties}>
+        <span role="rowheader">Moneyline</span>{price(primary.awayMoneyline)}{price(primary.homeMoneyline)}{draw && price(primary.drawMoneyline)}
+      </div>
+      <div className="cw-odds-row" role="row" style={{'--odds-columns': draw ? '1.1fr 1fr 1fr 1fr' : '1.1fr 1fr 1fr'} as CSSProperties}>
+        <span role="rowheader">Spread</span>
+        <span className="cw-odds-price">{lineValue(primary.spread === null ? null : -primary.spread, true)}<small>{americanOdds(primary.awaySpreadPrice)}</small></span>
+        <span className="cw-odds-price">{lineValue(primary.spread, true)}<small>{americanOdds(primary.homeSpreadPrice)}</small></span>
+        {draw && <span className="cw-odds-price">—</span>}
+      </div>
+      <div className="cw-odds-row" role="row" style={{'--odds-columns': draw ? '1.1fr 1fr 1fr 1fr' : '1.1fr 1fr 1fr'} as CSSProperties}>
+        <span role="rowheader">Total</span>
+        <span className="cw-odds-price">O {lineValue(primary.total)}<small>{americanOdds(primary.overPrice)}</small></span>
+        <span className="cw-odds-price">U {lineValue(primary.total)}<small>{americanOdds(primary.underPrice)}</small></span>
+        {draw && <span className="cw-odds-price">—</span>}
+      </div>
+    </div>
+    {moves.length > 0 && <div className="cw-odds-moves">
+      <h4>Line movement</h4>
+      <ul>{moves.map(([label, value]) => <li key={label}><span>{label}</span><strong>{value}</strong></li>)}</ul>
+    </div>}
+    {books.length > 1 && <div className="cw-odds-books">
+      <h4>{books.length} books compared</h4>
+      <table>
+        <thead><tr><th>Book</th><th>Spread</th><th>Total</th><th>Away ML</th><th>Home ML</th></tr></thead>
+        <tbody>{books.map(book => <tr key={bookKey(book)}>
+          <td>{book.provider}</td><td>{lineValue(book.spread,true)}</td><td>{lineValue(book.total)}</td>
+          <td>{americanOdds(book.awayMoneyline)}</td><td>{americanOdds(book.homeMoneyline)}</td>
+        </tr>)}</tbody>
+      </table>
+    </div>}
+  </section>;
+}
+
 const gameSections = [
   {id: 'overview', label: 'Overview'},
+  {id: 'odds', label: 'Odds'},
   {id: 'score', label: 'Score'},
   {id: 'stats', label: 'Stats'},
   {id: 'players', label: 'Players'},
@@ -758,6 +819,7 @@ const gameSections = [
 type GameSection = (typeof gameSections)[number]['id'];
 
 function sectionAvailable(section: GameSection, event: LiveEvent) {
+  if (section === 'odds') return Boolean(event.odds || event.oddsBooks?.length);
   if (section === 'drives') return event.sport === 'football';
   if (section === 'props') return ['football','basketball','baseball','hockey','soccer'].includes(event.sport) && (event.status === 'scheduled' || event.status === 'live');
   if (section === 'lineups') return event.sport === 'soccer';
@@ -794,6 +856,7 @@ function EventDetailContent({
   const shareField = useRef<HTMLInputElement>(null);
   const shareable = /^[0-9]{1,16}(?:-[0-9]{1,16})?$/.test(event.id);
   const [section, setSection] = useState<GameSection>(()=>readGameSection(event));
+  const [pickMarket, setPickMarket] = useState<PickMarket>('moneyline');
   const [refresh, setRefresh] = useState(0);
   const loadedEffectKey = useRef('');
   const cleanupAbortTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -1014,16 +1077,28 @@ function EventDetailContent({
     </nav>
     {section === 'overview' && hasPeriodScores && !showTennisScores && <PeriodScores event={detail}/>}
     {section === 'overview' && leaders.length > 0 && <GameLeaders event={detail} leaders={leaders} summaryOnly/>}
+    {section === 'odds' && <GameOddsPanel event={detail}/>}
     {section==='overview' && onPick && !ticket && <section className="cw-detail-pick" aria-label="Free pick">
-      <h3>{supportsDrawPick(detail.league)?'Predict the full-time result':'Call the winner'}</h3>
+      <h3>{pickMarket==='moneyline'?(supportsDrawPick(detail.league)?'Predict the full-time result':'Call the winner'):pickMarket==='spread'?'Pick the spread':'Pick the total'}</h3>
       <p className="cw-field-hint">{!entryOpen ? 'Picks are closed for this game' : entryPaused || error ? 'Picks are paused while game data is unavailable' : 'Free pick · Entry closes at game start'}</p>
-      <div className={`cw-pick-options ${supportsDrawPick(detail.league) ? 'cw-three-outcomes' : ''}`}>
-        {pickSides(detail.league).map(side => {
-          const share = consensusPercent(pickConsensus?.[`${detail.league}:${detail.id}`], side);
+      <div className="cw-market-tabs" role="group" aria-label="Pick market">
+        {(['moneyline','spread','total'] as const).map(option => {
+          const posted = option === 'moneyline' || pickSides(detail.league, option).some(side => postedPickLine(detail.odds, side, option) !== null);
+          return <button key={option} type="button" aria-pressed={pickMarket===option}
+            disabled={!posted} onClick={() => setPickMarket(option)}>
+            {option==='moneyline'?'Winner':option==='spread'?'Spread':'Total'}
+          </button>;
+        })}
+      </div>
+      <div className={`cw-pick-options ${pickSides(detail.league, pickMarket).length === 3 ? 'cw-three-outcomes' : ''}`}>
+        {pickSides(detail.league, pickMarket).map(side => {
+          const share = pickMarket === 'moneyline' ? consensusPercent(pickConsensus?.[`${detail.league}:${detail.id}`], side) : null;
+          const line = postedPickLine(detail.odds, side, pickMarket);
+          const label = pickName(detail,side,'name',pickMarket,line);
           return (
-          <button key={side} disabled={busy || !picksAvailable || entryPaused || !!error || !entryOpen}
-            aria-label={`Select ${pickName(detail,side)}${share !== null ? `, ${share}% of pickers chose this side` : ''}`} onClick={() => onPick(side)}>
-            {pickName(detail,side)}<small>{side === 'draw' ? 'FULL TIME' : detail.fight ? 'FIGHTER' : side.toUpperCase()}</small>{share !== null && <em className="cw-pick-share">{share}%</em>}
+          <button key={side} disabled={busy || !picksAvailable || entryPaused || !!error || !entryOpen || (pickMarket !== 'moneyline' && line === null)}
+            aria-label={`Select ${label}${share !== null ? `, ${share}% of pickers chose this side` : ''}`} onClick={() => onPick(side, pickMarket)}>
+            {label}<small>{side === 'draw' ? 'FULL TIME' : side === 'over' ? 'OVER' : side === 'under' ? 'UNDER' : detail.fight ? 'FIGHTER' : side.toUpperCase()}</small>{share !== null && <em className="cw-pick-share">{share}%</em>}
           </button>
           );
         })}

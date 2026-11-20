@@ -163,14 +163,15 @@ export class SupabaseStore {
       eventId: ticket.eventId, league: ticket.league, side: ticket.side, requestId: ticket.requestId,
       eventName: ticket.eventName, selection: ticket.selection, startsAt: ticket.startsAt,
       createdAt: ticket.createdAt, homeId: ticket.homeId, awayId: ticket.awayId,
+      market: ticket.market ?? "moneyline", line: ticket.line ?? null,
     }));
     return rpc<StoredPick[]>(this.config, "cowboy_save_picks", { p_token_hash: tokenHash(token)!, p_picks: picks });
   }
 
-  async changePick(token: string | null, id: string, action: "cancel" | "edit", side: string | null, selection: string | null, revision: number | null, now?: number) {
+  async changePick(token: string | null, id: string, action: "cancel" | "edit", side: string | null, selection: string | null, revision: number | null, now?: number, line?: number | null) {
     return rpc<StoredPick>(this.config, "cowboy_change_pick", {
       p_token_hash: tokenHash(token)!, p_ticket_id: id, p_action: action,
-      p_side: side, p_selection: selection, p_revision: revision,
+      p_side: side, p_selection: selection, p_revision: revision, p_line: line ?? null,
       p_now: new Date(now ?? this.now()).toISOString(),
     });
   }
@@ -183,6 +184,6 @@ export class SupabaseStore {
 }
 
 type PickConsensusTicket = {
-  userId: string; eventId: string; league: string; side: "home" | "away" | "draw";
-  status: StoredPick["status"]; changes?: StoredPick["changes"]; createdAt: string; updatedAt: string | null;
+  userId: string; eventId: string; league: string; side: StoredPick["side"];
+  market?: StoredPick["market"]; status: StoredPick["status"]; changes?: StoredPick["changes"]; createdAt: string; updatedAt: string | null;
 };

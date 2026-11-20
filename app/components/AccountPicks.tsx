@@ -5,7 +5,7 @@ import {ActionIcon, CloseIcon, SportIcon, TabIcon} from './SportIcon';
 
 export type User = {id:string;username:string};
 import type { RealPickTicket as Ticket } from '../lib/pick-service';
-import { pickName, pickSides, supportsDrawPick, type PickSide } from '../lib/pick-outcomes';
+import { pickName, pickSides, postedPickLine, supportsDrawPick, type PickMarket, type PickSide } from '../lib/pick-outcomes';
 import { ScheduleTimeZone } from './ScheduleTimeZone';
 import { scheduleDay, scheduleTime } from '../lib/schedule-time';
 import { LIVE_LEAGUES } from '../lib/sports-leagues';
@@ -18,6 +18,7 @@ export type Selection = {
     away: Pick<LiveEvent['away'], 'name' | 'shortName'>;
   };
   side: PickSide;
+  market?: PickMarket;
   requestId: string;
 };
 function canPick(event: LiveEvent, now: number) {
@@ -488,7 +489,7 @@ export function PicksHistory({tickets,busy,error,onRefresh,onUpdate,user,onSignI
 export function PickPanel({selections,user,disabled,pending,draftEvents,onChoose,onClear,onReview,onRemove,onSignIn}: {
   selections: Selection[]; user: User|null; disabled: boolean; pending: boolean;
   draftEvents: ReadonlyMap<string, LiveEvent>;
-  onChoose: (event: LiveEvent, side: PickSide) => void;
+  onChoose: (event: LiveEvent, side: PickSide, market?: PickMarket) => void;
   onClear: () => void;
   onReview: () => void; onRemove: (selection: Selection) => void; onSignIn: () => void;
 }) {
@@ -500,16 +501,28 @@ export function PickPanel({selections,user,disabled,pending,draftEvents,onChoose
     {count ? <div className="cw-selected">
       {selections.map(selection => {
         const {event,side} = selection;
+        const market = selection.market ?? 'moneyline';
         const key = `${event.league}:${event.id}`;
         const current = draftEvents.get(key);
+        const marketPosted = (option: PickMarket) =>
+          option === 'moneyline' || postedPickLine(current?.odds, side, option) !== null;
         return <div className="cw-draft-pick" key={key}>
-          <span className="cw-kicker"><SportIcon sport={event.sport ?? 'all'}/>{event.leagueName} · {supportsDrawPick(event.league)?'FULL-TIME RESULT':'MATCH WINNER'}</span>
+          <span className="cw-kicker"><SportIcon sport={event.sport ?? 'all'}/>{event.leagueName} · {market==='moneyline'?(supportsDrawPick(event.league)?'FULL-TIME RESULT':'MATCH WINNER'):market==='spread'?'SPREAD':'TOTAL'}</span>
           <h3>{event.name}</h3>
+          <div className="cw-market-tabs" role="group" aria-label={`Market for ${event.name}`}>
+            {(['moneyline','spread','total'] as const).map(option => (
+              <button type="button" key={option} aria-pressed={market===option}
+                disabled={pending || !current || !marketPosted(option)}
+                onClick={()=>{if (current && market!==option) onChoose(current, pickSides(event.league, option)[0], option);}}>
+                {option==='moneyline'?'Winner':option==='spread'?'Spread':'Total'}
+              </button>
+            ))}
+          </div>
           <div className="cw-draft-options" role="group" aria-label={`Selection for ${event.name}`}>
-            {pickSides(event.league).map(option => (
+            {pickSides(event.league, market).map(option => (
               <button type="button" key={option} aria-pressed={side===option} disabled={pending || !current}
-                onClick={()=>{if (current && side!==option) onChoose(current,option);}}>
-                {pickName(event,option)}
+                onClick={()=>{if (current && (side!==option || market!=='moneyline')) onChoose(current,option,market);}}>
+                {pickName(event,option,'name',market,postedPickLine(current?.odds,option,market))}
               </button>
             ))}
           </div>

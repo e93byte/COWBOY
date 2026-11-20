@@ -24,7 +24,7 @@ import { useAccountFollows } from './AccountFollows';
 import type { LiveBoard, LiveEvent } from '../lib/live-sports';
 import { LIVE_LEAGUES } from '../lib/sports-leagues';
 import { hasActiveScores, LIVE_SCORE_REFRESH_MS, SCHEDULE_REFRESH_MS } from '../lib/score-refresh';
-import { pickName, pickSides, supportsDrawPick, type PickSide } from '../lib/pick-outcomes';
+import { pickName, pickSides, supportsDrawPick, type PickMarket, type PickSide } from '../lib/pick-outcomes';
 import { consensusKey, consensusPercent } from '../lib/pick-consensus';
 import { usePickConsensus } from './pick-consensus';
 import { americanOdds, lineValue } from '../lib/odds';
@@ -397,7 +397,9 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
           typeof item.event.home?.name === 'string' && typeof item.event.home.shortName === 'string' &&
           typeof item.event.away?.name === 'string' && typeof item.event.away.shortName === 'string' &&
           typeof item.event.startsAt === 'string' && Number.isFinite(Date.parse(item.event.startsAt)) &&
-          (item.side === 'home' || item.side === 'away' || (item.side === 'draw' && supportsDrawPick(item.event.league))) && typeof item.requestId === 'string');
+          pickSides(item.event.league, (item.market ?? 'moneyline') as PickMarket).includes(item.side) &&
+          (item.market === undefined || item.market === 'moneyline' || item.market === 'spread' || item.market === 'total') &&
+          typeof item.requestId === 'string');
         setSelections([...new Map(valid.map(item=>[eventKey(item.event),item])).values()].slice(0,5));
       }
     } catch {}
@@ -433,7 +435,7 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
     if (event && eligiblePick(event)) draftEvents.set(key,event);
   }
   const selectionDisabled = selfExcluded || dailyLimitReached || draftEvents.size !== selections.length;
-  const togglePick = (event: LiveEvent, side: PickSide) => {
+  const togglePick = (event: LiveEvent, side: PickSide, market: PickMarket = 'moneyline') => {
     if (selfExcluded) {
       setToast('Picks are paused while self-exclusion is active. Check Preferences.');
       return;
@@ -446,17 +448,17 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
     const {id,league,leagueName,name,startsAt,sport,home,away} = event;
     const pick: Selection = {event:{id,league,leagueName,name,startsAt,sport,
       home:{name:home.name,shortName:home.shortName},away:{name:away.name,shortName:away.shortName}},
-      side,requestId:crypto.randomUUID()};
+      side,...(market !== 'moneyline' ? {market} : {}),requestId:crypto.randomUUID()};
     setSelections(previous => {
       const selected = previous.find(item => eventKey(item.event) === key);
       if (!selected) return previous.length < 5 ? [...previous,pick] : previous;
-      return selected.side === side
+      return selected.side === side && (selected.market ?? 'moneyline') === market
         ? previous.filter(item => item !== selected)
         : previous.map(item => item === selected ? pick : item);
     });
     setPickError('');
   };
-  const rebet = (ticket: {side: PickSide}, event: LiveEvent) => {
+  const rebet = (ticket: {side: PickSide; market?: PickMarket}, event: LiveEvent) => {
     if (selfExcluded) {
       setToast('Picks are paused while self-exclusion is active. Check Preferences.');
       return;
@@ -466,7 +468,7 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
       return;
     }
     if (!eligiblePick(event)) return;
-    togglePick(event, ticket.side);
+    togglePick(event, ticket.side, ticket.market ?? 'moneyline');
     openBoard();
     setToast('Pick restored to your draft. Review it before saving.');
   };
@@ -475,7 +477,7 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
     setPending(true);
     setPickError('');
     try {
-      const picks = selections.map(({event,side,requestId}) => ({eventId:event.id,league:event.league,side,requestId}));
+      const picks = selections.map(({event,side,market,requestId}) => ({eventId:event.id,league:event.league,side,...(market ? {market} : {}),requestId}));
       await api(picks.length === 1 ? '/api/picks' : '/api/picks/batch', {
         method:'POST',body:JSON.stringify(picks.length === 1 ? picks[0] : {picks}),
       });
@@ -1097,7 +1099,7 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
       boardDelayed={!currentLeague(detail.league)}
       watching={watched.includes(detail.league+':'+detail.id)}
       onWatch={()=>toggleWatch(detail)} watchDisabled={subscriptions.disabled}
-      onClose={closeGame} onPick={view==='picks'?undefined:side=>{togglePick(detail,side);closeGame();if(window.innerWidth<=700)setDrawer(true);}} picksAvailable={!pending&&eligiblePick(board?.events.find(event=>eventKey(event)===eventKey(detail)))&&(selections.length<5||selectionsByGame.has(eventKey(detail)))} pickConsensus={pickConsensus}/>}
+      onClose={closeGame} onPick={view==='picks'?undefined:(side,market)=>{togglePick(detail,side,market ?? 'moneyline');closeGame();if(window.innerWidth<=700)setDrawer(true);}} picksAvailable={!pending&&eligiblePick(board?.events.find(event=>eventKey(event)===eventKey(detail)))&&(selections.length<5||selectionsByGame.has(eventKey(detail)))} pickConsensus={pickConsensus}/>}
     {review && selections.length>0 && <Modal title={selections.length===1?'Review your free pick':'Review your free picks'} locked={pending} onClose={()=>setReview(false)}>
       {selections.map(({event,side,requestId}) => <div className="cw-review-pick" key={requestId}>
         <p className="cw-dialog-copy">{event.name}</p>

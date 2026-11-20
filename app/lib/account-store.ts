@@ -52,11 +52,13 @@ function validateStore(data: StoreData): void {
     if (!ticket || !nonempty(ticket.id) || !userIds.has(ticket.userId) || !nonempty(ticket.requestId)
       || !nonempty(ticket.eventId) || !nonempty(ticket.league) || !nonempty(ticket.homeId) || !nonempty(ticket.awayId)
       || ticket.homeId === ticket.awayId || !nonempty(ticket.eventName) || !nonempty(ticket.selection)
-      || !["home", "away", "draw"].includes(ticket.side) || !["open", "won", "lost", "void", "cancelled"].includes(ticket.status)
+      || !["home", "away", "draw", "over", "under"].includes(ticket.side) || !["open", "won", "lost", "void", "cancelled"].includes(ticket.status)
+      || (ticket.market !== undefined && !["moneyline", "spread", "total"].includes(ticket.market))
+      || (ticket.line !== undefined && ticket.line !== null && !Number.isFinite(ticket.line))
       || !date(ticket.startsAt) || !date(ticket.createdAt)
       || (ticket.status === "open" ? ticket.settledAt !== null : !date(ticket.settledAt))) fail();
     if (ticket.changes !== undefined && (!Array.isArray(ticket.changes) || ticket.changes.some(change =>
-      !change || !["home", "away", "draw"].includes(change.side) || !nonempty(change.selection) || !date(change.changedAt)))) fail();
+      !change || !["home", "away", "draw", "over", "under"].includes(change.side) || !nonempty(change.selection) || !date(change.changedAt)))) fail();
     const hasEntryMetadata = ticket.entryId !== undefined || ticket.entryIndex !== undefined || ticket.entrySize !== undefined;
     const entryId = ticket.entryId;
     const entryIndex = ticket.entryIndex;
@@ -68,7 +70,7 @@ function validateStore(data: StoreData): void {
     if (hasEntryMetadata && (typeof entryId !== "string" || !/^[a-f0-9-]{36}$/.test(entryId)
       || !validEntryIndex || !validEntrySize || entryIndexValue >= entrySizeValue)) fail();
     const request = JSON.stringify([ticket.userId, ticket.requestId]);
-    const event = JSON.stringify([ticket.userId, ticket.league, ticket.eventId]);
+    const event = JSON.stringify([ticket.userId, ticket.league, ticket.eventId, ticket.market ?? "moneyline"]);
     if (tickets.has(ticket.id) || requests.has(request) || events.has(event)) fail();
     tickets.add(ticket.id); requests.add(request); events.add(event);
   }
@@ -262,6 +264,8 @@ export class AccountStore {
           id: ticket.id, eventId: ticket.eventId, league: ticket.league, eventName: ticket.eventName,
           selection: ticket.selection, side: ticket.side, startsAt: ticket.startsAt, createdAt: ticket.createdAt,
           status: ticket.status, settledAt: ticket.settledAt,
+          ...(ticket.market && ticket.market !== "moneyline" ? { market: ticket.market } : {}),
+          ...(ticket.line !== null && ticket.line !== undefined ? { line: ticket.line } : {}),
           ...(ticket.changes ? { changes: ticket.changes } : {}),
           ...(ticket.entryId ? { entryId: ticket.entryId, entryIndex: ticket.entryIndex, entrySize: ticket.entrySize } : {}),
         })),
@@ -288,7 +292,8 @@ export class AccountStore {
       if (tickets.length > 1) {
         const previous = tickets.map((ticket) => existing.find((entry) =>
           entry.requestId === ticket.requestId && entry.league === ticket.league &&
-          entry.eventId === ticket.eventId && (entry.changes?.[0]?.side ?? entry.side) === ticket.side));
+          entry.eventId === ticket.eventId && (entry.market ?? "moneyline") === (ticket.market ?? "moneyline") &&
+          (entry.changes?.[0]?.side ?? entry.side) === ticket.side));
         if (previous.every((ticket) => ticket !== undefined)) return previous as StoredPick[];
       }
       const saved: StoredPick[] = [];
@@ -296,7 +301,8 @@ export class AccountStore {
         if (existing.some((entry) => entry.requestId === ticket.requestId)) {
           throw new AccountError("request_replayed", "This request was already submitted. Review your existing tickets.", 409);
         }
-        if (existing.some((entry) => entry.eventId === ticket.eventId && entry.league === ticket.league)) {
+        if (existing.some((entry) => entry.eventId === ticket.eventId && entry.league === ticket.league
+          && (entry.market ?? "moneyline") === (ticket.market ?? "moneyline"))) {
           throw new AccountError("duplicate_pick", "You already submitted a pick for a selected event.", 409);
         }
         existing.push(ticket);
@@ -307,7 +313,7 @@ export class AccountStore {
     });
   }
 
-  async changePick(token: string | null, id: string, action: "cancel" | "edit", side: string | null, selection: string | null, revision: number | null, now: number = this.now()): Promise<StoredPick> {
+  async changePick(token: string | null, id: string, action: "cancel" | "edit", side: string | null, selection: string | null, revision: number | null, now: number = this.now(), line?: number | null): Promise<StoredPick> {
     const stamp = new Date(now).toISOString();
     return this.transaction((data) => {
       const user = this.requireUser(data, token);
@@ -324,10 +330,11 @@ export class AccountStore {
         if (changes.length !== revision) {
           throw new AccountError("pick_changed", "This pick changed. Close this dialog and refresh My picks to see the current selection.", 409);
         }
-        if (ticket.side !== side) {
+        if (ticket.side !== side || (line !== undefined && line !== ticket.line)) {
           ticket.changes = [...changes, { side: ticket.side, selection: ticket.selection, changedAt: stamp }];
           ticket.side = side as StoredPick["side"];
           ticket.selection = selection;
+          if (line !== undefined) ticket.line = line;
         }
       }
       return ticket;

@@ -2,10 +2,11 @@ import { randomUUID } from "node:crypto";
 import { AccountError, type StoredPick } from "./account-store";
 import type { AccountBackend } from "./store-backend";
 import { LIVE_LEAGUES, type LiveEvent } from "./live-sports";
-import { pickName, supportsDrawPick, type PickSide } from "./pick-outcomes";
+import { pickName, pickSides, supportsDrawPick, type PickMarket, type PickSide } from "./pick-outcomes";
 import type { PickConsensus } from "./pick-consensus";
 
-export type PickChange = {
+export type ChangeRequest = { action: "cancel" | "edit"; side: string | null; selection: string | null; revision: number | null; line?: number | null };
+type PickChange = {
   side: PickSide;
   selection: string;
   changedAt: string;
@@ -22,6 +23,8 @@ export type RealPickTicket = {
   createdAt: string;
   status: "open" | "won" | "lost" | "void" | "cancelled";
   settledAt: string | null;
+  market?: PickMarket;
+  line?: number | null;
   changes?: PickChange[];
   /** Present for a multi-game free-picks entry; legacy tickets omit it. */
   entryId?: string;
@@ -30,26 +33,74 @@ export type RealPickTicket = {
 };
 export type EventGetter = (league: string, id: string) => Promise<LiveEvent | null>;
 export function publicTicket(ticket: StoredPick): RealPickTicket {
-  const { id, eventId, league, eventName, selection, side, startsAt, createdAt, status, settledAt, changes, entryId, entryIndex, entrySize } = ticket;
+  const { id, eventId, league, eventName, selection, side, startsAt, createdAt, status, settledAt, market, line, changes, entryId, entryIndex, entrySize } = ticket;
   return {
     id, eventId, league, eventName, selection, side, startsAt, createdAt, status, settledAt,
+    ...(market && market !== "moneyline" ? {market} : {}), ...(line !== null && line !== undefined ? {line} : {}),
     ...(changes ? {changes} : {}),
     ...(entryId ? {entryId, entryIndex, entrySize} : {}),
   };
 }
 
-type PickInput = { eventId: string; league: string; side: PickSide; requestId: string };
+type PickInput = { eventId: string; league: string; side: PickSide; requestId: string; market: PickMarket; line: number | null };
+const PICK_MARKETS: readonly PickMarket[] = ["moneyline", "spread", "total"];
+const isPickSide = (value: unknown): value is PickSide =>
+  value === "home" || value === "away" || value === "draw" || value === "over" || value === "under";
 function validatePick(input: unknown): PickInput {
   if (!input || typeof input !== "object" || Array.isArray(input)) throw new AccountError("invalid_input", "Supply an event, league, supported outcome and unique requestId.");
   const value = input as Record<string, unknown>;
-  if (Object.keys(value).some((field) => !["eventId", "league", "side", "requestId"].includes(field))
+  const market = value.market === undefined ? "moneyline" : value.market;
+  const line = value.line === undefined || value.line === null ? null : value.line;
+  const sides = typeof value.league === "string" ? pickSides(value.league, market as PickMarket) : [];
+  if (Object.keys(value).some((field) => !["eventId", "league", "side", "requestId", "market", "line"].includes(field))
     || typeof value.eventId !== "string" || !/^[0-9]{1,16}(?:-[0-9]{1,16})?$/.test(value.eventId)
     || typeof value.league !== "string" || !LIVE_LEAGUES.some((league) => league.id === value.league && league.sport !== "golf")
     || typeof value.requestId !== "string" || !/^[A-Za-z0-9_-]{8,128}$/.test(value.requestId)
-    || (value.side !== "home" && value.side !== "away" && !(value.side === "draw" && supportsDrawPick(value.league)))) {
-    throw new AccountError("invalid_input", "Supply an event, league, supported outcome and 8–128 character unique requestId.");
+    || !PICK_MARKETS.includes(market as PickMarket) || !isPickSide(value.side) || !sides.includes(value.side)
+    || (market === "moneyline" && value.side === "draw" && !supportsDrawPick(value.league as string))
+    || (market === "moneyline" && line !== null)
+    || (market !== "moneyline" && line !== null && (typeof line !== "number" || !Number.isFinite(line)
+      || (market === "spread" && (line < -200 || line > 200))
+      || (market === "total" && (line <= 0 || line > 2000))))) {
+    throw new AccountError("invalid_input", "Supply an event, league, supported market, outcome and 8–128 character unique requestId.");
   }
-  return value as PickInput;
+  return { ...(value as PickInput), market: market as PickMarket, line: line as number | null };
+}
+
+// Lines come from the posted board: the home spread is stored signed, so the
+// away side always receives the inverse. Totals share one posted number.
+function marketLine(event: LiveEvent, input: PickInput): number | null {
+  const odds = event.odds;
+  if (input.market === "spread") {
+    const spread = odds?.spread;
+    if (spread === null || spread === undefined) return null;
+    return input.side === "home" ? spread : -spread;
+  }
+  if (input.market === "total") {
+    const total = odds?.total;
+    return total === null || total === undefined ? null : total;
+  }
+  return null;
+}
+
+// Differential > 0 wins, < 0 loses, 0 pushes (void). Spread uses the chosen
+// side's team margin plus its signed line; totals compare the posted number.
+function marketResult(ticket: StoredPick, event: LiveEvent): "won" | "lost" | "void" | null {
+  const homeScore = event.home.score, awayScore = event.away.score;
+  if (homeScore === null || homeScore === undefined || awayScore === null || awayScore === undefined) return null;
+  const market = ticket.market ?? "moneyline";
+  if (market === "moneyline") return null;
+  const line = ticket.line;
+  if (line === null || line === undefined) return null;
+  let differential: number;
+  if (market === "spread") {
+    const margin = ticket.side === "home" ? homeScore - awayScore : awayScore - homeScore;
+    differential = margin + line;
+  } else {
+    const sum = homeScore + awayScore;
+    differential = ticket.side === "over" ? sum - line : line - sum;
+  }
+  return differential > 0 ? "won" : differential < 0 ? "lost" : "void";
 }
 function validParticipants(event: LiveEvent): boolean {
   return !!event.home?.id && !!event.away?.id && event.home.id !== event.away.id
@@ -85,7 +136,7 @@ export class PickService {
     return this.store.consensus();
   }
 
-  private async changeOpenPick(token: string | null, id: unknown, update: (ticket: StoredPick, event: LiveEvent, now: number) => { action: "cancel" | "edit"; side: string | null; selection: string | null; revision: number | null }) {
+  private async changeOpenPick(token: string | null, id: unknown, update: (ticket: StoredPick, event: LiveEvent, now: number) => ChangeRequest) {
     const tickets = await this.store.listPicks(token);
     if (typeof id !== "string" || !/^[a-f0-9-]{36}$/.test(id)) throw new AccountError("invalid_input", "Supply a valid ticket id.");
     const snapshot = tickets.find(ticket => ticket.id === id);
@@ -101,7 +152,7 @@ export class PickService {
     }
     assertScheduled(event, now);
     const change = update(snapshot, event, now);
-    const saved = await this.store.changePick(token, id, change.action, change.side, change.selection, change.revision, now);
+    const saved = await this.store.changePick(token, id, change.action, change.side, change.selection, change.revision, now, change.line);
     return publicTicket(saved);
   }
 
@@ -111,18 +162,24 @@ export class PickService {
 
   async edit(token: string | null, input: Record<string, unknown>): Promise<RealPickTicket> {
     const {id, side, revision} = input;
-    if ((side !== "home" && side !== "away" && side !== "draw") || typeof revision !== "number" || !Number.isSafeInteger(revision) || revision < 0) {
+    if (!isPickSide(side) || typeof revision !== "number" || !Number.isSafeInteger(revision) || revision < 0) {
       throw new AccountError("invalid_input", "Supply a supported outcome and current revision.");
     }
     return this.changeOpenPick(token, id, (ticket, event) => {
-      if (side === "draw" && !supportsDrawPick(ticket.league)) {
-        throw new AccountError("invalid_input", "Draw picks are unavailable for this league.");
+      const market = ticket.market ?? "moneyline";
+      if (!pickSides(ticket.league, market).includes(side)) {
+        throw new AccountError("invalid_input", "That outcome is unavailable for this pick's market.");
       }
       const changes = ticket.changes ?? [];
       if (changes.length !== revision) {
         throw new AccountError("pick_changed", "This pick changed. Close this dialog and refresh My picks to see the current selection.", 409);
       }
-      return { action: "edit", side, selection: pickName(event, side), revision };
+      // A spread flip swaps which team lays the points, so the stored line
+      // negates; totals keep the same posted number across over/under.
+      const flipped = market === "spread" && ticket.side !== side;
+      const nextLine = ticket.line === null || ticket.line === undefined ? ticket.line
+        : flipped ? -ticket.line : ticket.line;
+      return { action: "edit", side, selection: pickName(event, side, "name", market, nextLine ?? null), revision, line: nextLine };
     });
   }
 
@@ -145,8 +202,12 @@ export class PickService {
         || event.home.id !== storedTicket.homeId || event.away.id !== storedTicket.awayId) return [];
       let status: StoredPick["status"] | null = null;
       if (event.status === "cancelled") status = "void";
-      else if (event.status === "final" && event.completed === true && ["home", "away", "draw"].includes(event.winner ?? "")) {
-        status = ticket.side === event.winner ? "won" : "lost";
+      else if (event.status === "final" && event.completed === true) {
+        if (["home", "away", "draw"].includes(event.winner ?? "")) {
+          status = (ticket.market ?? "moneyline") === "moneyline"
+            ? (ticket.side === event.winner ? "won" : "lost")
+            : marketResult(storedTicket, event);
+        }
       }
       return status ? [{ id: ticket.id, status, settledAt }] : [];
     });
@@ -170,9 +231,9 @@ export class PickService {
 
   private async savePicks(token: string | null, picks: PickInput[]): Promise<RealPickTicket[]> {
     const requestIds = new Set(picks.map(pick => pick.requestId));
-    const eventKeys = new Set(picks.map(pick => `${pick.league}:${pick.eventId}`));
+    const eventKeys = new Set(picks.map(pick => `${pick.league}:${pick.eventId}:${pick.market}`));
     if (requestIds.size !== picks.length || eventKeys.size !== picks.length) {
-      throw new AccountError("invalid_input", "Supply one selection per game and distinct request IDs.");
+      throw new AccountError("invalid_input", "Supply one selection per game and market and distinct request IDs.");
     }
     const events = await Promise.all(picks.map(async pick => {
       const event = await this.fetchEvent(pick.league, pick.eventId);
@@ -186,11 +247,18 @@ export class PickService {
     const existing = await this.store.listPicks(token);
     const now = this.now();
     const entryId = picks.length > 1 ? randomUUID() : undefined;
-    const tickets: StoredPick[] = picks.map(({eventId, league, side, requestId}, index) => {
+    const tickets: StoredPick[] = picks.map(({eventId, league, side, requestId, market, line}, index) => {
       const event = events[index];
       assertScheduled(event, now);
+      const posted = marketLine(event, { eventId, league, side, requestId, market, line });
+      if (market !== "moneyline" && posted === null) {
+        throw new AccountError("event_unavailable", "This market is not posted for the selected event. No picks were saved.", 409);
+      }
+      const effectiveLine = market === "moneyline" ? null : posted;
       return {
-        id: randomUUID(), eventId, league, eventName: event.name, selection: pickName(event, side), side,
+        id: randomUUID(), eventId, league, eventName: event.name,
+        selection: pickName(event, side, "name", market, effectiveLine), side,
+        market, line: effectiveLine,
         startsAt: event.startsAt, createdAt: new Date(now).toISOString(), status: "open", settledAt: null,
         userId: user.id, requestId, homeId: event.home.id, awayId: event.away.id,
         ...(entryId ? {entryId, entryIndex: index, entrySize: picks.length} : {}),

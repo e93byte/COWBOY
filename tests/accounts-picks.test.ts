@@ -607,6 +607,39 @@ test("multi-game review commits together, rejects a locked game and safely repla
    });
   });
 
+test("spread and total picks snapshot posted lines, coexist with moneyline and settle from scores", async () => {
+  await fixture(async store => {
+    const {token}=await store.register("MarketRider",password);
+    const odds={provider:"DraftKings",spread:-3.5,total:210.5,homeMoneyline:-180,awayMoneyline:150,drawMoneyline:null,
+      homeSpreadPrice:-110,awaySpreadPrice:-110,overPrice:-110,underPrice:-110,
+      openSpread:null,openTotal:null,openHomeMoneyline:null,openAwayMoneyline:null,openDrawMoneyline:null,favorite:"home" as const};
+    let current=event({odds});
+    const service=new PickService({store,getEvent:async()=>current,now:()=>eventTime});
+    const moneyline=await service.submit(token,pick({requestId:"ml-request-1"}));
+    const spread=await service.submit(token,pick({side:"away",market:"spread",requestId:"sp-request-1"}));
+    const total=await service.submit(token,pick({side:"over",market:"total",line:210.5,requestId:"tt-request-1"}));
+    assert.equal(moneyline.market,undefined);
+    assert.equal(spread.market,"spread");
+    assert.equal(spread.line,3.5);
+    assert.equal(spread.selection,"Away Team +3.5");
+    assert.equal(total.market,"total");
+    assert.equal(total.line,210.5);
+    assert.equal(total.selection,"Over 210.5");
+    assert.equal((await service.list(token)).length,3);
+    // Markets without posted lines cannot be picked.
+    current=event();
+    await rejectsCode(service.submit(token,pick({eventId:"401234568",side:"home",market:"spread",requestId:"sp-request-2"})),"event_unavailable");
+    await rejectsCode(service.submit(token,pick({eventId:"401234568",side:"over",market:"total",line:200,requestId:"tt-request-2"})),"event_unavailable");
+    // Final 110-105: moneyline home wins, away +3.5 loses, over 210.5 wins.
+    current=event({status:"final",completed:true,winner:"home",odds,
+      home:{id:"1",name:"Home Team",shortName:"HOME",score:110},
+      away:{id:"2",name:"Away Team",shortName:"AWAY",score:105}});
+    const settled=await service.refresh(token);
+    const byMarket=Object.fromEntries(settled.map(t=>[t.market??"moneyline",t.status]));
+    assert.deepEqual(byMarket,{moneyline:"won",spread:"lost",total:"won"});
+  });
+});
+
 test("a valid soccer draw can be submitted or edited and settles as its own outcome", async () => {
   await fixture(async store => {
     const drawPicker = await store.register("DrawRider",password);
