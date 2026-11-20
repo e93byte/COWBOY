@@ -89,6 +89,7 @@ const tabSymbols = {
   stats: <path d="M4 20h16M7 16v-4m5 4V7m5 9V4"/>,
   players: <><circle cx="10" cy="8" r="3"/><path d="M4 20v-2a6 6 0 0 1 12 0v2M16 5a3 3 0 0 1 0 6m2 3a4 4 0 0 1 2 4v2"/></>,
   props: <><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M8 9h8M8 13h5M8 17h3"/></>,
+  odds: <><path d="M4 19V5m0 14h16"/><path d="m7 15 4-4 3 2 5-6"/><circle cx="19" cy="7" r="1"/></>,
   timeline: <><path d="M7 4v16m5-14h7m-7 6h7m-7 6h7"/><circle cx="7" cy="6" r="1.5" fill="currentColor"/><circle cx="7" cy="12" r="1.5" fill="currentColor"/><circle cx="7" cy="18" r="1.5" fill="currentColor"/></>,
   drives: <><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 5v14m10-14v14M8 12h8m-3-3 3 3-3 3"/></>,
   matchup: <path d="M4 7h16m-4-4 4 4-4 4m4 6H4m4-4-4 4 4 4"/>,
