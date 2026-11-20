@@ -1092,7 +1092,7 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
           const share = consensusPercent(pickConsensus[consensusKey(e.league,e.id)], side);
           const selected = selectionsByMarket.get(selectionKey(e,'moneyline'))?.side === side;
           const canAdd = selections.length < 5 || selectionsByMarket.has(selectionKey(e,'moneyline'));
-          return <button key={side} aria-label={`Pick ${pickName(e,side)}${share !== null ? `, ${share}% of pickers chose this side` : ''}`} aria-pressed={selected} onClick={()=>togglePick(e,side)} disabled={pending||!eligiblePick(e)||!canAdd}><span>{pickName(e,side,'shortName')}</span><small>{selfExcluded?'Excluded':dailyLimitReached&&!selected?'Limit':canPick(e,now)?side==='draw'?'Pick draw':'Pick winner':'Closed'}</small>{share !== null && <em className="cw-pick-share">{share}%</em>}</button>;
+          return <button key={side} aria-label={`Pick ${pickName(e,side)}${share !== null ? `, ${share}% of pickers chose this side` : ''}`} aria-pressed={selected} onClick={()=>togglePick(e,side)} disabled={pending||!eligiblePick(e)||!canAdd||(!selected&&dailyLimitReached)}><span>{pickName(e,side,'shortName')}</span><small>{selfExcluded?'Excluded':dailyLimitReached&&!selected?'Limit':canPick(e,now)?side==='draw'?'Pick draw':'Pick winner':'Closed'}</small>{share !== null && <em className="cw-pick-share">{share}%</em>}</button>;
         })}</div>}
       </article>)}{!collapsed.includes(group.id)&&group.events.length>homeGroupLimit&&league!=='ufc'&&(curatedHome&&!showFullBoard
         ? <button className="cw-show-more" onClick={()=>selectLeague(group.events[0].league)}>View all {group.events.length} {group.sport==='mma'?'bouts':'games'} in {group.name}</button>
