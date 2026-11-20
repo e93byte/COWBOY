@@ -54,7 +54,7 @@ Rules for any keyed provider: env-var only, never committed; per-key daily budge
 
 ## 4. Remaining feature backlog (priority order)
 
-1. **Deploy + Supabase activation** — storage backend is now pluggable (`app/lib/store-backend.ts`): file store stays default; setting `COWBOY_SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` switches accounts/picks/follows/consensus to Postgres via `supabase/schema.sql` (17 security-definer RPCs, RLS on, no direct table access). *Remaining blocker: apply `supabase/schema.sql` to project `hdkdsbxgfknxexoeyxci` — needs the DB password or a Supabase access token (MCP/CLI currently unauthorized for that project).*
+1. **Deploy + Supabase activation** — storage backend is pluggable (`app/lib/store-backend.ts`): file store stays default; setting `COWBOY_SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` switches accounts/picks/follows/consensus to Postgres. Schema lives in `supabase/migrations/20260714000000_cowboy_account_store.sql` (18 security-definer RPCs incl. `cowboy_pick_json`, RLS on, no direct table access) — verified end-to-end against local Postgres 17. *Remaining blocker: run `scripts/supabase-setup.sh` after `supabase login` for the account owning `hdkdsbxgfknxexoeyxci` — no credential on this machine can currently see that project.*
 2. **Merge the other agent's in-flight work** — uncommitted: `EventDetail.tsx`, `sports-leagues.ts`, `live.css`, `app/lib/odds.ts` (odds normalization), `SportIcon` odds glyph, futures/props refinements. Review, test, commit — do not lose it.
 3. **Background push notifications** — VAPID + service worker `push` handler; current alerts only fire with an open tab.
 4. **Props depth** — ESPN `propBets` is wired but thin; real prop boards need Tier-2 keys.

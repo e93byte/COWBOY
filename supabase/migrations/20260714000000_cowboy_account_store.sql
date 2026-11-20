@@ -159,20 +159,29 @@ begin
 end $$;
 
 -- ---------- picks ----------
+-- Single pick row → the camelCase JSON shape the TypeScript store expects.
+drop function if exists cowboy_pick_json(cowboy_picks);
+create or replace function cowboy_pick_json(p cowboy_picks)
+returns jsonb language sql stable as $$
+  select jsonb_build_object(
+    'id', p.id, 'userId', p.user_id, 'requestId', p.request_id, 'eventId', p.event_id, 'league', p.league,
+    'eventName', p.event_name, 'selection', p.selection, 'side', p.side, 'homeId', p.home_id, 'awayId', p.away_id,
+    'startsAt', to_char(p.starts_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
+    'createdAt', to_char(p.created_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
+    'status', p.status,
+    'settledAt', case when p.settled_at is null then null else to_char(p.settled_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') end,
+    'changes', p.changes, 'entryId', p.entry_id, 'entryIndex', p.entry_index, 'entrySize', p.entry_size
+  );
+$$;
+
 create or replace function cowboy_list_picks(p_token_hash text)
 returns json language plpgsql stable security definer set search_path = public as $$
 declare u cowboy_users;
 begin
   u := cowboy_require_user(p_token_hash);
   return coalesce((
-    select json_agg(row_to_json(p) order by p.created_at desc)
-    from (
-      select id, user_id as "userId", request_id as "requestId", event_id as "eventId", league,
-             event_name as "eventName", selection, side, home_id as "homeId", away_id as "awayId",
-             starts_at as "startsAt", created_at as "createdAt", status, settled_at as "settledAt",
-             changes, entry_id as "entryId", entry_index as "entryIndex", entry_size as "entrySize"
-      from cowboy_picks where user_id = u.id
-    ) p
+    select json_agg(cowboy_pick_json(p) order by p.created_at desc)
+    from cowboy_picks p where p.user_id = u.id
   ), '[]'::json);
 end $$;
 
@@ -189,7 +198,7 @@ $$;
 create or replace function cowboy_save_picks(p_token_hash text, p_picks jsonb)
 returns json language plpgsql security definer set search_path = public as $$
 declare
-  u cowboy_users; pick jsonb; t cowboy_picks; results json := '[]'::json;
+  u cowboy_users; pick jsonb; t cowboy_picks; results jsonb := '[]'::jsonb;
   entry uuid := gen_random_uuid(); n integer := jsonb_array_length(p_picks); i integer := 0;
   all_replayed boolean;
 begin
@@ -197,19 +206,19 @@ begin
   -- Idempotent retry: when every leg already exists with the same side, return
   -- the stored tickets in input order instead of erroring.
   select bool_and(exists (
-    select 1 from cowboy_picks t
-    where t.user_id = u.id and t.request_id = p->>'requestId'
-      and t.league = p->>'league' and t.event_id = p->>'eventId'
-      and coalesce(t.changes->0->>'side', t.side) = p->>'side')) into all_replayed
+    select 1 from cowboy_picks cp
+    where cp.user_id = u.id and cp.request_id = p->>'requestId'
+      and cp.league = p->>'league' and cp.event_id = p->>'eventId'
+      and coalesce(cp.changes->0->>'side', cp.side) = p->>'side')) into all_replayed
   from jsonb_array_elements(p_picks) p;
   if n > 1 and all_replayed then
     for pick in select value from jsonb_array_elements(p_picks) loop
-      select cowboy_pick_json(t.*) into t
-      from cowboy_picks t
-      where t.user_id = u.id and t.request_id = pick->>'requestId' limit 1;
-      results := results || cowboy_pick_json(t.*);
+      select * into t
+      from cowboy_picks cp
+      where cp.user_id = u.id and cp.request_id = pick->>'requestId' limit 1;
+      results := results || cowboy_pick_json(t);
     end loop;
-    return results;
+    return results::json;
   end if;
   for pick in select value from jsonb_array_elements(p_picks) loop
     i := i + 1;
@@ -222,15 +231,15 @@ begin
     insert into cowboy_picks (id, user_id, request_id, league, event_id, event_name, selection, side,
       starts_at, created_at, status, home_id, away_id, entry_id, entry_index, entry_size)
     values (gen_random_uuid(), u.id, pick->>'requestId', pick->>'league', pick->>'eventId',
-      pick->>'eventName', pick->>'selection', pick->>'side', pick->>'startsAt', pick->>'createdAt',
+      pick->>'eventName', pick->>'selection', pick->>'side', (pick->>'startsAt')::timestamptz, (pick->>'createdAt')::timestamptz,
       'open', pick->>'homeId', pick->>'awayId',
       case when n > 1 then entry end,
       case when n > 1 then i - 1 end,
       case when n > 1 then n end)
     returning * into t;
-    results := results || cowboy_pick_json(t.*);
+    results := results || cowboy_pick_json(t);
   end loop;
-  return results;
+  return results::json;
 end $$;
 
 -- Cancel or edit an open pick. p_action: 'cancel' | 'edit'; p_side/p_revision for edit.
@@ -250,7 +259,7 @@ begin
     end if;
     if t.side <> p_side then
       update cowboy_picks set
-        changes = coalesce(t.changes, '[]'::jsonb) || jsonb_build_object('side', t.side, 'selection', t.selection, 'changedAt', p_now),
+        changes = coalesce(t.changes, '[]'::jsonb) || jsonb_build_object('side', t.side, 'selection', t.selection, 'changedAt', to_char(p_now at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')),
         side = p_side, selection = p_selection
       where id = t.id;
     end if;
@@ -258,10 +267,7 @@ begin
     raise exception 'invalid_input' using errcode = 'P0001';
   end if;
   select * into t from cowboy_picks where id = t.id;
-  return json_build_object('id', t.id, 'eventId', t.event_id, 'league', t.league, 'eventName', t.event_name,
-    'selection', t.selection, 'side', t.side, 'startsAt', t.starts_at, 'createdAt', t.created_at,
-    'status', t.status, 'settledAt', t.settled_at, 'changes', t.changes,
-    'entryId', t.entry_id, 'entryIndex', t.entry_index, 'entrySize', t.entry_size);
+  return cowboy_pick_json(t)::json;
 end $$;
 
 -- Settlement batch: p_updates = [{id, status, settledAt}]
@@ -271,7 +277,7 @@ declare u cowboy_users; upd jsonb;
 begin
   u := cowboy_require_user(p_token_hash);
   for upd in select * from jsonb_array_elements(p_updates) loop
-    update cowboy_picks set status = upd->>'status', settled_at = upd->>'settledAt'
+    update cowboy_picks set status = upd->>'status', settled_at = (upd->>'settledAt')::timestamptz
     where id = (upd->>'id')::uuid and user_id = u.id and status = 'open';
   end loop;
   return cowboy_list_picks(p_token_hash);
