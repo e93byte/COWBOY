@@ -23,12 +23,16 @@ export async function GET(_request: Request, context: { params: Promise<{ slug: 
     const payload = await response.json() as { match?: UpstreamMatch; updated?: string; error?: string };
     if (!payload.match) return NextResponse.json({ error: "match_unavailable" }, { status: 404 });
     const match = payload.match;
+    const home = typeof match.home === "string" ? match.home.trim() : "";
+    const away = typeof match.away === "string" ? match.away.trim() : "";
+    if (!home || !away) return NextResponse.json({ error: "match_unavailable" }, { status: 404 });
+    const competition = typeof match.competition === "string" ? match.competition.trim() : "";
     return NextResponse.json({
       match: {
-        home: match.home ?? "Home", away: match.away ?? "Away",
+        home, away,
         homeScore: match.home_score ?? null, awayScore: match.away_score ?? null,
         status: match.status ?? "unknown", statusText: match.status_text ?? "Status unavailable",
-        minute: match.live_minute ?? null, time: match.time ?? null, competition: match.competition ?? "Competition",
+        minute: match.live_minute ?? null, time: match.time ?? null, competition: competition || null,
         stats: match.stats ?? [], incidents: match.incidents ?? [],
       },
       sourceUpdatedAt: payload.updated ?? null,

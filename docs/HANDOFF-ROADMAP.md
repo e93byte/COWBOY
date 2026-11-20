@@ -1,5 +1,7 @@
 # COWBOY — Handoff & Next-Level Roadmap
 
+> **Superseded for feature/product work:** see `docs/HANDOFF-TOP6-GAP-CLOSURE.md` (baseline `78d3b1c`, 174/174 tests). The deploy checklist below is still valid; the test counts and commit baseline here are stale.
+
 Status as of commit `f227e4f` (local `main`, **3 commits ahead of `origin/main`, not yet deployed**).
 
 Verification baseline: **165/165 unit tests, typecheck clean, `next build` green, 67/67 Playwright specs.**

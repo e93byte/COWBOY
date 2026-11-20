@@ -23,6 +23,44 @@ test('real board shows source, real teams, locks live entry and filters leagues'
   await expect(page.getByText(/wallet|cashout|virtual funds/i)).toHaveCount(0);
 });
 
+test('one free-pick entry can contain distinct markets for the same verified game', async ({page}) => {
+  const odds = {
+    provider:'DraftKings',spread:-3.5,total:210.5,homeMoneyline:-180,awayMoneyline:150,drawMoneyline:null,
+    homeSpreadPrice:-110,awaySpreadPrice:-110,overPrice:-110,underPrice:-110,
+    openSpread:null,openTotal:null,openHomeMoneyline:null,openAwayMoneyline:null,openDrawMoneyline:null,favorite:'home' as const,
+  };
+  const scheduled = {...event,odds};
+  let submitted: {eventId:string;market?:string;side:string}[] = [];
+  await page.route('**/api/account',route=>route.fulfill({json:{user:{id:'same-game-user',username:'samegame'}}}));
+  await page.route('**/api/account/follows',route=>route.fulfill({json:{follows:[]}}));
+  await page.route('**/api/sports',route=>route.fulfill({json:{...board,events:[scheduled,board.events[1]]}}));
+  await page.route('**/api/sports/event?**',route=>route.fulfill({json:{event:scheduled}}));
+  await page.route('**/api/picks/batch',async route=>{
+    submitted=route.request().postDataJSON().picks;
+    return route.fulfill({json:{tickets:[]}});
+  });
+  await page.route('**/api/picks',route=>route.fulfill({json:{tickets:[]}}));
+  await page.goto('/');
+
+  await page.getByRole('button',{name:`Details: ${event.name}`}).click();
+  let details=page.getByRole('dialog',{name:'Game details'});
+  await details.getByRole('button',{name:'Select Boston Celtics'}).click();
+  await page.getByRole('button',{name:`Details: ${event.name}`}).click();
+  details=page.getByRole('dialog',{name:'Game details'});
+  await details.getByRole('group',{name:'Pick market'}).getByRole('button',{name:'Spread'}).click();
+  await details.getByRole('button',{name:'Select Boston Celtics +3.5'}).click();
+
+  await expect(page.locator('.cw-draft-pick')).toHaveCount(2);
+  await page.getByRole('button',{name:'Review 2 free picks',exact:true}).click();
+  const review=page.getByRole('dialog',{name:'Review your free picks'});
+  await expect(review.getByText('Boston Celtics',{exact:true})).toBeVisible();
+  await expect(review.getByText('Boston Celtics +3.5',{exact:true})).toBeVisible();
+  await review.getByRole('button',{name:'Confirm 2 free picks',exact:true}).click();
+  await expect.poll(()=>submitted.length).toBe(2);
+  expect(submitted.map(pick=>pick.market ?? 'moneyline').sort()).toEqual(['moneyline','spread']);
+  expect(submitted.every(pick=>pick.eventId===event.id)).toBe(true);
+});
+
 test('ranked teams keep their scoreboard badge in Game Center when the summary omits it', async ({page}) => {
   const college:LiveEvent = {...event,id:'401912345',league:'ncaab',leagueName:"NCAA Men's Basketball",name:'UCLA at Duke',
     away:{id:'ucla',name:'UCLA',shortName:'UCLA',score:null,rank:7},home:{id:'duke',name:'Duke',shortName:'DUKE',score:null}};
@@ -847,7 +885,7 @@ test('an open Game Center refreshes play-by-play, pauses while hidden and stops 
   await page.clock.fastForward(6_000);
   expect(eventCalls).toBe(2);
   keepRouting?.();
-  await expect(gameCenter.getByText('Game summary unavailable. Showing the last scoreboard update.')).toBeVisible();
+  await expect(gameCenter.getByText('Game summary unavailable. Showing a matched backup scoreboard snapshot; its source update time is unknown.')).toBeVisible();
   await expect(field).toHaveCount(0);
   await expect(gameCenter.getByText('Opening drive')).toBeVisible();
   await page.evaluate(()=>{
@@ -862,7 +900,7 @@ test('an open Game Center refreshes play-by-play, pauses while hidden and stops 
   });
   await expect(gameCenter.getByText('Touchdown update')).toBeVisible();
   await expect(field).toContainText('2nd & 5 at BAL 40');
-  await expect(gameCenter.getByText('Game summary unavailable. Showing the last scoreboard update.')).toHaveCount(0);
+  await expect(gameCenter.getByText('Game summary unavailable. Showing a matched backup scoreboard snapshot; its source update time is unknown.')).toHaveCount(0);
   await page.clock.fastForward(5_500);
   await expect(gameCenter.getByText('Final whistle')).toBeVisible();
   await expect(gameCenter.locator('.cw-game-status')).toContainText('Final');
@@ -1061,7 +1099,7 @@ test('an older saved pick keeps its record when a game is unavailable and accept
   fallback = true;
   await unavailable.getByRole('button',{name:'Retry matchup'}).click();
   const detail = page.getByRole('dialog',{name:'Game details'});
-  await expect(detail).toContainText('Game summary unavailable. Showing the last scoreboard update.');
+  await expect(detail).toContainText('Game summary unavailable. Showing a matched backup scoreboard snapshot; its source update time is unknown.');
   await expect(detail).toContainText('114');
   await detail.getByRole('button',{name:'My pick',exact:true}).click();
   await expect(detail.getByRole('region',{name:'Saved free pick'})).toContainText('Correct pick');

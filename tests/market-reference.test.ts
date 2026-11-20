@@ -38,6 +38,17 @@ test("market reference normalizes American odds into vig-free implied probabilit
   assert.equal(market.draw !== null, true);
 });
 
+test("market reference does not invent a bookmaker name when source metadata is missing", async () => {
+  const client = createMarketReferenceClient({
+    fetch: async () => jsonResponse([{
+      homeTeamOdds: { moneyLine: -110 },
+      awayTeamOdds: { moneyLine: -110 },
+    }]),
+  });
+  const market = await client.get("nba", "401910002");
+  assert.equal(market?.provider, "Provider unavailable");
+});
+
 test("market reference omits draw for two-way sports and rejects unusable payloads", async () => {
   const twoWay = createMarketReferenceClient({
     fetch: async () => jsonResponse([{

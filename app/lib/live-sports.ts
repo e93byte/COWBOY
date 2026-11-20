@@ -894,7 +894,7 @@ export function normalizeOdds(raw: unknown): GameOdds | null {
   const drawMoneyline = americanLine(drawClose.odds) ?? americanLine(object(item.drawOdds).moneyLine);
   if (spread === null && totalValue === null && homeMoneyline === null && awayMoneyline === null) return null;
   return {
-    provider: provider || 'Sportsbook',
+    provider: provider || 'Provider unavailable',
     spread, total: totalValue, homeMoneyline, awayMoneyline, drawMoneyline,
     homeSpreadPrice: americanLine(object(pointHome.close).odds),
     awaySpreadPrice: americanLine(object(pointAway.close).odds),

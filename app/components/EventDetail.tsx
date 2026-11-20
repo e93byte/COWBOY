@@ -933,7 +933,7 @@ function EventDetailContent({
         setSnapshot(previous => fallback ? {...previous,...next} : next);
         setRequestedAt(fallback && Number.isFinite(readAt) ? readAt : startedAt);
         setStale(!!result.stale);
-        setError(fallback ? 'Game summary unavailable. Showing the last scoreboard update.' : '');
+        setError(fallback ? 'Game summary unavailable. Showing a matched backup scoreboard snapshot; its source update time is unknown.' : '');
       } catch {
         if (!controller.signal.aborted) setError('Could not refresh event details. Last available data shown.');
       } finally {

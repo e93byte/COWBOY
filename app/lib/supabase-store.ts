@@ -4,6 +4,7 @@ import { AccountError, SESSION_MAX_AGE, type AccountUser, type StoredPick } from
 import type { FollowPreference } from "./follow-preferences";
 import type { PickConsensus } from "./pick-consensus";
 import { buildPickConsensus } from "./pick-consensus";
+import type { PublicLeaderboardEntry } from "./pick-leaderboard";
 
 const scrypt = promisify(scryptCallback);
 const digest = (token: string) => createHash("sha256").update(token).digest("hex");
@@ -157,6 +158,16 @@ export class SupabaseStore {
       ...row, id: "", eventName: "", selection: "", startsAt: "", createdAt: "",
       settledAt: row.updatedAt ?? null, requestId: "", homeId: "", awayId: "",
     })));
+  }
+
+  async publicLeaderboard(): Promise<PublicLeaderboardEntry[]> {
+    return (await rpc<PublicLeaderboardEntry[] | null>(this.config, "cowboy_public_leaderboard", {})) ?? [];
+  }
+
+  async setLeaderboardOptIn(token: string | null, enabled: boolean): Promise<AccountUser> {
+    return rpc<AccountUser>(this.config, "cowboy_set_leaderboard_opt_in", {
+      p_token_hash: tokenHash(token)!, p_enabled: enabled,
+    });
   }
 
   async savePicks(token: string | null, tickets: StoredPick[]): Promise<StoredPick[]> {

@@ -16,7 +16,7 @@ const FAILURE_TTL_MS = 60_000;
 const MAX_SERIES_PER_LEAGUE = 24;
 const MAX_SERIES_PAGES = 24;
 const MAX_BOARDS = 3;
-const MAX_BOARD_OUTCOMES = 6;
+const MAX_BOARD_OUTCOMES = 10;
 const EVENTS_PER_SERIES = 20;
 const SERIES_FETCH_CONCURRENCY = 3;
 const SERIES_FETCH_GAP_MS = 250;
@@ -76,6 +76,9 @@ const RULES: Record<string, LeagueRule> = {
 // Series/event titles that look like outright markets get fetched first.
 const OUTRIGHT_SERIES_RE = /winner|champion|title|mvp|award|leader|futures|odds|playoff|final|conference|division|relegation|points|wins|scorer|race|top|who will|seed|draft|rookie|all-|team|coach|next|record|streak|unbeaten|invict|undefeated|promot|qualif|advance|group|outright|finish|place|position|rank|standing|table|cy young|heisman|outcome|royalty/;
 const STRONG_SERIES_RE = /winner|champion|title|mvp|award|leader|futures|odds|race to|who will|final|conference|division|relegation|\bcup\b|playoff/;
+// Championship/outright boards must outrank large prop boards regardless of
+// how many outcomes each carries.
+const FLAGSHIP_SERIES_RE = /champion|to win|winner|hoist|title/i;
 // Per-game events have exactly two markets and "A vs B" titles; outright
 // boards carry many outcome markets. Both checks keep game lines out.
 const GAME_EVENT_RE = /\bvs\.?\b|\bgame\b|\bmatch\b|\bhalf\b|quarter|period|inning|\bset\b|\bmap\b/;
@@ -230,49 +233,60 @@ export function createFuturesClient(options: ClientOptions = {}) {
       if (cached && cached.expires > now()) return cached.value;
       const inFlight = leaguePending.get(league);
       if (inFlight) return inFlight;
-      const request = loadSeries()
-        .then(async series => {
+      const request = (async () => {
+        const rootTickers = rule.roots ?? [];
+        const boards = new Map<string, FuturesBoard>();
+        const collect = (batch: FuturesBoard[]) => {
+          for (const board of batch) {
+            const key = board.title.toLowerCase();
+            const existing = boards.get(key);
+            if (!existing || board.outcomes.length > existing.outcomes.length) boards.set(key, board);
+          }
+        };
+        // Flagship championship/outright series are fetched by ticker directly.
+        // Requiring them to appear in the paginated series directory made the
+        // board slow and occasionally dropped the championship market entirely.
+        for (let i = 0; i < rootTickers.length; i += SERIES_FETCH_CONCURRENCY) {
+          if (i > 0) await new Promise(resolve => setTimeout(resolve, SERIES_FETCH_GAP_MS));
+          collect((await Promise.all(
+            rootTickers.slice(i, i + SERIES_FETCH_CONCURRENCY).map(ticker => loadBoards(ticker)))).flat());
+        }
+        // Generic series only matter when the flagship roots did not fill the
+        // board. The common case is one or two provider requests.
+        if (boards.size < MAX_BOARDS) {
+          const series = await loadSeries();
           const sportsSeries = series.filter(item => lower(item.category) === "sports" && item.ticker);
-          const byTicker = new Map(sportsSeries.map(item => [item.ticker!, item]));
-          // Hand-verified flagship series (championship/outright boards) always
-          // get fetched first — generic prop series would otherwise crowd them out.
-          const roots = (rule.roots ?? []).map(ticker => byTicker.get(ticker)).filter((item): item is KalshiSeries => Boolean(item));
-          const rootTickers = new Set(roots.map(item => item.ticker));
+          const rootSet = new Set(rootTickers);
           const matched = sportsSeries
-            .filter(item => !rootTickers.has(item.ticker!) && matchesRule(rule, item))
+            .filter(item => !rootSet.has(item.ticker!) && matchesRule(rule, item))
             .sort((a, b) =>
               Number(STRONG_SERIES_RE.test(b.title ?? "")) - Number(STRONG_SERIES_RE.test(a.title ?? "")) ||
               Number(OUTRIGHT_SERIES_RE.test(b.title ?? "")) - Number(OUTRIGHT_SERIES_RE.test(a.title ?? "")))
-            .slice(0, Math.max(0, MAX_SERIES_PER_LEAGUE - roots.length));
-          const ordered = [...roots, ...matched];
+            .slice(0, Math.max(0, MAX_SERIES_PER_LEAGUE - rootTickers.length));
           // Kalshi throttles bursts; fetch series events in small batches.
-          const batches: FuturesBoard[][] = [];
-          for (let i = 0; i < ordered.length; i += SERIES_FETCH_CONCURRENCY) {
+          for (let i = 0; i < matched.length; i += SERIES_FETCH_CONCURRENCY) {
             if (i > 0) await new Promise(resolve => setTimeout(resolve, SERIES_FETCH_GAP_MS));
-            batches.push(...await Promise.all(
-              ordered.slice(i, i + SERIES_FETCH_CONCURRENCY).map(item => loadBoards(item.ticker!))));
+            collect((await Promise.all(
+              matched.slice(i, i + SERIES_FETCH_CONCURRENCY).map(item => loadBoards(item.ticker!)))).flat());
+            // Matched series are already sorted strongest-first; stop once the
+            // board has enough candidates instead of probing every series.
+            if (boards.size >= MAX_BOARDS * 2) break;
           }
-          const boards = new Map<string, FuturesBoard>();
-          for (const batch of batches) {
-            for (const board of batch) {
-              const key = board.title.toLowerCase();
-              const existing = boards.get(key);
-              if (!existing || board.outcomes.length > existing.outcomes.length) boards.set(key, board);
-            }
-          }
-          const ranked = [...boards.values()]
-            .sort((a, b) =>
-              Number(STRONG_SERIES_RE.test(b.title)) - Number(STRONG_SERIES_RE.test(a.title)) ||
-              Number(/qualifier|to advance|advancing/i.test(a.title)) - Number(/qualifier|to advance|advancing/i.test(b.title)) ||
-              b.outcomes.length - a.outcomes.length)
-            .slice(0, MAX_BOARDS)
-            .map(board => ({ ...board, outcomes: board.outcomes.slice(0, MAX_BOARD_OUTCOMES) }));
-          const value = ranked.length
-            ? { book: "Kalshi" as const, boards: ranked, fetchedAt: new Date(now()).toISOString() }
-            : null;
-          leagueCache.set(league, { value, expires: now() + (value ? LEAGUE_TTL_MS : FAILURE_TTL_MS) });
-          return value;
-        })
+        }
+        const ranked = [...boards.values()]
+          .sort((a, b) =>
+            Number(FLAGSHIP_SERIES_RE.test(b.title)) - Number(FLAGSHIP_SERIES_RE.test(a.title)) ||
+            Number(STRONG_SERIES_RE.test(b.title)) - Number(STRONG_SERIES_RE.test(a.title)) ||
+            Number(/qualifier|to advance|advancing/i.test(a.title)) - Number(/qualifier|to advance|advancing/i.test(b.title)) ||
+            b.outcomes.length - a.outcomes.length)
+          .slice(0, MAX_BOARDS)
+          .map(board => ({ ...board, outcomes: board.outcomes.slice(0, MAX_BOARD_OUTCOMES) }));
+        const value = ranked.length
+          ? { book: "Kalshi" as const, boards: ranked, fetchedAt: new Date(now()).toISOString() }
+          : null;
+        leagueCache.set(league, { value, expires: now() + (value ? LEAGUE_TTL_MS : FAILURE_TTL_MS) });
+        return value;
+      })()
         .catch(() => {
           leagueCache.set(league, { value: null, expires: now() + FAILURE_TTL_MS });
           return null;

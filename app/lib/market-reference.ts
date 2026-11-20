@@ -67,7 +67,7 @@ function parseMarket(payload: unknown, now: () => number): MarketQuote | null {
   if (!item) return null;
   const lines = normalize(moneyLine(item));
   if (!lines) return null;
-  const provider = text(object(item.provider).name) || "Sportsbook";
+  const provider = text(object(item.provider).name) || "Provider unavailable";
   return { ...lines, provider: provider.slice(0, 60), fetchedAt: new Date(now()).toISOString() };
 }
 

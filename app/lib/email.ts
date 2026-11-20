@@ -19,11 +19,14 @@ function smtpConfig() {
 }
 
 export function emailConfigured(): boolean {
-  return Boolean(resendKey() || smtpConfig());
+  const resendFrom = (process.env.RESEND_FROM ?? "").trim();
+  const smtp = smtpConfig();
+  return Boolean((resendKey() && resendFrom) || (smtp && (smtp.from || smtp.user)));
 }
 
 async function sendViaResend(message: EmailMessage, key: string): Promise<boolean> {
-  const from = (process.env.RESEND_FROM ?? "").trim() || "COWBOY <onboarding@resend.dev>";
+  const from = (process.env.RESEND_FROM ?? "").trim();
+  if (!from) return false;
   try {
     const response = await fetch("https://api.resend.com/emails", {
       method: "POST",
@@ -56,7 +59,7 @@ async function sendViaSmtp(message: EmailMessage, config: NonNullable<ReturnType
 
 export async function sendEmail(message: EmailMessage): Promise<boolean> {
   const key = resendKey();
-  if (key) return sendViaResend(message, key);
+  if (key && (process.env.RESEND_FROM ?? "").trim()) return sendViaResend(message, key);
   const smtp = smtpConfig();
   if (smtp) return sendViaSmtp(message, smtp);
   return false;

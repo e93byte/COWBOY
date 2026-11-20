@@ -9,23 +9,25 @@ const text = (value: unknown): string => typeof value === 'string' || typeof val
 function scoreOf(value: unknown, scheduled: boolean): number | null {
   if (scheduled || value === undefined || value === null || value === '' || value === '-') return null;
   const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : null;
+  return Number.isSafeInteger(parsed) && parsed >= 0 ? parsed : null;
 }
 
 function statusOf(code: string): LiveEvent['status'] {
-  const normalized = code.toUpperCase();
-  if (['FT', 'AET', 'AP', 'AWD', 'WO'].includes(normalized)) return 'final';
-  if (['PP', 'PST', 'POSTP', 'SUSP', 'INT'].includes(normalized)) return 'postponed';
-  if (['CANC', 'ABD', 'DEL'].includes(normalized)) return 'cancelled';
-  if (!normalized || normalized === 'NS') return 'scheduled';
-  return 'live';
+  const normalized = code.trim().toUpperCase().replace(/\s+/g, ' ');
+  if (['FT', 'AET', 'AP', 'AWD', 'WO', 'FINAL', 'FINISHED', 'MATCH FINISHED'].includes(normalized)) return 'final';
+  if (['PP', 'PST', 'POSTP', 'POSTPONED', 'SUSP', 'SUSPENDED', 'INT', 'INTERRUPTED'].includes(normalized)) return 'postponed';
+  if (['CANC', 'CANCELLED', 'CANCELED', 'ABD', 'ABANDONED', 'DEL', 'DELETED'].includes(normalized)) return 'cancelled';
+  if (['NS', 'NOT STARTED', 'SCHEDULED'].includes(normalized)) return 'scheduled';
+  if (['1H', '2H', 'HT', 'ET', 'P', 'LIVE', 'IN PLAY', 'IN PROGRESS', 'FIRST HALF', 'SECOND HALF', 'HALF TIME', 'EXTRA TIME', 'PENALTIES', '1ST HALF', '2ND HALF'].includes(normalized)) return 'live';
+  return 'unknown';
 }
 
 function startTimeOf(value: unknown): string | null {
-  const digits = String(value ?? '').replace(/\D/g, '').padStart(14, '0').slice(0, 14);
-  if (digits.length !== 14) return null;
+  const digits = String(value ?? '');
+  if (!/^\d{14}$/.test(digits)) return null;
   const date = new Date(`${digits.slice(0, 4)}-${digits.slice(4, 6)}-${digits.slice(6, 8)}T${digits.slice(8, 10)}:${digits.slice(10, 12)}:${digits.slice(12, 14)}Z`);
-  return Number.isNaN(date.getTime()) ? null : date.toISOString();
+  if (Number.isNaN(date.getTime()) || date.toISOString().replace(/[-:T.Z]/g, '').slice(0, 14) !== digits) return null;
+  return date.toISOString();
 }
 
 function safeHttps(value: unknown): string | undefined {
@@ -36,9 +38,19 @@ function safeHttps(value: unknown): string | undefined {
   } catch { return undefined; }
 }
 
-function winnerFor(status: LiveEvent['status'], away: number | null, home: number | null): LiveEvent['winner'] {
-  if (status !== 'final' || away === null || home === null || away === home) return status === 'final' ? 'draw' : null;
+function winnerFor(status: LiveEvent['status'], away: number | null, home: number | null, supportsDraw: boolean): LiveEvent['winner'] {
+  if (status !== 'final' || away === null || home === null) return null;
+  if (away === home) return supportsDraw ? 'draw' : null;
   return home > away ? 'home' : 'away';
+}
+
+function statusLabel(status: LiveEvent['status']): string {
+  if (status === 'scheduled') return 'Scheduled';
+  if (status === 'live') return 'In progress';
+  if (status === 'final') return 'Final';
+  if (status === 'postponed') return 'Postponed';
+  if (status === 'cancelled') return 'Cancelled';
+  return 'Status unavailable';
 }
 
 function completeFor(status: LiveEvent['status']): boolean {
@@ -80,13 +92,13 @@ export function normalizeLiveScorePayload(
         name: `${awayName} at ${homeName}`,
         startsAt,
         status,
-        statusText: text(raw.Eps || raw.ErnInf) || (status === 'scheduled' ? 'Scheduled' : 'In progress'),
+        statusText: text(raw.Eps || raw.ErnInf) || statusLabel(status),
         clock: null,
         period: null,
         home: { id: homeId, name: homeName, shortName: text(home.Abr) || homeName, score: homeScore },
         away: { id: awayId, name: awayName, shortName: text(away.Abr) || awayName, score: awayScore },
         scoreSource: 'LiveScore',
-        winner: winnerFor(status, awayScore, homeScore),
+        winner: winnerFor(status, awayScore, homeScore, text(raw.Eps).toUpperCase() === 'FT'),
         completed: completeFor(status),
       });
     }
@@ -110,13 +122,14 @@ export function normalizeOpenLigaPayload(
     const away = object(match.team2);
     if (!id || !Number.isFinite(start) || !text(home.teamName) || !text(away.teamName)) return [];
     const finished = match.matchIsFinished === true;
-    const live = !finished && start <= now && now < start + 3 * 60 * 60_000;
-    const status: LiveEvent['status'] = finished ? 'final' : live ? 'live' : 'scheduled';
+    const status: LiveEvent['status'] = finished ? 'final' : start > now ? 'scheduled' : 'unknown';
     const results = Array.isArray(match.matchResults) ? match.matchResults.map(object) : [];
-    const final = results.find((result) => result.resultTypeID === 2) ?? results.at(-1);
+    const final = results.find((result) => result.resultTypeID === 2);
     const goals = Array.isArray(match.goals) ? object(match.goals.at(-1)) : {};
-    const homeScore = scoreOf(final?.pointsTeam1 ?? goals.scoreTeam1, status === 'scheduled');
-    const awayScore = scoreOf(final?.pointsTeam2 ?? goals.scoreTeam2, status === 'scheduled');
+    const homeScore = scoreOf(final?.pointsTeam1 ?? (!finished ? goals.scoreTeam1 : undefined), status === 'scheduled');
+    const awayScore = scoreOf(final?.pointsTeam2 ?? (!finished ? goals.scoreTeam2 : undefined), status === 'scheduled');
+    const homeName = text(home.teamName);
+    const awayName = text(away.teamName);
     return [{
       id,
       league,
@@ -125,14 +138,14 @@ export function normalizeOpenLigaPayload(
       name: `${text(away.teamName)} at ${text(home.teamName)}`,
       startsAt: new Date(start).toISOString(),
       status,
-      statusText: finished ? 'Final' : live ? 'In progress' : 'Scheduled',
+      statusText: statusLabel(status),
       clock: null,
       period: null,
-      home: { id: `${id}-home`, name: text(home.teamName), shortName: text(home.shortName) || text(home.teamName), score: homeScore, ...(safeHttps(home.teamIconUrl) ? {logo: safeHttps(home.teamIconUrl)} : {}) },
-      away: { id: `${id}-away`, name: text(away.teamName), shortName: text(away.shortName) || text(away.teamName), score: awayScore, ...(safeHttps(away.teamIconUrl) ? {logo: safeHttps(away.teamIconUrl)} : {}) },
+      home: { id: text(home.teamId) || homeName, name: homeName, shortName: text(home.shortName) || homeName, score: homeScore, ...(safeHttps(home.teamIconUrl) ? {logo: safeHttps(home.teamIconUrl)} : {}) },
+      away: { id: text(away.teamId) || awayName, name: awayName, shortName: text(away.shortName) || awayName, score: awayScore, ...(safeHttps(away.teamIconUrl) ? {logo: safeHttps(away.teamIconUrl)} : {}) },
       ...(text(object(match.location).locationStadium) ? {venue: text(object(match.location).locationStadium)} : {}),
       scoreSource: 'OpenLigaDB',
-      winner: winnerFor(status, awayScore, homeScore),
+      winner: winnerFor(status, awayScore, homeScore, Boolean(final)),
       completed: completeFor(status),
     } satisfies LiveEvent];
   });
@@ -154,8 +167,8 @@ export function normalizeSportsDbPayload(
     const homeName = text(raw.strHomeTeam);
     const awayName = text(raw.strAwayTeam);
     const timestamp = text(raw.strTimestamp);
-    const normalizedTimestamp = timestamp && !/[zZ]|[+-]\d{2}:?\d{2}$/.test(timestamp) ? `${timestamp}Z` : timestamp;
-    const parsed = Date.parse(normalizedTimestamp);
+    const hasExplicitZone = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(timestamp);
+    const parsed = hasExplicitZone ? Date.parse(timestamp) : Number.NaN;
     if (!id || !homeId || !awayId || !homeName || !awayName || !Number.isFinite(parsed)) return [];
     const status = statusOf(text(raw.strStatus));
     const homeScore = scoreOf(raw.intHomeScore, status === 'scheduled');
@@ -170,14 +183,14 @@ export function normalizeSportsDbPayload(
       name: text(raw.strEvent) || `${awayName} at ${homeName}`,
       startsAt: new Date(parsed).toISOString(),
       status,
-      statusText: text(raw.strStatus) || (status === 'scheduled' ? 'Scheduled' : status === 'final' ? 'Final' : 'In progress'),
+      statusText: text(raw.strStatus) || statusLabel(status),
       clock: null,
       period: null,
       home: { id: homeId, name: homeName, shortName: homeName, score: homeScore, ...(homeLogo ? {logo: homeLogo} : {}) },
       away: { id: awayId, name: awayName, shortName: awayName, score: awayScore, ...(awayLogo ? {logo: awayLogo} : {}) },
       ...(text(raw.strVenue) ? {venue: text(raw.strVenue)} : {}),
       scoreSource: 'SportsDB',
-      winner: winnerFor(status, awayScore, homeScore),
+      winner: winnerFor(status, awayScore, homeScore, sport === 'soccer' && ['FT', 'FINAL', 'FINISHED', 'MATCH FINISHED'].includes(text(raw.strStatus).trim().toUpperCase())),
       completed: completeFor(status),
     } satisfies LiveEvent];
   });

@@ -6,10 +6,10 @@ const topics = [
   {
     id:'free-picks', title:'Free picks', link:{href:'/',label:'Open the sports board'},
     articles:[
-      {title:'How do I make a pick?', text:'Choose an eligible game on the sports board, select an outcome, then sign in and confirm your pick. You can review up to five separate picks together. Picks are free. There are no deposits, stakes, or prizes.'},
+      {title:'How do I make a pick?', text:'Choose an eligible game on the sports board or open Game Center to select a winner, spread, or total when the source has posted that market. Then sign in and confirm. You can review up to five independent picks together, including different markets on one game. Picks are free. There are no deposits, stakes, or prizes.'},
       {title:'Why is a pick locked?', text:'Entry closes at scheduled start or when the source stops reporting the game as scheduled. A delayed or unavailable league feed pauses entry for that league. The server checks game status again when you confirm.'},
       {title:'Can I change or cancel a pick?', text:'Open My picks to edit or cancel an open pick before scheduled start. The server checks the current game status before accepting the change.'},
-      {title:'Where is COWBOY available?', text:'COWBOY is available in all 50 states and everywhere else. Picks are free predictions with no purchase, deposit, or wagering, so there are no state gambling restrictions to satisfy. The same board, picks, and account features work everywhere.'},
+      {title:'Where is COWBOY available?', text:'COWBOY is a free-prediction service, not a sportsbook. Availability and sports-data coverage can vary by location, device, and data provider; the app does not verify worldwide availability.'},
     ],
   },
   {

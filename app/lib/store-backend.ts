@@ -1,6 +1,7 @@
 import { AccountStore, type AccountUser, type StoredPick } from "./account-store";
 import type { FollowPreference } from "./follow-preferences";
 import type { PickConsensus } from "./pick-consensus";
+import type { PublicLeaderboardEntry } from "./pick-leaderboard";
 import { SupabaseStore, supabaseConfig } from "./supabase-store";
 
 // Backend-agnostic account/pick storage. The file store remains the default for
@@ -17,6 +18,8 @@ export interface AccountBackend {
   exportAccount(token: string | null): Promise<unknown>;
   listPicks(token: string | null): Promise<StoredPick[]>;
   consensus(): Promise<PickConsensus>;
+  publicLeaderboard(): Promise<PublicLeaderboardEntry[]>;
+  setLeaderboardOptIn(token: string | null, enabled: boolean): Promise<AccountUser>;
   savePicks(token: string | null, tickets: StoredPick[]): Promise<StoredPick[]>;
   changePick(token: string | null, id: string, action: "cancel" | "edit", side: string | null, selection: string | null, revision: number | null, now?: number, line?: number | null): Promise<StoredPick>;
   settlePicks(token: string | null, updates: Array<{ id: string; status: StoredPick["status"]; settledAt: string }>): Promise<StoredPick[]>;

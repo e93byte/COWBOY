@@ -640,6 +640,25 @@ test("spread and total picks snapshot posted lines, coexist with moneyline and s
   });
 });
 
+test("one atomic free-pick entry can contain different markets from the same event", async () => {
+  await fixture(async store => {
+    const {token}=await store.register("SameGameRider",password);
+    const odds={provider:"DraftKings",spread:-3.5,total:210.5,homeMoneyline:-180,awayMoneyline:150,drawMoneyline:null,
+      homeSpreadPrice:-110,awaySpreadPrice:-110,overPrice:-110,underPrice:-110,
+      openSpread:null,openTotal:null,openHomeMoneyline:null,openAwayMoneyline:null,openDrawMoneyline:null,favorite:"home" as const};
+    const service=new PickService({store,getEvent:async()=>event({odds}),now:()=>eventTime});
+    const saved=await service.submitBatch(token,[
+      pick({requestId:"same-game-ml",side:"home"}),
+      pick({requestId:"same-game-sp",side:"away",market:"spread"}),
+      pick({requestId:"same-game-total",side:"over",market:"total"}),
+    ]);
+    assert.equal(saved.length,3);
+    assert.equal(new Set(saved.map(ticket=>ticket.eventId)).size,1);
+    assert.deepEqual(saved.map(ticket=>ticket.market??"moneyline"),["moneyline","spread","total"]);
+    assert.ok(saved.every(ticket=>ticket.entryId===saved[0].entryId));
+  });
+});
+
 test("a valid soccer draw can be submitted or edited and settles as its own outcome", async () => {
   await fixture(async store => {
     const drawPicker = await store.register("DrawRider",password);

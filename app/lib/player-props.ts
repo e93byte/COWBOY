@@ -84,9 +84,10 @@ function parseProps(payload: unknown, names: Map<string, string>): PlayerProp[] 
     const over = americanOdds(object(group[0].odds).american?.value);
     const under = americanOdds(object(group[1].odds).american?.value);
     const line = Number(object(group[0].current).target?.value ?? object(group[0].odds).total?.value);
-    if (over === null || under === null || !Number.isFinite(line)) continue;
+    const player = names.get(id);
+    if (!player || over === null || under === null || !Number.isFinite(line)) continue;
     props.push({
-      player: names.get(id) ?? `Athlete ${id}`,
+      player,
       name: propLabel(type),
       line,
       over: Math.round(over),
@@ -94,6 +95,31 @@ function parseProps(payload: unknown, names: Map<string, string>): PlayerProp[] 
     });
   }
   return props;
+}
+
+/**
+ * Keep the most bettable board: sort each market by line (the highest lines
+ * belong to starters) and interleave markets so one category cannot crowd out
+ * the rest.
+ */
+function selectProps(props: PlayerProp[]): PlayerProp[] {
+  const groups = new Map<string, PlayerProp[]>();
+  for (const prop of props) {
+    const group = groups.get(prop.name) ?? [];
+    group.push(prop);
+    groups.set(prop.name, group);
+  }
+  const ordered = [...groups.values()].map(group => group.sort((a, b) => b.line - a.line));
+  const selected: PlayerProp[] = [];
+  while (selected.length < MAX_PROPS && ordered.some(group => group.length)) {
+    for (const group of ordered) {
+      const next = group.shift();
+      if (!next) continue;
+      selected.push(next);
+      if (selected.length >= MAX_PROPS) break;
+    }
+  }
+  return selected;
 }
 
 export function createPlayerPropsClient(options: ClientOptions = {}) {
@@ -124,6 +150,28 @@ export function createPlayerPropsClient(options: ClientOptions = {}) {
     }
   }
 
+  /** Scheduled games have no boxscore, so resolve athlete names from team rosters. */
+  async function rosterNames(summary: unknown, names: Map<string, string>, path: string): Promise<void> {
+    const header = object(object(summary).header);
+    const competitions = Array.isArray(header.competitions) ? header.competitions.map(object) : [];
+    const competitors: Record<string, any>[] = Array.isArray(object(competitions[0]).competitors)
+      ? object(competitions[0]).competitors.map(object) : [];
+    const teamIds = competitors.map((entry: Record<string, any>) => text(object(entry.team).id) || text(entry.id))
+      .filter((id: string) => /^[0-9]{1,10}$/.test(id)).slice(0, 2);
+    if (!teamIds.length) return;
+    const rosters = await Promise.all(teamIds.map((id: string) =>
+      fetchJson(`https://site.api.espn.com/apis/site/v2/sports/${path}/teams/${id}/roster`)));
+    for (const roster of rosters) {
+      const athletes = Array.isArray(object(roster).athletes) ? object(roster).athletes : [];
+      for (const raw of athletes) {
+        const athlete = object(raw);
+        const id = text(athlete.id);
+        const name = text(athlete.displayName) || text(athlete.fullName);
+        if (id && name) names.set(id, name.slice(0, 80));
+      }
+    }
+  }
+
   async function fetchProps(league: string, id: string): Promise<PlayerProps | null> {
     const config = LIVE_LEAGUES.find(entry => entry.id === league);
     if (!config || !PROP_SPORTS.has(config.sport)) return null;
@@ -135,7 +183,9 @@ export function createPlayerPropsClient(options: ClientOptions = {}) {
       fetchJson(`https://site.api.espn.com/apis/site/v2/sports/${config.path}/summary?event=${encodeURIComponent(id)}`),
     ]);
     if (propsPayload === null) return null;
-    const props = parseProps(propsPayload, playerNames(summaryPayload));
+    const names = playerNames(summaryPayload);
+    if (names.size < 12) await rosterNames(summaryPayload, names, config.path);
+    const props = selectProps(parseProps(propsPayload, names));
     if (!props.length) return null;
     return { book: "DraftKings", props, fetchedAt: new Date(now()).toISOString() };
   }

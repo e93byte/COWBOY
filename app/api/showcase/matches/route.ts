@@ -24,18 +24,21 @@ export async function GET() {
     const payload = await response.json() as { matches?: UpstreamMatch[]; updated?: string };
     const matches = (payload.matches ?? []).map((match) => {
       const parts = (match.url ?? "").split("/").filter(Boolean);
+      const home = typeof match.home === "string" ? match.home.trim() : "";
+      const away = typeof match.away === "string" ? match.away.trim() : "";
+      const competition = typeof match.competition === "string" ? match.competition.trim() : "";
       return {
         slug: parts[2] ?? "",
-        home: match.home ?? "Home",
-        away: match.away ?? "Away",
+        home,
+        away,
         homeScore: match.home_score ?? null,
         awayScore: match.away_score ?? null,
         status: match.status ?? "unknown",
         statusText: match.status_text ?? "Status unavailable",
         time: match.time ?? null,
-        competition: match.competition ?? "Competition",
+        competition: competition || null,
       };
-    }).filter((match) => match.slug);
+    }).filter((match) => match.slug && match.home && match.away);
 
     return NextResponse.json({ sport: "football", matches, sourceUpdatedAt: payload.updated ?? null, fetchedAt: new Date().toISOString() }, {
       headers: { "Cache-Control": "public, s-maxage=60, stale-while-revalidate=60" },

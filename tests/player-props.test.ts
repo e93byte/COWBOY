@@ -85,3 +85,17 @@ test('player props returns null when the provider has no items', async () => {
     String(url).includes('propBets') ? Response.json({ items: [] }) : Response.json(summaryPayload) });
   assert.equal(await client.get('nba', '401910007'), null);
 });
+
+test('player props omit rows whose athlete name cannot be resolved from source data', async () => {
+  const client = createPlayerPropsClient({ fetch: async url => {
+    const target = String(url);
+    if (target.includes('propBets')) return Response.json({ items: [
+      propItem('3992', 'Total Points', 25.5, -110),
+      propItem('3992', 'Total Points', 25.5, -115),
+    ] });
+    if (target.includes('/summary')) return Response.json({ boxscore: { players: [] } });
+    if (target.includes('/roster')) return Response.json({ athletes: [] });
+    return new Response(null, { status: 404 });
+  } });
+  assert.equal(await client.get('nba', '401910007'), null);
+});

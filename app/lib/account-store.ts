@@ -5,9 +5,10 @@ import { promisify } from "node:util";
 import type { RealPickTicket } from "./pick-service";
 import { followKey, isFollowPreference, type FollowPreference } from "./follow-preferences";
 import { buildPickConsensus, type PickConsensus } from "./pick-consensus";
+import { buildPublicPickLeaderboard, type PublicLeaderboardEntry } from "./pick-leaderboard";
 
 const scrypt = promisify(scryptCallback);
-export type AccountUser = { id: string; username: string; email?: string | null; emailVerified?: boolean };
+export type AccountUser = { id: string; username: string; email?: string | null; emailVerified?: boolean; leaderboardOptIn?: boolean };
 type StoredUser = AccountUser & { salt: string; passwordHash: string; follows?: FollowPreference[]; emailVerifiedAt?: number };
 type StoredSession = { hash: string; userId: string; expiresAt: number };
 type StoredToken = { hash: string; userId: string; purpose: "verify_email" | "password_reset"; expiresAt: number; consumedAt?: number };
@@ -38,6 +39,7 @@ function validateStore(data: StoreData): void {
     if (user.email !== undefined && user.email !== null &&
         (typeof user.email !== "string" || user.email.length > 254 || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(user.email))) fail();
     if (user.emailVerifiedAt !== undefined && !Number.isSafeInteger(user.emailVerifiedAt)) fail();
+    if (user.leaderboardOptIn !== undefined && typeof user.leaderboardOptIn !== "boolean") fail();
     if (user.follows !== undefined && (!Array.isArray(user.follows) ||
         !user.follows.every(isFollowPreference) ||
         new Set(user.follows.map(followKey)).size !== user.follows.length)) fail();
@@ -224,7 +226,7 @@ export class AccountStore {
     data.sessions = data.sessions.filter((session) => session.expiresAt > this.now());
     const token = randomBytes(32).toString("hex");
     data.sessions.push({ hash: digest(token), userId: user.id, expiresAt: this.now() + SESSION_SECONDS * 1000 });
-    return { user: { id: user.id, username: user.username }, token };
+    return { user: { id: user.id, username: user.username, ...(user.leaderboardOptIn ? {leaderboardOptIn:true} : {}) }, token };
   }
 
   userInData(data: StoreData, token: string | null | undefined): AccountUser | null {
@@ -232,7 +234,8 @@ export class AccountStore {
     const session = data.sessions.find((entry) => entry.hash === digest(token) && entry.expiresAt > this.now());
     const user = session && data.users.find((entry) => entry.id === session.userId);
     return user ? { id: user.id, username: user.username,
-      ...(user.email ? { email: user.email, emailVerified: user.emailVerifiedAt !== undefined } : {}) } : null;
+      ...(user.email ? { email: user.email, emailVerified: user.emailVerifiedAt !== undefined } : {}),
+      ...(user.leaderboardOptIn ? {leaderboardOptIn:true} : {}) } : null;
   }
 
   requireUser(data: StoreData, token: string | null | undefined): AccountUser {
@@ -295,6 +298,20 @@ export class AccountStore {
 
   async consensus(): Promise<PickConsensus> {
     return this.transaction((data) => buildPickConsensus(data.tickets), false);
+  }
+
+  async publicLeaderboard(): Promise<PublicLeaderboardEntry[]> {
+    return this.transaction(data => buildPublicPickLeaderboard(data.users, data.tickets), false);
+  }
+
+  async setLeaderboardOptIn(token: string | null, enabled: boolean): Promise<AccountUser> {
+    if (typeof enabled !== "boolean") throw new AccountError("invalid_input", "Supply a valid leaderboard preference.");
+    return this.transaction(data => {
+      const owner = this.requireUser(data, token);
+      const user = data.users.find(entry => entry.id === owner.id)!;
+      user.leaderboardOptIn = enabled;
+      return this.userInData(data, token)!;
+    });
   }
 
   async savePicks(token: string | null, tickets: StoredPick[]): Promise<StoredPick[]> {

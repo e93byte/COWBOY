@@ -23,13 +23,69 @@ test('provider circuit breaker opens after repeated failures and permits one hal
   assert.equal(breaker.allow('ESPN:scoreboard:nfl'), true);
 });
 
+test('scoreboard odds normalize moneyline, spread, total, and opening lines', () => {
+  const data = structuredClone(fixtures.nfl);
+  const competition = data.events[0].competitions[0];
+  competition.odds = [{
+    provider: { id: '100', name: 'DraftKings' },
+    spread: -3.5, overUnder: 47.5,
+    homeTeamOdds: { favorite: true }, awayTeamOdds: { favorite: false },
+    moneyline: {
+      home: { close: { odds: '-180' }, open: { odds: '-150' } },
+      away: { close: { odds: '+155' }, open: { odds: '+130' } },
+    },
+    pointSpread: {
+      home: { close: { line: '-3.5', odds: '-110' } },
+      away: { close: { line: '+3.5', odds: '-110' } },
+    },
+    total: {
+      over: { close: { line: 'o47.5', odds: '-105' } },
+      under: { close: { line: 'u47.5', odds: '-115' } },
+    },
+  }];
+  const event = live.normalizeScoreboard('nfl', data)[0];
+  assert.deepEqual(event.odds, {
+    provider: 'DraftKings', spread: -3.5, total: 47.5,
+    homeMoneyline: -180, awayMoneyline: 155, drawMoneyline: null,
+    homeSpreadPrice: -110, awaySpreadPrice: -110, overPrice: -105, underPrice: -115,
+    openSpread: null, openTotal: null, openHomeMoneyline: -150, openAwayMoneyline: 130,
+    openDrawMoneyline: null, favorite: 'home',
+  });
+});
+
+test('pick-center odds rows without a closing market are still usable', () => {
+  const odds = live.normalizeOdds({
+    provider: { name: 'DraftKings' }, spread: -2.5, overUnder: 44.5,
+    homeTeamOdds: { moneyLine: -140, favorite: true }, awayTeamOdds: { moneyLine: 120 },
+  });
+  assert.equal(odds?.homeMoneyline, -140);
+  assert.equal(odds?.awayMoneyline, 120);
+  assert.equal(odds?.spread, -2.5);
+  assert.equal(odds?.total, 44.5);
+  assert.equal(odds?.favorite, 'home');
+});
+
+test('odds without provider metadata are labeled as unknown, not attributed to a generic book', () => {
+  const odds = live.normalizeOdds({
+    moneyline: { home: { close: { odds: -120 } }, away: { close: { odds: 105 } } },
+  });
+  assert.equal(odds?.provider, 'Provider unavailable');
+});
+
+test('invalid or unpriced odds are omitted instead of guessed', () => {
+  const data = structuredClone(fixtures.nfl);
+  const competition = data.events[0].competitions[0];
+  competition.odds = [{ provider: { name: 'Book' }, moneyline: { home: { close: { odds: '0' } } } }];
+  assert.equal(live.normalizeScoreboard('nfl', data)[0].odds, undefined);
+});
+
 test('GET /api/sports serves the normalized board without inventing a golf matchup', async () => {
   const original = globalThis.fetch;
   globalThis.fetch = async input => {
     const pathname = new URL(String(input)).pathname;
     const config = live.LIVE_LEAGUES.find(l => pathname.endsWith(`${l.path}/scoreboard`))!;
     assert.ok(config);
-    return Response.json(fixtures[config.id]);
+    return Response.json(fixtures[config.id] ?? {events:[]});
   };
   try {
     const route = await import('../app/api/sports/route');
@@ -729,7 +785,7 @@ test('board coalesces requests and refreshes active leagues ahead of idle league
     calls++; active++; maximum = Math.max(maximum, active);
     await new Promise(resolve => setTimeout(resolve, 2));
     active--;
-    return Response.json(fixtures[config.id]);
+    return Response.json(fixtures[config.id] ?? {events:[]});
   } });
   const [first, concurrent] = await Promise.all([client.getLiveBoard(), client.getLiveBoard()]);
   assert.deepEqual(first, concurrent);
@@ -855,7 +911,7 @@ test('a failed ESPN scoreboard opens a per-league circuit and skips the next pro
       return new Response('unavailable', { status: 503 });
     }
     const config = live.LIVE_LEAGUES.find(league => url.includes(league.path));
-    return Response.json(config ? fixtures[config.id] : { events: [] });
+    return Response.json((config && fixtures[config.id]) || { events: [] });
   } });
   await client.getLiveBoard('nfl');
   for (let attempt = 0; attempt < 2; attempt++) {
@@ -1240,7 +1296,7 @@ test('stale-while-revalidate serves the last board instantly and refreshes in th
     requests++;
     const url = String(input);
     const config = live.LIVE_LEAGUES.find(l => url.endsWith(`${l.path}/scoreboard`));
-    return Response.json(config ? fixtures[config.id] : {events:[]});
+    return Response.json((config && fixtures[config.id]) || {events:[]});
   }});
   const first = await client.getLiveBoard();
   assert.equal(first.stale, false);

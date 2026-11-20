@@ -223,7 +223,7 @@ export function AccountDialog({user,onUser,onClose}:{user:User|null;onUser:(u:Us
     <p className="cw-dialog-copy">Signed in as <strong>{user.username}</strong>. Your picks and follows are saved to this account.</p>
     <form className="cw-email-form" onSubmit={event=>{event.preventDefault();void manageAccountEmail();}}>
       <label>Recovery email<input type="email" name="email" autoComplete="email" maxLength={254}
-        placeholder={user.email ?? 'you@example.com'} disabled={!!accountAction} onChange={event=>setEmailInput(event.target.value)}/></label>
+        placeholder={user.email ?? 'Enter your email address'} disabled={!!accountAction} onChange={event=>setEmailInput(event.target.value)}/></label>
       <button type="submit" disabled={!!accountAction||!emailInput.trim()}>
         {accountAction==='email'?'Sending verification…':user.email?'Update email':'Add recovery email'}
       </button>
@@ -456,9 +456,13 @@ export function PicksHistory({tickets,busy,error,onRefresh,onUpdate,user,onSignI
           const multiLeg = group.tickets.length > 1;
           const firstTicket = group.tickets[0];
           const firstEvent = matchup(firstTicket);
+          const firstMarket = firstTicket.market ?? 'moneyline';
+          const singlePickLabel = firstMarket === 'spread' ? 'Free spread pick'
+            : firstMarket === 'total' ? 'Free total pick'
+            : firstTicket.side === 'draw' ? 'Free draw pick' : 'Free winner pick';
           return <article className={`cw-ticket cw-tracker-card ${multiLeg ? 'cw-entry-card' : ''}`} key={group.key}>
             <header>
-              <span><SportIcon sport={firstEvent?.sport ?? 'all'}/>{multiLeg ? `Free-picks entry · ${group.tickets.length} legs` : (firstEvent?.leagueName || firstTicket.league.toUpperCase()) + ' · ' + (firstTicket.side==='draw'?'Free draw pick':'Free winner pick')}</span>
+              <span><SportIcon sport={firstEvent?.sport ?? 'all'}/>{multiLeg ? `Free-picks entry · ${group.tickets.length} legs` : (firstEvent?.leagueName || firstTicket.league.toUpperCase()) + ' · ' + singlePickLabel}</span>
               <span className={`cw-ticket-status ${status}`}>{groupStatusLabel(status,group.tickets)}</span>
             </header>
             {multiLeg && <p className="cw-entry-summary">Each leg settles independently. This entry’s result updates as source-confirmed results arrive.</p>}
@@ -511,10 +515,11 @@ export function PicksHistory({tickets,busy,error,onRefresh,onUpdate,user,onSignI
     {cancelling&&<Modal title="Cancel your free pick?" onClose={()=>setCancelling(null)} locked={cancelPending}><p className="cw-dialog-copy">Remove your call for <strong>{cancelling.selection}</strong> in {cancelling.eventName}? The server will verify the game has not started before cancelling.</p>{cancelError&&<p role="alert" className="cw-form-error">{cancelError}</p>}<button className="cw-primary" disabled={cancelPending} onClick={()=>void cancel()}>{cancelPending?'Cancelling…':'Confirm cancellation'}</button><button className="cw-clear" disabled={cancelPending} onClick={()=>setCancelling(null)}>Keep pick</button></Modal>}
   </section>;
 }
-export function PickPanel({selections,user,disabled,pending,draftEvents,onChoose,onClear,onReview,onRemove,onSignIn}: {
+export function PickPanel({selections,user,disabled,pending,draftEvents,onChoose,onChangeMarket,onClear,onReview,onRemove,onSignIn}: {
   selections: Selection[]; user: User|null; disabled: boolean; pending: boolean;
   draftEvents: ReadonlyMap<string, LiveEvent>;
   onChoose: (event: LiveEvent, side: PickSide, market?: PickMarket) => void;
+  onChangeMarket: (selection: Selection, event: LiveEvent, side: PickSide, market: PickMarket) => void;
   onClear: () => void;
   onReview: () => void; onRemove: (selection: Selection) => void; onSignIn: () => void;
 }) {
@@ -531,14 +536,15 @@ export function PickPanel({selections,user,disabled,pending,draftEvents,onChoose
         const current = draftEvents.get(key);
         const marketPosted = (option: PickMarket) =>
           option === 'moneyline' || postedPickLine(current?.odds, side, option) !== null;
-        return <div className="cw-draft-pick" key={key}>
+        return <div className="cw-draft-pick" key={`${key}:${market}`}>
           <span className="cw-kicker"><SportIcon sport={event.sport ?? 'all'}/>{event.leagueName} · {market==='moneyline'?(supportsDrawPick(event.league)?'FULL-TIME RESULT':'MATCH WINNER'):market==='spread'?'SPREAD':'TOTAL'}</span>
           <h3>{event.name}</h3>
           <div className="cw-market-tabs" role="group" aria-label={`Market for ${event.name}`}>
             {(['moneyline','spread','total'] as const).map(option => (
               <button type="button" key={option} aria-pressed={market===option}
-                disabled={pending || !current || !marketPosted(option)}
-                onClick={()=>{if (current && market!==option) onChoose(current, pickSides(event.league, option)[0], option);}}>
+                disabled={pending || !current || !marketPosted(option) || selections.some(item => item.requestId !== selection.requestId &&
+                  item.event.league === event.league && item.event.id === event.id && (item.market ?? 'moneyline') === option)}
+                onClick={()=>{if (current && market!==option) onChangeMarket(selection,current,pickSides(event.league, option)[0],option);}}>
                 {option==='moneyline'?'Winner':option==='spread'?'Spread':'Total'}
               </button>
             ))}
@@ -568,8 +574,8 @@ export function PickPanel({selections,user,disabled,pending,draftEvents,onChoose
       <button className="cw-primary" disabled={disabled||pending} onClick={user?onReview:onSignIn}>
         {user ? count === 1 ? 'Review free pick' : `Review ${count} free picks` : count === 1 ? 'Sign in to save pick' : 'Sign in to save picks'}
       </button>
-    </div> : <div className="cw-slip-empty"><img src="/cowboy-mark.webp" alt=""/><h3>Who’s your winner?</h3>
-      <p>Select a team on an upcoming game.<br/>One read. No money on the line.</p></div>}
-    <div className="cw-slip-note">Pre-game picks only. Add up to five games.</div>
+    </div> : <div className="cw-slip-empty"><img src="/cowboy-mark.webp" alt=""/><h3>What’s your prediction?</h3>
+      <p>Choose an outcome for an upcoming game.<br/>Free picks only. No money on the line.</p></div>}
+    <div className="cw-slip-note">Pre-game picks only. Add up to five picks; separate markets on one game count separately.</div>
   </div>;
 }

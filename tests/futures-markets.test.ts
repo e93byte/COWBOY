@@ -87,10 +87,10 @@ test('futures caches series and league results', async () => {
   await client.get('nhl');
   await client.get('ucl');
   await client.get('nhl');
-  assert.equal(calls, 4, 'one series page + nhl/ucl event fetches; repeat league cached');
+  assert.equal(calls, 5, 'one series page + flagship/root event fetches; repeat league cached');
   clock += 61_000;
   await client.get('nba');
-  assert.equal(calls, 5, 'series list cached; only new league events fetched');
+  assert.equal(calls, 7, 'series list cached; only new league events fetched');
 });
 
 test('futures tolerates provider failure and returns null', async () => {
