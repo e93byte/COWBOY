@@ -9,6 +9,7 @@ const topics = [
       {title:'How do I make a pick?', text:'Choose an eligible game on the sports board, select an outcome, then sign in and confirm your pick. You can review up to five separate picks together. Picks are free. There are no deposits, stakes, or prizes.'},
       {title:'Why is a pick locked?', text:'Entry closes at scheduled start or when the source stops reporting the game as scheduled. A delayed or unavailable league feed pauses entry for that league. The server checks game status again when you confirm.'},
       {title:'Can I change or cancel a pick?', text:'Open My picks to edit or cancel an open pick before scheduled start. The server checks the current game status before accepting the change.'},
+      {title:'Where is COWBOY available?', text:'COWBOY is available in all 50 states and everywhere else. Picks are free predictions with no purchase, deposit, or wagering, so there are no state gambling restrictions to satisfy. The same board, picks, and account features work everywhere.'},
     ],
   },
   {
@@ -30,7 +31,7 @@ const topics = [
   {
     id:'account', title:'Account and preferences', link:{href:'/preferences',label:'Open Preferences'},
     articles:[
-      {title:'What follows me between browsers?', text:'Signed-in follows and saved picks are stored on the local COWBOY server. Guest follows, schedule timezone, and update preferences are stored in this browser. COWBOY is a local prototype. Use a unique password.'},
+      {title:'What follows me between browsers?', text:'Signed-in follows and saved picks are stored on the COWBOY server. Guest follows, schedule timezone, and update preferences are stored in this browser. Use a unique password.'},
       {title:'Where are the account controls?', text:'Open your signed-in account to download your data, sign out other sessions, or delete the account. Preferences also lets you choose the schedule timezone, followed-game updates, and quiet hours.'},
     ],
   },
