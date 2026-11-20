@@ -52,8 +52,8 @@ test("supabase store registers, hashes the session token and maps RPC errors", a
     assert.equal(user.username, "HashRider");
     assert.match(token, /^[a-f0-9]{64}$/);
     assert.equal(calls[0].args.p_token_hash, digest(token));
-    assert.equal(calls[0].args.p_salt.length, 32);
-    assert.equal(calls[0].args.p_password_hash.length, 128);
+    assert.equal((calls[0].args.p_salt as string).length, 32);
+    assert.equal((calls[0].args.p_password_hash as string).length, 128);
   } finally { restore(); }
 });
 
