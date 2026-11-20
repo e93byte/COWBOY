@@ -5,6 +5,7 @@ import dynamic from 'next/dynamic';
 import '../live.css';
 import { AccountDialog, Modal, PickPanel, PicksHistory, api, useAccount, type Selection } from './AccountPicks';
 import { ParlayBuilder, ParlayReviewModal, type ParlaySelection } from './ParlayBuilder';
+import PickLeaderboard from './PickLeaderboard';
 import { ActionIcon, SportIcon, StatusIcon, StarIcon, TabIcon, RefreshIcon, CloseIcon } from './SportIcon';
 import { RankedTeamName, TeamMark } from './TeamMark';
 import { EventDetail } from './EventDetail';
@@ -456,7 +457,7 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
   const togglePick = (event: LiveEvent, side: PickSide, market: PickMarket = 'moneyline', prop?: {player:string;stat:string;line:number} | null) => {
     const key = selectionKey(event, market);
     const existing = selectionsByMarket.get(key);
-    if (existing && existing.side === side && existing.prop === prop) {
+    if (existing && existing.side === side && (existing.prop ?? null) === (prop ?? null)) {
       setSelections(previous => previous.filter(item => item.requestId !== existing.requestId));
       setPickError('');
       return;
@@ -935,7 +936,7 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
                 { side: 'over', label: `${prop.player} ${prop.stat} Over ${prop.line}`, price: prop.over, prop },
                 { side: 'under', label: `${prop.player} ${prop.stat} Under ${prop.line}`, price: prop.under, prop },
               ])
-            : pickSides(e.league, currentMarket).map(side => ({ side, label: pickName(e, side, 'shortName', currentMarket, postedPickLine(e.odds, side, currentMarket)), price: null, prop: null as {player:string;stat:string;line:number} | null }))).map(item => {
+            : pickSides(e.league, currentMarket).map(side => ({ side, label: pickName(e, side, 'name', currentMarket, postedPickLine(e.odds, side, currentMarket)), price: null, prop: null as {player:string;stat:string;line:number} | null }))).map(item => {
             const side = item.side;
             const share = currentMarket === 'moneyline' ? consensusPercent(pickConsensus[consensusKey(e.league, e.id)], side as PickSide) : null;
             const selected = selectionsByMarket.get(selectionKey(e, currentMarket))?.side === side;
@@ -943,7 +944,7 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
             const line = currentMarket === 'prop' ? (item.prop?.line ?? null) : postedPickLine(e.odds, side as PickSide, currentMarket);
             const prop = currentMarket === 'prop' ? item.prop : null;
             return (
-              <button key={`${side}:${currentMarket}:${item.label}`} aria-label={`Pick ${item.label}`} aria-pressed={selected} onClick={() => togglePick(e, side as PickSide, currentMarket, prop)} disabled={pending || !eligiblePick(e) || !canAdd || (!selected && dailyLimitReached) || line === null}>
+              <button key={`${side}:${currentMarket}:${item.label}`} aria-label={`Pick ${item.label}`} aria-pressed={selected} onClick={() => togglePick(e, side as PickSide, currentMarket, prop)} disabled={pending || !eligiblePick(e) || !canAdd || (!selected && dailyLimitReached) || (currentMarket !== 'moneyline' && line === null)}>
                 <span>{item.label}</span>{item.price != null && <small>{americanOdds(item.price)}</small>}
                 <small>{selfExcluded ? 'Excluded' : dailyLimitReached && !selected ? 'Limit' : canPick(e, now) ? 'Pick' : 'Closed'}</small>
                 {share !== null && <em className="cw-pick-share">{share}%</em>}
@@ -1195,7 +1196,7 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
       </section>}
       </>:<PicksHistory key={account.user?.id ?? 'guest'} tickets={account.tickets} onUpdate={account.updateTicket} busy={account.ticketsBusy} error={account.ticketsError} onRefresh={()=>void account.loadTickets(true)} user={account.user} onSignIn={()=>setAccountOpen(true)} events={board?.events??[]} onGame={(ticket,event)=>event ? openGame(event) : openSavedGame(ticket.eventId,ticket.league)} onRebet={rebet} onBrowse={openBoard} feedCurrent={!!board&&!board.stale&&!error}/>}
       <footer className="cw-footer"><b>ALL GAME. NO GAMBLING.</b><p>Free-to-play predictions only. No money, purchase, cash prizes or wagering. Availability and score coverage depend on your location, device, and data sources. Picks close at scheduled start or when the source marks an event live. Results depend on source confirmation.</p><div className="cw-footer-actions"><button className="cw-terms" aria-current={helpView ? "page" : undefined} onClick={()=>navigate('help')}>Help &amp; rules</button><button className="cw-terms" aria-current={preferencesView ? "page" : undefined} onClick={()=>navigate('preferences')}>Preferences</button><PwaControls/></div></footer>
-    </main>{view==='board'&&<aside className="cw-picks-rail">{pickPanel}{parlaySelections.length>0&&<ParlayBuilder selections={parlaySelections} user={account.user} disabled={selectionDisabled} pending={parlayPending} draftEvents={draftEvents as unknown as ReadonlyMap<string, { odds?: GameOdds }>} onReview={()=>{setParlayReview(true);}} onChoose={chooseParlayLeg} onChangeMarket={changeParlayMarket} onClear={()=>setParlaySelections([])} onRemove={pick=>setParlaySelections(previous=>previous.filter(item=>item.requestId!==pick.requestId))} onSignIn={()=>{setAccountOpen(true);}} onClose={()=>{}}/>}</aside>}</div>
+    </main>{view==='board'&&<aside className="cw-picks-rail">{pickPanel}{parlaySelections.length>0&&<ParlayBuilder selections={parlaySelections} user={account.user} disabled={selectionDisabled} pending={parlayPending} draftEvents={draftEvents as unknown as ReadonlyMap<string, { odds?: GameOdds }>} onReview={()=>{setParlayReview(true);}} onChoose={chooseParlayLeg} onChangeMarket={changeParlayMarket} onClear={()=>setParlaySelections([])} onRemove={pick=>setParlaySelections(previous=>previous.filter(item=>item.requestId!==pick.requestId))} onSignIn={()=>{setAccountOpen(true);}} onClose={()=>{}}/>}<PickLeaderboard user={account.user} onAccount={()=>setAccountOpen(true)}/></aside>}</div>
     <nav className="cw-mobile-nav" aria-label="Mobile navigation"><button aria-pressed={view==='board'&&filter!=='watchlist'} onClick={openBoard}><SportIcon sport="all"/>Sports</button><button aria-pressed={liveView} onClick={openLive}><StatusIcon status="live"/>Live</button><button aria-pressed={view==='board'&&filter==='watchlist'} onClick={openWatchlist}><StarIcon/>Watchlist</button><button aria-pressed={view==='picks'} onClick={openPicks}><ActionIcon action="picks"/>My picks</button><button aria-pressed={view==='parlays'} onClick={openParlays}><TabIcon tab="parlays"/>My parlays</button></nav>
     {selections.length>0 && <button className="cw-mobile-pick" onClick={()=>setDrawer(true)}>
       {selections.length===1 ? `Your pick: ${pickName(selections[0].event,selections[0].side,'shortName')}` : `Your picks: ${selections.length}`} <span>Review →</span>
