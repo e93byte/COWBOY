@@ -4,6 +4,7 @@ import path from "node:path";
 import { promisify } from "node:util";
 import type { RealPickTicket } from "./pick-service";
 import { followKey, isFollowPreference, type FollowPreference } from "./follow-preferences";
+import { buildPickConsensus, type PickConsensus } from "./pick-consensus";
 
 const scrypt = promisify(scryptCallback);
 export type AccountUser = { id: string; username: string };
@@ -228,5 +229,122 @@ export class AccountStore {
   async getUser(token: string | null | undefined): Promise<AccountUser | null> {
     if (!token || !/^[a-f0-9]{64}$/.test(token)) return null;
     return this.transaction((data) => this.userInData(data, token), false);
+  }
+
+  // AccountBackend surface (store-backend.ts): pick/follow/export operations
+  // expressed over the same serialized file transaction.
+  async getFollows(token: string | null): Promise<FollowPreference[]> {
+    return this.transaction((data) => {
+      const { id } = this.requireUser(data, token);
+      return data.users.find((user) => user.id === id)?.follows ?? [];
+    }, false);
+  }
+
+  async setFollows(token: string | null, follows: FollowPreference[]): Promise<FollowPreference[]> {
+    return this.transaction((data) => {
+      const { id } = this.requireUser(data, token);
+      const user = data.users.find((entry) => entry.id === id)!;
+      user.follows = follows;
+      return user.follows;
+    });
+  }
+
+  async exportAccount(token: string | null) {
+    return this.transaction((records) => {
+      const account = this.requireUser(records, token);
+      const stored = records.users.find((user) => user.id === account.id);
+      return {
+        version: 1,
+        exportedAt: new Date().toISOString(),
+        account,
+        follows: stored?.follows ?? [],
+        picks: records.tickets.filter((ticket) => ticket.userId === account.id).map((ticket) => ({
+          id: ticket.id, eventId: ticket.eventId, league: ticket.league, eventName: ticket.eventName,
+          selection: ticket.selection, side: ticket.side, startsAt: ticket.startsAt, createdAt: ticket.createdAt,
+          status: ticket.status, settledAt: ticket.settledAt,
+          ...(ticket.changes ? { changes: ticket.changes } : {}),
+          ...(ticket.entryId ? { entryId: ticket.entryId, entryIndex: ticket.entryIndex, entrySize: ticket.entrySize } : {}),
+        })),
+      };
+    }, false);
+  }
+
+  async listPicks(token: string | null): Promise<StoredPick[]> {
+    return this.transaction((data) => {
+      const user = this.requireUser(data, token);
+      return data.tickets.filter((ticket) => ticket.userId === user.id);
+    }, false);
+  }
+
+  async consensus(): Promise<PickConsensus> {
+    return this.transaction((data) => buildPickConsensus(data.tickets), false);
+  }
+
+  async savePicks(token: string | null, tickets: StoredPick[]): Promise<StoredPick[]> {
+    return this.transaction((data) => {
+      const user = this.requireUser(data, token);
+      const existing = data.tickets.filter((ticket) => ticket.userId === user.id);
+      // An identical batch can be retried after an interrupted response.
+      if (tickets.length > 1) {
+        const previous = tickets.map((ticket) => existing.find((entry) =>
+          entry.requestId === ticket.requestId && entry.league === ticket.league &&
+          entry.eventId === ticket.eventId && (entry.changes?.[0]?.side ?? entry.side) === ticket.side));
+        if (previous.every((ticket) => ticket !== undefined)) return previous as StoredPick[];
+      }
+      const saved: StoredPick[] = [];
+      for (const ticket of tickets) {
+        if (existing.some((entry) => entry.requestId === ticket.requestId)) {
+          throw new AccountError("request_replayed", "This request was already submitted. Review your existing tickets.", 409);
+        }
+        if (existing.some((entry) => entry.eventId === ticket.eventId && entry.league === ticket.league)) {
+          throw new AccountError("duplicate_pick", "You already submitted a pick for a selected event.", 409);
+        }
+        existing.push(ticket);
+        saved.push(ticket);
+      }
+      data.tickets.push(...saved);
+      return saved;
+    });
+  }
+
+  async changePick(token: string | null, id: string, action: "cancel" | "edit", side: string | null, selection: string | null, revision: number | null, now: number = this.now()): Promise<StoredPick> {
+    const stamp = new Date(now).toISOString();
+    return this.transaction((data) => {
+      const user = this.requireUser(data, token);
+      const ticket = data.tickets.find((entry) => entry.id === id && entry.userId === user.id);
+      if (!ticket) throw new AccountError("ticket_unavailable", "This ticket is unavailable.", 409);
+      if (ticket.status !== "open" || Date.parse(ticket.startsAt) <= now) {
+        throw new AccountError("event_locked", "This ticket is already locked.", 409);
+      }
+      if (action === "cancel") {
+        ticket.status = "cancelled";
+        ticket.settledAt = stamp;
+      } else if (action === "edit" && side && selection) {
+        const changes = ticket.changes ?? [];
+        if (changes.length !== revision) {
+          throw new AccountError("pick_changed", "This pick changed. Close this dialog and refresh My picks to see the current selection.", 409);
+        }
+        if (ticket.side !== side) {
+          ticket.changes = [...changes, { side: ticket.side, selection: ticket.selection, changedAt: stamp }];
+          ticket.side = side as StoredPick["side"];
+          ticket.selection = selection;
+        }
+      }
+      return ticket;
+    });
+  }
+
+  async settlePicks(token: string | null, updates: Array<{ id: string; status: StoredPick["status"]; settledAt: string }>): Promise<StoredPick[]> {
+    return this.transaction((data) => {
+      const user = this.requireUser(data, token);
+      for (const update of updates) {
+        const ticket = data.tickets.find((entry) => entry.id === update.id && entry.userId === user.id);
+        if (ticket && ticket.status === "open") {
+          ticket.status = update.status;
+          ticket.settledAt = update.settledAt;
+        }
+      }
+      return data.tickets.filter((ticket) => ticket.userId === user.id);
+    });
   }
 }

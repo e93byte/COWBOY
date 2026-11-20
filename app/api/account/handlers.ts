@@ -1,4 +1,5 @@
-import { AccountError, AccountStore, SESSION_MAX_AGE } from "../../lib/account-store";
+import { AccountError, SESSION_MAX_AGE } from "../../lib/account-store";
+import { getAccountBackend, type AccountBackend } from "../../lib/store-backend";
 
 export const SESSION_COOKIE = "cowboy_session";
 export function response(payload: unknown, status = 200, extra: Record<string, string> = {}) {
@@ -93,7 +94,7 @@ export async function readJson(request: Request, fields: string[]): Promise<Reco
   finally { reader.releaseLock(); }
 }
 
-export function createAccountHandlers({ store = new AccountStore(), limiter = new MutationLimiter() }: { store?: AccountStore; limiter?: MutationLimiter } = {}) {
+export function createAccountHandlers({ store = getAccountBackend(), limiter = new MutationLimiter() }: { store?: AccountBackend; limiter?: MutationLimiter } = {}) {
   return {
     GET: (request: Request) => safely(async () => response({ user: await store.getUser(sessionToken(request)) })),
     POST: (request: Request) => safely(async () => {

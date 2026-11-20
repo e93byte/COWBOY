@@ -1,21 +1,12 @@
-import {AccountError, AccountStore} from '../../lib/account-store';
-import {publicTicket} from '../../lib/pick-service';
+import {AccountError} from '../../lib/account-store';
+import type {AccountBackend} from '../../lib/store-backend';
+import {getAccountBackend} from '../../lib/store-backend';
 import {assertSameOrigin, MutationLimiter, readJson, response, safely, sessionCookie, sessionToken} from './handlers';
 
-export function createAccountDataHandlers({store = new AccountStore(), limiter = new MutationLimiter()} = {}) {
+export function createAccountDataHandlers({store = getAccountBackend(), limiter = new MutationLimiter()}: {store?: AccountBackend; limiter?: MutationLimiter} = {}) {
   return {
     export: (request: Request) => safely(async () => {
-      const data = await store.transaction(records => {
-        const account = store.requireUser(records,sessionToken(request));
-        const stored = records.users.find(user=>user.id===account.id);
-        return {
-          version: 1,
-          exportedAt: new Date().toISOString(),
-          account,
-          follows: stored?.follows ?? [],
-          picks: records.tickets.filter(ticket=>ticket.userId===account.id).map(publicTicket),
-        };
-      },false);
+      const data = await store.exportAccount(sessionToken(request));
       return response(data,200,{'Content-Disposition':'attachment; filename="cowboy-account.json"'});
     }),
     delete: (request: Request) => safely(async () => {
