@@ -61,6 +61,28 @@ test('one free-pick entry can contain distinct markets for the same verified gam
   expect(submitted.every(pick=>pick.eventId===event.id)).toBe(true);
 });
 
+test('accuracy leaderboard shows source outcomes and supports explicit opt-in and opt-out', async ({page}) => {
+  let optedIn = false;
+  await page.route('**/api/account',route=>route.fulfill({json:{user:{id:'ranking-user',username:'courtside'}}}));
+  await page.route('**/api/account/follows',route=>route.fulfill({json:{follows:[]}}));
+  await page.route('**/api/sports',route=>route.fulfill({json:board}));
+  await page.route('**/api/leaderboard',route=>route.fulfill({json:{entries:[
+    {rank:1,username:'VerifiedFan',decidedEvents:12,wins:9,accuracy:0.75},
+  ]}}));
+  await page.route('**/api/account/leaderboard',async route=>{
+    if(route.request().method()==='POST') optedIn=route.request().postDataJSON().enabled;
+    return route.fulfill({json:{enabled:optedIn}});
+  });
+  await page.goto('/');
+  const ranking=page.getByRole('region',{name:'Pick leaderboard'});
+  await expect(ranking.getByText('VerifiedFan')).toBeVisible();
+  await expect(ranking.getByText('9 / 12 wins')).toBeVisible();
+  await ranking.getByRole('button',{name:'Opt in'}).click();
+  await expect(ranking.getByText('Your profile is public on this ranking.')).toBeVisible();
+  await ranking.getByRole('button',{name:'Opt out'}).click();
+  await expect(ranking.getByText('Your profile is hidden from the ranking.')).toBeVisible();
+});
+
 test('ranked teams keep their scoreboard badge in Game Center when the summary omits it', async ({page}) => {
   const college:LiveEvent = {...event,id:'401912345',league:'ncaab',leagueName:"NCAA Men's Basketball",name:'UCLA at Duke',
     away:{id:'ucla',name:'UCLA',shortName:'UCLA',score:null,rank:7},home:{id:'duke',name:'Duke',shortName:'DUKE',score:null}};

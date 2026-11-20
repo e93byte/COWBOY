@@ -151,3 +151,22 @@ test("supabase store consensus maps aggregate rows through the shared builder", 
     assert.deepEqual(consensus, {});
   } finally { restore(); }
 });
+
+test("Supabase leaderboard opt-in hashes the session token and reads public aggregate rows", async () => {
+  const {calls,restore}=stubFetch(call=>{
+    if(call.fn==='cowboy_public_leaderboard') return {body:[{rank:1,username:'KnownFan',decidedEvents:10,wins:8,accuracy:0.8}]};
+    if(call.fn==='cowboy_set_leaderboard_opt_in') return {body:{id:'u1',username:'KnownFan',leaderboardOptIn:true}};
+    throw new Error(`unexpected rpc ${call.fn}`);
+  });
+  try {
+    const store=new SupabaseStore(config);
+    const entries=await store.publicLeaderboard();
+    assert.equal(entries[0].username,'KnownFan');
+    const token='33'.repeat(32);
+    const user=await store.setLeaderboardOptIn(token,true);
+    assert.equal(user.leaderboardOptIn,true);
+    assert.deepEqual(calls.map(call=>call.fn),['cowboy_public_leaderboard','cowboy_set_leaderboard_opt_in']);
+    assert.equal(calls[1].args.p_token_hash,digest(token));
+    assert.equal(calls[1].args.p_enabled,true);
+  } finally { restore(); }
+});

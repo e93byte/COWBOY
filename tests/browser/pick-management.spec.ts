@@ -108,6 +108,36 @@ test('a changed pick stays in My picks and shows its previous selection', async 
   await expect(page.getByText('Previously Boston Celtics',{exact:false})).toBeVisible();
 });
 
+test('editing a total pick keeps over/under outcomes and the source line', async ({page}) => {
+  const startsAt=new Date(Date.now()+86400000).toISOString();
+  const game={
+    id:'401-total-edit',league:'nba',leagueName:'NBA',sport:'basketball',name:'Boston Celtics at New York Knicks',
+    startsAt,status:'scheduled',statusText:'Tomorrow',clock:null,period:null,winner:null,completed:false,
+    away:{id:'bos',name:'Boston Celtics',shortName:'BOS',score:null},
+    home:{id:'ny',name:'New York Knicks',shortName:'NYK',score:null},
+  };
+  let ticket={id:'total-edit-ticket',eventId:game.id,league:game.league,eventName:game.name,selection:'Over 210.5',
+    side:'over',market:'total',line:210.5,startsAt,createdAt:new Date().toISOString(),status:'open',settledAt:null};
+  await page.route('**/api/account',route=>route.fulfill({json:{user:{id:'total-edit-user',username:'totals'}}}));
+  await page.route('**/api/sports',route=>route.fulfill({json:{events:[game],leagues:[{id:'nba',name:'NBA',sport:'basketball',status:'ok'}],
+    fetchedAt:new Date().toISOString(),source:'ESPN',refreshAfterMs:15000,stale:false}}));
+  await page.route('**/api/picks',route=>{
+    if(route.request().method()==='PATCH'){
+      expect(route.request().postDataJSON()).toEqual({id:ticket.id,side:'under',revision:0});
+      ticket={...ticket,side:'under',selection:'Under 210.5'};
+      return route.fulfill({json:{ticket}});
+    }
+    return route.fulfill({json:{tickets:[ticket]}});
+  });
+  await page.goto('/picks');
+  await page.getByRole('button',{name:'Edit pick',exact:true}).click();
+  const dialog=page.getByRole('dialog',{name:'Edit free pick'});
+  await expect(dialog.getByRole('button',{name:'Under 210.5'})).toBeVisible();
+  await dialog.getByRole('button',{name:'Under 210.5'}).click();
+  await dialog.getByRole('button',{name:'Save change'}).click();
+  await expect(page.getByText('Your pick: Under 210.5')).toBeVisible();
+});
+
 test('account deletion only sends a request after password confirmation', async ({page}) => {
   const user={id:'deletion-user',username:'courtside'};
   let signedIn=true;

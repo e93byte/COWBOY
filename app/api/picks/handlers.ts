@@ -20,7 +20,7 @@ export function createPickHandlers({ service, limiter = new MutationLimiter({ li
     )),
     POST: (request: Request) => safely(async () => {
       const token = await mutation(request);
-      const body = await readJson(request, ["eventId", "league", "side", "requestId"]);
+      const body = await readJson(request, ["eventId", "league", "side", "requestId", "market", "line", "prop"]);
       return response({ ticket: await service.submit(token, body) });
     }),
     BATCH: (request: Request) => safely(async () => {

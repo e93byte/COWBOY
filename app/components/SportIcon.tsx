@@ -95,9 +95,11 @@ const tabSymbols = {
   matchup: <path d="M4 7h16m-4-4 4 4-4 4m4 6H4m4-4-4 4 4 4"/>,
   lineups: <><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M4 12h16"/><circle cx="12" cy="12" r="3"/></>,
   standings: <path d="M4 20h16M5 20v-7h5v7m0-11h5v11m0-4h4v4"/>,
+  contests: <path d="M4 20h16M7 10v10m4-10v10m4-10v10M3 4h18M7 4v16m4-16v16M15 4v16"/>,
+  rewards: <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>,
 } satisfies Record<string, React.ReactNode>;
 
-type Tab = keyof typeof tabStatusIcons | keyof typeof tabSymbols | 'all' | 'following' | 'watchlist' | 'pick' | 'schedule';
+type Tab = keyof typeof tabStatusIcons | keyof typeof tabSymbols | 'all' | 'following' | 'watchlist' | 'pick' | 'schedule' | 'contests' | 'parlays' | 'rewards';
 
 export function TabIcon({tab}: {tab: Tab}) {
   if (tab === 'all') return <SportIcon sport="all"/>;

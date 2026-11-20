@@ -84,3 +84,29 @@ begin
     'tickets', cowboy_list_picks(p_token_hash)
   );
 end $$;
+
+-- Postgres grants EXECUTE on new functions to PUBLIC by default. Keep all
+-- account/pick RPCs behind the server-only service role, including this
+-- migration's leaderboard RPCs. SECURITY DEFINER remains for atomic writes,
+-- but is never directly available to anon/authenticated API clients.
+do $$
+declare fn record;
+begin
+  for fn in
+    select p.oid::regprocedure as signature
+    from pg_proc p
+    join pg_namespace n on n.oid = p.pronamespace
+    where n.nspname = 'public' and p.proname like 'cowboy\_%' escape '\'
+  loop
+    execute format('revoke all on function %s from public', fn.signature);
+    if to_regrole('anon') is not null then
+      execute format('revoke all on function %s from anon', fn.signature);
+    end if;
+    if to_regrole('authenticated') is not null then
+      execute format('revoke all on function %s from authenticated', fn.signature);
+    end if;
+    if to_regrole('service_role') is not null then
+      execute format('grant execute on function %s to service_role', fn.signature);
+    end if;
+  end loop;
+end $$;

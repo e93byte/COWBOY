@@ -3,7 +3,7 @@ import { useCallback, useContext, useEffect, useRef, useState, type ReactNode } 
 import type { LiveEvent } from './LiveWorkspace';
 import {ActionIcon, CloseIcon, SportIcon, TabIcon} from './SportIcon';
 
-export type User = {id:string;username:string;email?:string|null;emailVerified?:boolean};
+export type User = {id:string;username:string;email?:string|null;emailVerified?:boolean;leaderboardOptIn?:boolean;tokens?:number;referralCode?:string};
 import type { RealPickTicket as Ticket } from '../lib/pick-service';
 import { pickName, pickSides, postedPickLine, supportsDrawPick, type PickMarket, type PickSide } from '../lib/pick-outcomes';
 import { ScheduleTimeZone } from './ScheduleTimeZone';
@@ -20,6 +20,8 @@ export type Selection = {
   side: PickSide;
   market?: PickMarket;
   requestId: string;
+  line?: number | null;
+  prop?: { player: string; stat: string; line: number };
 };
 function canPick(event: LiveEvent, now: number) {
   return event.status === 'scheduled' && Date.parse(event.startsAt) > now;
@@ -250,6 +252,7 @@ function EditPickDialog({ticket,event,onSave,onClose}: {
   const [side,setSide] = useState<PickSide|null>(null);
   const [pending,setPending] = useState(false);
   const [error,setError] = useState('');
+  const market = ticket.market ?? 'moneyline';
   const submit = async () => {
     if (!side || pending) return;
     setPending(true);
@@ -269,10 +272,10 @@ function EditPickDialog({ticket,event,onSave,onClose}: {
   return <Modal title="Edit free pick" onClose={onClose} locked={pending}>
     <p className="cw-dialog-copy">{ticket.eventName}</p>
     <p className="cw-dialog-copy">Current pick: <strong>{ticket.selection}</strong>. Changes close when the game starts.</p>
-    <div role="group" aria-label="Choose a new outcome" className={`cw-pick-options ${supportsDrawPick(event.league) ? 'cw-three-outcomes' : ''}`}>
-      {pickSides(event.league).map(choice => (
+    <div role="group" aria-label="Choose a new outcome" className={`cw-pick-options ${pickSides(event.league,market).length === 3 ? 'cw-three-outcomes' : ''}`}>
+      {pickSides(event.league,market).map(choice => (
         <button key={choice} aria-pressed={side===choice} disabled={choice===ticket.side || pending}
-          onClick={() => {setSide(choice);setError('');}}>{pickName(event,choice)}</button>
+          onClick={() => {setSide(choice);setError('');}}>{pickName(event,choice,'name',market,ticket.line)}</button>
       ))}
     </div>
     {error && <p role="alert" className="cw-form-error">{error}</p>}

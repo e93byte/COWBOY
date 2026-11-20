@@ -2,7 +2,9 @@ import { randomUUID } from "node:crypto";
 import { AccountError, type StoredPick } from "./account-store";
 import type { AccountBackend } from "./store-backend";
 import { LIVE_LEAGUES, type LiveEvent } from "./live-sports";
-import { pickName, pickSides, supportsDrawPick, type PickMarket, type PickSide } from "./pick-outcomes";
+import { pickName, pickSides, postedPrice, supportsDrawPick, type PickMarket, type PickSide, type PropSelection } from "./pick-outcomes";
+import { getPlayerProps } from "./player-props";
+import { getPlayerPropValue, gradePropValue } from "./prop-grading";
 import type { PickConsensus } from "./pick-consensus";
 
 export type ChangeRequest = { action: "cancel" | "edit"; side: string | null; selection: string | null; revision: number | null; line?: number | null };
@@ -25,6 +27,9 @@ export type RealPickTicket = {
   settledAt: string | null;
   market?: PickMarket;
   line?: number | null;
+  live?: boolean;
+  odds?: number | null;
+  prop?: { player: string; stat: string; book: string; line: number } | null;
   changes?: PickChange[];
   /** Present for a multi-game free-picks entry; legacy tickets omit it. */
   entryId?: string;
@@ -33,17 +38,18 @@ export type RealPickTicket = {
 };
 export type EventGetter = (league: string, id: string) => Promise<LiveEvent | null>;
 export function publicTicket(ticket: StoredPick): RealPickTicket {
-  const { id, eventId, league, eventName, selection, side, startsAt, createdAt, status, settledAt, market, line, changes, entryId, entryIndex, entrySize } = ticket;
+  const { id, eventId, league, eventName, selection, side, startsAt, createdAt, status, settledAt, market, line, prop, live, odds, changes, entryId, entryIndex, entrySize } = ticket;
   return {
     id, eventId, league, eventName, selection, side, startsAt, createdAt, status, settledAt,
     ...(market && market !== "moneyline" ? {market} : {}), ...(line !== null && line !== undefined ? {line} : {}),
+    ...(prop ? {prop: prop as PropSelection} : {}), ...(live ? {live:true} : {}), ...(odds !== null && odds !== undefined ? {odds} : {}),
     ...(changes ? {changes} : {}),
     ...(entryId ? {entryId, entryIndex, entrySize} : {}),
   };
 }
 
-type PickInput = { eventId: string; league: string; side: PickSide; requestId: string; market: PickMarket; line: number | null };
-const PICK_MARKETS: readonly PickMarket[] = ["moneyline", "spread", "total"];
+type PickInput = { eventId: string; league: string; side: PickSide; requestId: string; market: PickMarket; line: number | null; prop?: { player: string; stat: string } };
+const PICK_MARKETS: readonly PickMarket[] = ["moneyline", "spread", "total", "prop"];
 const isPickSide = (value: unknown): value is PickSide =>
   value === "home" || value === "away" || value === "draw" || value === "over" || value === "under";
 function validatePick(input: unknown): PickInput {
@@ -52,7 +58,8 @@ function validatePick(input: unknown): PickInput {
   const market = value.market === undefined ? "moneyline" : value.market;
   const line = value.line === undefined || value.line === null ? null : value.line;
   const sides = typeof value.league === "string" ? pickSides(value.league, market as PickMarket) : [];
-  if (Object.keys(value).some((field) => !["eventId", "league", "side", "requestId", "market", "line"].includes(field))
+  const rawProp = value.prop && typeof value.prop === "object" && !Array.isArray(value.prop) ? value.prop as Record<string, unknown> : null;
+  if (Object.keys(value).some((field) => !["eventId", "league", "side", "requestId", "market", "line", "prop"].includes(field))
     || typeof value.eventId !== "string" || !/^[0-9]{1,16}(?:-[0-9]{1,16})?$/.test(value.eventId)
     || typeof value.league !== "string" || !LIVE_LEAGUES.some((league) => league.id === value.league && league.sport !== "golf")
     || typeof value.requestId !== "string" || !/^[A-Za-z0-9_-]{8,128}$/.test(value.requestId)
@@ -61,15 +68,20 @@ function validatePick(input: unknown): PickInput {
     || (market === "moneyline" && line !== null)
     || (market !== "moneyline" && line !== null && (typeof line !== "number" || !Number.isFinite(line)
       || (market === "spread" && (line < -200 || line > 200))
-      || (market === "total" && (line <= 0 || line > 2000))))) {
+      || (market === "total" && (line <= 0 || line > 2000))
+      || (market === "prop" && (line <= 0 || line > 10000))))
+    || (market === "prop" && (!rawProp || typeof rawProp.player !== "string" || !rawProp.player.trim() || rawProp.player.length > 80
+      || typeof rawProp.stat !== "string" || !rawProp.stat.trim() || rawProp.stat.length > 60 || line === null))) {
     throw new AccountError("invalid_input", "Supply an event, league, supported market, outcome and 8–128 character unique requestId.");
   }
-  return { ...(value as PickInput), market: market as PickMarket, line: line as number | null };
+  return { ...(value as PickInput), market: market as PickMarket, line: line as number | null,
+    ...(market === "prop" ? { prop: { player: (rawProp!.player as string).trim(), stat: (rawProp!.stat as string).trim() } } : {}) };
 }
 
 // Lines come from the posted board: the home spread is stored signed, so the
 // away side always receives the inverse. Totals share one posted number.
 function marketLine(event: LiveEvent, input: PickInput): number | null {
+  if (input.market === "prop") return input.line;
   const odds = event.odds;
   if (input.market === "spread") {
     const spread = odds?.spread;
@@ -111,6 +123,17 @@ function assertScheduled(event: LiveEvent, now: number) {
     || !Number.isFinite(Date.parse(event.startsAt)) || Date.parse(event.startsAt) <= now || !validParticipants(event)) {
     throw new AccountError("event_locked", "Only verified scheduled events with real participants accept picks before their start time.", 409);
   }
+}
+
+// Picks accept scheduled events before kickoff and in-progress events. Live
+// picks are final at submission: they cannot be edited or cancelled.
+function assertPickable(event: LiveEvent, now: number): boolean {
+  const live = event.status === "live";
+  const scheduled = event.status === "scheduled" && Number.isFinite(Date.parse(event.startsAt)) && Date.parse(event.startsAt) > now;
+  if ((!live && !scheduled) || event.completed !== false || event.winner !== null || !validParticipants(event)) {
+    throw new AccountError("event_locked", "Only verified scheduled or in-progress events with real participants accept picks.", 409);
+  }
+  return live;
 }
 
 export class PickService {
@@ -179,7 +202,7 @@ export class PickService {
       const flipped = market === "spread" && ticket.side !== side;
       const nextLine = ticket.line === null || ticket.line === undefined ? ticket.line
         : flipped ? -ticket.line : ticket.line;
-      return { action: "edit", side, selection: pickName(event, side, "name", market, nextLine ?? null), revision, line: nextLine };
+      return { action: "edit", side, selection: pickName(event, side, "name", market, nextLine ?? null, ticket.prop ?? null), revision, line: nextLine };
     });
   }
 
@@ -194,6 +217,17 @@ export class PickService {
         results.set(ticket.id, await this.fetchEvent(ticket.league, ticket.eventId));
       }));
     }
+    // Props settle from the final box score, not the scoreboard winner.
+    const propValues = new Map<string, number | null>();
+    for (let offset = 0; offset < tickets.length; offset += 3) {
+      await Promise.all(tickets.slice(offset, offset + 3).map(async (ticket) => {
+        const event = results.get(ticket.id);
+        const storedTicket = byId.get(ticket.id);
+        if (!event || !storedTicket || storedTicket.market !== "prop" || !storedTicket.prop
+          || event.status !== "final" || event.completed !== true) return;
+        propValues.set(ticket.id, await getPlayerPropValue(ticket.league, ticket.eventId, storedTicket.prop));
+      }));
+    }
     const settledAt = new Date(this.now()).toISOString();
     const updates = tickets.flatMap((ticket) => {
       const event = results.get(ticket.id);
@@ -203,8 +237,13 @@ export class PickService {
       let status: StoredPick["status"] | null = null;
       if (event.status === "cancelled") status = "void";
       else if (event.status === "final" && event.completed === true) {
-        if (["home", "away", "draw"].includes(event.winner ?? "")) {
-          status = (ticket.market ?? "moneyline") === "moneyline"
+        const market = storedTicket.market ?? "moneyline";
+        if (market === "prop" && storedTicket.prop) {
+          const value = propValues.get(ticket.id) ?? null;
+          // Unresolvable stats void rather than guess a result.
+          status = gradePropValue(value, storedTicket.line ?? storedTicket.prop.line, storedTicket.side === "under" ? "under" : "over") ?? "void";
+        } else if (["home", "away", "draw"].includes(event.winner ?? "")) {
+          status = market === "moneyline"
             ? (ticket.side === event.winner ? "won" : "lost")
             : marketResult(storedTicket, event);
         }
@@ -212,6 +251,12 @@ export class PickService {
       return status ? [{ id: ticket.id, status, settledAt }] : [];
     });
     if (updates.length) await this.store.settlePicks(token, updates);
+    const user = await this.store.getUser(token);
+    if (user) {
+      for (const update of updates) {
+        if (update.status === "won") await this.store.awardTokens(token, user.id, 10, "pick_win");
+      }
+    }
     return this.list(token);
   }
 
@@ -229,6 +274,20 @@ export class PickService {
     return this.savePicks(token, input.map(validatePick));
   }
 
+  private async resolveProp(league: string, eventId: string, input: PickInput): Promise<{ prop: PropSelection; odds: number }> {
+    const required = input.prop!;
+    const feed = await getPlayerProps(league, eventId);
+    const posted = feed?.props.find(prop => prop.player === required.player && prop.name === required.stat
+      && Math.abs(prop.line - (input.line ?? prop.line)) < 1e-9);
+    if (!feed || !posted) {
+      throw new AccountError("event_unavailable", "That player prop line is no longer posted. No picks were saved.", 409);
+    }
+    return {
+      prop: { player: posted.player, stat: posted.name, line: posted.line, book: feed.book },
+      odds: input.side === "over" ? posted.over : posted.under,
+    };
+  }
+
   private async savePicks(token: string | null, picks: PickInput[]): Promise<RealPickTicket[]> {
     const requestIds = new Set(picks.map(pick => pick.requestId));
     const eventKeys = new Set(picks.map(pick => `${pick.league}:${pick.eventId}:${pick.market}`));
@@ -244,26 +303,30 @@ export class PickService {
     }));
     const user = await this.store.getUser(token);
     if (!user) throw new AccountError("unauthorized", "Sign in to manage your free picks.", 401);
-    const existing = await this.store.listPicks(token);
     const now = this.now();
     const entryId = picks.length > 1 ? randomUUID() : undefined;
-    const tickets: StoredPick[] = picks.map(({eventId, league, side, requestId, market, line}, index) => {
+    const tickets: StoredPick[] = [];
+    for (let index = 0; index < picks.length; index++) {
+      const pick = picks[index];
       const event = events[index];
-      assertScheduled(event, now);
-      const posted = marketLine(event, { eventId, league, side, requestId, market, line });
-      if (market !== "moneyline" && posted === null) {
+      const live = assertPickable(event, now);
+      const resolved = pick.market === "prop" ? await this.resolveProp(pick.league, pick.eventId, pick) : null;
+      const posted = marketLine(event, pick);
+      if (pick.market !== "moneyline" && posted === null) {
         throw new AccountError("event_unavailable", "This market is not posted for the selected event. No picks were saved.", 409);
       }
-      const effectiveLine = market === "moneyline" ? null : posted;
-      return {
-        id: randomUUID(), eventId, league, eventName: event.name,
-        selection: pickName(event, side, "name", market, effectiveLine), side,
-        market, line: effectiveLine,
+      const effectiveLine = pick.market === "moneyline" ? null : posted;
+      const odds = resolved?.odds ?? postedPrice(event.odds, pick.side, pick.market);
+      tickets.push({
+        id: randomUUID(), eventId: pick.eventId, league: pick.league, eventName: event.name,
+        selection: pickName(event, pick.side, "name", pick.market, effectiveLine, resolved?.prop),
+        side: pick.side, market: pick.market, line: effectiveLine,
+        ...(resolved ? { prop: resolved.prop } : {}), ...(live ? { live: true } : {}), ...(odds !== null && odds !== undefined ? { odds } : {}),
         startsAt: event.startsAt, createdAt: new Date(now).toISOString(), status: "open", settledAt: null,
-        userId: user.id, requestId, homeId: event.home.id, awayId: event.away.id,
+        userId: user.id, requestId: pick.requestId, homeId: event.home.id, awayId: event.away.id,
         ...(entryId ? {entryId, entryIndex: index, entrySize: picks.length} : {}),
-      };
-    });
+      });
+    }
     // The backend performs the atomic replay/duplicate checks inside its write.
     return (await this.store.savePicks(token, tickets)).map(publicTicket);
   }

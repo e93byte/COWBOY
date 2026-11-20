@@ -1,10 +1,11 @@
 import { createHash, randomBytes, scrypt as scryptCallback, timingSafeEqual } from "node:crypto";
 import { promisify } from "node:util";
-import { AccountError, SESSION_MAX_AGE, type AccountUser, type StoredPick } from "./account-store";
+import { AccountError, SESSION_MAX_AGE, type AccountUser, type StoredPick, type StoredParlay, type Contest, type ContestStanding } from "./account-store";
 import type { FollowPreference } from "./follow-preferences";
 import type { PickConsensus } from "./pick-consensus";
 import { buildPickConsensus } from "./pick-consensus";
 import type { PublicLeaderboardEntry } from "./pick-leaderboard";
+import type { ParlayLeg } from "./parlay";
 
 const scrypt = promisify(scryptCallback);
 const digest = (token: string) => createHash("sha256").update(token).digest("hex");
@@ -88,7 +89,7 @@ export class SupabaseStore {
 
   async login(username: string, password: string) {
     validateCredentials(username, password);
-    const record = await rpc<{ id: string; username: string; salt: string; passwordHash: string } | null>(
+    const record = await rpc<{ id: string; username: string; salt: string; passwordHash: string; leaderboardOptIn?: boolean } | null>(
       this.config, "cowboy_lookup_user", { p_username_key: username });
     const hash = await scrypt(password, record?.salt ?? "00000000000000000000000000000000", 64) as Buffer;
     if (!record || !timingSafeEqual(hash, Buffer.from(record.passwordHash, "hex"))) {
@@ -96,7 +97,7 @@ export class SupabaseStore {
     }
     const token = randomBytes(32).toString("hex");
     await rpc(this.config, "cowboy_create_session", { p_user_id: record.id, p_token_hash: digest(token) });
-    return { user: { id: record.id, username: record.username }, token };
+    return { user: { id: record.id, username: record.username, ...(record.leaderboardOptIn ? {leaderboardOptIn:true} : {}) }, token };
   }
 
   async getUser(token: string | null | undefined) { return this.sessionUser(token); }
@@ -176,8 +177,62 @@ export class SupabaseStore {
       eventName: ticket.eventName, selection: ticket.selection, startsAt: ticket.startsAt,
       createdAt: ticket.createdAt, homeId: ticket.homeId, awayId: ticket.awayId,
       market: ticket.market ?? "moneyline", line: ticket.line ?? null,
+      prop: ticket.prop ?? null, live: ticket.live === true, odds: ticket.odds ?? null,
     }));
     return rpc<StoredPick[]>(this.config, "cowboy_save_picks", { p_token_hash: tokenHash(token)!, p_picks: picks });
+  }
+
+  async saveParlay(token: string | null, parlay: StoredParlay): Promise<StoredParlay[]> {
+    return rpc<StoredParlay[]>(this.config, "cowboy_save_parlay", {
+      p_token_hash: tokenHash(token)!,
+      p_parlay_id: parlay.id,
+      p_legs: parlay.legs,
+      p_entry_id: parlay.entryId,
+      p_user_id: parlay.userId,
+      p_created_at: parlay.createdAt,
+      p_status: parlay.status,
+      p_combined_odds: parlay.combinedOdds,
+      p_stake: parlay.stake,
+      p_potential_payout: parlay.potentialPayout,
+    });
+  }
+
+  async listParlays(token: string | null): Promise<StoredParlay[]> {
+    return rpc<StoredParlay[]>(this.config, "cowboy_list_parlays", { p_token_hash: tokenHash(token)! }) ?? [];
+  }
+
+  async settleParlays(token: string | null, updates: Array<{ id: string; status: StoredParlay["status"]; settledAt: string }>): Promise<StoredParlay[]> {
+    return rpc<StoredParlay[]>(this.config, "cowboy_settle_parlays", {
+      p_token_hash: tokenHash(token)!,
+      p_updates: updates,
+    });
+  }
+
+  async listContests(): Promise<Contest[]> {
+    return (await rpc<Contest[]>(this.config, "cowboy_list_contests", {})) ?? [];
+  }
+
+  async joinContest(contestId: string, token: string | null): Promise<{ joined: boolean }> {
+    return rpc<{ joined: boolean }>(this.config, "cowboy_join_contest", {
+      p_token_hash: tokenHash(token)!, p_contest_id: contestId,
+    });
+  }
+
+  async contestStandings(contestId: string): Promise<ContestStanding[]> {
+    return (await rpc<ContestStanding[]>(this.config, "cowboy_contest_standings", { p_contest_id: contestId })) ?? [];
+  }
+
+  async getTokens(token: string | null): Promise<{ tokens: number; ledger: Array<{amount:number;reason:string;at:string}> }> {
+    return rpc<{ tokens: number; ledger: Array<{amount:number;reason:string;at:string}> }>(this.config, "cowboy_user_tokens", {
+      p_token_hash: tokenHash(token)!,
+    });
+  }
+
+  async awardTokens(token: string | null, userId: string, amount: number, reason: string): Promise<void> {
+    if (!token) throw new AccountError("unauthorized", "Sign in to award tokens.", 401);
+    await rpc<{ tokens: number }>(this.config, "cowboy_award_tokens", {
+      p_token_hash: tokenHash(token)!, p_amount: amount, p_reason: reason,
+    });
   }
 
   async changePick(token: string | null, id: string, action: "cancel" | "edit", side: string | null, selection: string | null, revision: number | null, now?: number, line?: number | null) {

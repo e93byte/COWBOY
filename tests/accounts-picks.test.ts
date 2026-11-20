@@ -10,6 +10,9 @@ import { createAccountHandlers, MutationLimiter, sharedMutationLimiter } from ".
 import { PickService } from "../app/lib/pick-service";
 import type { LiveEvent } from "../app/lib/live-sports";
 import { createPickHandlers } from "../app/api/picks/handlers";
+import type { ParlayLeg } from "../app/lib/parlay";
+import type { StoredParlay } from "../app/lib/store-backend";
+import type { PickMarket, PickSide } from "../app/lib/pick-outcomes";
 
 const eventTime = Date.parse("2030-01-01T12:00:00.000Z");
 function event(overrides: Partial<LiveEvent> = {}): LiveEvent {
@@ -44,7 +47,7 @@ async function fixture<T>(run: (store: AccountStore, dir: string) => Promise<T>)
 test("registration durably stores salted hashes, exposes only a public user, and authenticates a random session", async () => {
   await fixture(async (store, dir) => {
     const registered = await store.register("Rider_7", "long-local-password");
-    assert.deepEqual(Object.keys(registered.user).sort(), ["id", "username"]);
+    assert.deepEqual(Object.keys(registered.user).sort(), ["id", "referralCode", "tokens", "username"]);
     assert.equal(registered.user.username, "Rider_7");
     assert.match(registered.token, /^[a-f0-9]{64}$/);
     assert.deepEqual(await store.getUser(registered.token), registered.user);
@@ -128,7 +131,7 @@ test("account HTTP handlers register, authenticate and logout without leaking se
     const cookie = cookieHeader.split(";")[0];
     const payload = await registered.json();
     assert.deepEqual(Object.keys(payload), ["user"]);
-    assert.deepEqual(Object.keys(payload.user).sort(), ["id", "username"]);
+    assert.deepEqual(Object.keys(payload.user).sort(), ["id", "referralCode", "tokens", "username"]);
     assert.deepEqual(await (await api.GET(request("/api/account", "GET", undefined, cookie))).json(), payload);
     const loggedOut = await api.DELETE(request("/api/account", "DELETE", undefined, cookie));
     assert.deepEqual(await loggedOut.json(), { user: null });
@@ -255,7 +258,7 @@ test("pick entry rejects unverified, unavailable, missing-team, started or non-s
   await fixture(async (store) => {
     const { token } = await store.register("EntryRider", password);
     const blocked: Array<LiveEvent | null> = [
-      null, event({ status: "live" }), event({ status: "final", completed: true, winner: "home" }),
+      null, event({ status: "final", completed: true, winner: "home" }),
       event({ status: "cancelled" }), event({ status: "postponed" }), event({ status: "unknown" }),
       event({ startsAt: new Date(eventTime).toISOString() }), event({ startsAt: "invalid" }),
       event({ completed: true }), event({ winner: "home" }), event({ id: "different" }), event({ league: "nhl" }),
@@ -555,7 +558,7 @@ test("multi-game review commits together, rejects a locked game and safely repla
     const {token}=await store.register("BatchRider", password);
     const cookie=`cowboy_session=${token}`;
     const first=event();
-    let second=event({id:"401234568",status:"live"});
+    let second=event({id:"401234568",status:"final",completed:true,winner:"home"});
     const service=new PickService({store,getEvent:async (_league,id)=>id===first.id?first:second,now:()=>eventTime});
     const handlers=createPickHandlers({service});
     const picks=[pick(),pick({eventId:second.id,side:"away",requestId:"request-two"})];
@@ -783,5 +786,113 @@ test("account deletion requires the current password and removes only the owner 
     const newUser=await store.register(owner.user.username,password);
     assert.notEqual(newUser.user.id,owner.user.id);
     assert.deepEqual(await service.list(newUser.token),[]);
+  });
+});
+
+// Parlay store tests
+test("parlay store saves and lists parlays", async () => {
+  await fixture(async (store) => {
+    const registered = await store.register("ParlayUser", password);
+    const token = registered.token;
+
+    const parlay: StoredParlay = {
+      id: "parlay_123",
+      legs: [
+        { eventId: "1", league: "nba", market: "moneyline" as PickMarket, side: "home" as PickSide, line: null, odds: -110, eventName: "Game 1", startsAt: "2030-01-01T13:00:00.000Z", sport: "basketball" },
+        { eventId: "2", league: "nfl", market: "spread" as PickMarket, side: "away" as PickSide, line: 3.5, odds: -110, eventName: "Game 2", startsAt: "2030-01-01T16:00:00.000Z", sport: "football" },
+      ],
+      entryId: "parlay_123",
+      userId: registered.user.id,
+      createdAt: new Date().toISOString(),
+      status: "open" as const,
+      settledAt: null,
+      combinedOdds: 264,
+      stake: 100,
+      potentialPayout: 364,
+    };
+
+    const saved = await store.saveParlay(token, parlay);
+    assert.equal(saved.length, 1);
+    assert.equal(saved[0].id, "parlay_123");
+    assert.equal(saved[0].userId, registered.user.id);
+    assert.equal(saved[0].status, "open");
+
+    const listed = await store.listParlays(token);
+    assert.equal(listed.length, 1);
+    assert.equal(listed[0].id, "parlay_123");
+  });
+});
+
+test("parlay store settleParlays updates status", async () => {
+  await fixture(async (store) => {
+    const registered = await store.register("SettleUser", password);
+    const token = registered.token;
+
+    const parlay: StoredParlay = {
+      id: "parlay_456",
+      legs: [
+        { eventId: "1", league: "nba", market: "moneyline" as PickMarket, side: "home" as PickSide, line: null, odds: -110, eventName: "Game 1", startsAt: "2030-01-01T13:00:00.000Z", sport: "basketball" },
+      ],
+      entryId: "parlay_456",
+      userId: registered.user.id,
+      createdAt: new Date().toISOString(),
+      status: "open" as const,
+      settledAt: null,
+      combinedOdds: -110,
+      stake: 100,
+      potentialPayout: 90.91,
+    };
+
+    await store.saveParlay(token, parlay);
+
+    const settledAt = new Date().toISOString();
+    const updated = await store.settleParlays(token, [{ id: "parlay_456", status: "won", settledAt }]);
+    assert.equal(updated.length, 1);
+    assert.equal(updated[0].id, "parlay_456");
+    assert.equal(updated[0].status, "won");
+    assert.equal(updated[0].settledAt, settledAt);
+  });
+});
+
+test("parlay store isolates parlays per user", async () => {
+  await fixture(async (store) => {
+    const user1 = await store.register("User1", password);
+    const user2 = await store.register("User2", password);
+
+    const parlay1: StoredParlay = {
+      id: "parlay_1",
+      legs: [{ eventId: "1", league: "nba", market: "moneyline" as PickMarket, side: "home" as PickSide, line: null, odds: -110, eventName: "Game 1", startsAt: "2030-01-01T13:00:00.000Z", sport: "basketball" }],
+      entryId: "parlay_1",
+      userId: user1.user.id,
+      createdAt: new Date().toISOString(),
+      status: "open" as const,
+      settledAt: null,
+      combinedOdds: -110,
+      stake: 100,
+      potentialPayout: 90.91,
+    };
+    const parlay2: StoredParlay = {
+      id: "parlay_2",
+      legs: [{ eventId: "2", league: "nfl", market: "spread" as PickMarket, side: "away" as PickSide, line: 3.5, odds: -110, eventName: "Game 2", startsAt: "2030-01-01T16:00:00.000Z", sport: "football" }],
+      entryId: "parlay_2",
+      userId: user2.user.id,
+      createdAt: new Date().toISOString(),
+      status: "open" as const,
+      settledAt: null,
+      combinedOdds: -110,
+      stake: 100,
+      potentialPayout: 90.91,
+    };
+
+    await store.saveParlay(user1.token, parlay1);
+    await store.saveParlay(user2.token, parlay2);
+
+    const user1Parlays = await store.listParlays(user1.token);
+    const user2Parlays = await store.listParlays(user2.token);
+
+    assert.equal(user1Parlays.length, 1);
+    assert.equal(user1Parlays[0].id, "parlay_1");
+    assert.equal(user2Parlays.length, 1);
+    assert.equal(user2Parlays[0].id, "parlay_2");
   });
 });

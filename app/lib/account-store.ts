@@ -6,14 +6,31 @@ import type { RealPickTicket } from "./pick-service";
 import { followKey, isFollowPreference, type FollowPreference } from "./follow-preferences";
 import { buildPickConsensus, type PickConsensus } from "./pick-consensus";
 import { buildPublicPickLeaderboard, type PublicLeaderboardEntry } from "./pick-leaderboard";
+import type { ParlayLeg } from "./parlay";
+import type { PropSelection } from "./pick-outcomes";
 
 const scrypt = promisify(scryptCallback);
-export type AccountUser = { id: string; username: string; email?: string | null; emailVerified?: boolean; leaderboardOptIn?: boolean };
-type StoredUser = AccountUser & { salt: string; passwordHash: string; follows?: FollowPreference[]; emailVerifiedAt?: number };
+export type AccountUser = { id: string; username: string; email?: string | null; emailVerified?: boolean; leaderboardOptIn?: boolean; tokens?: number; referralCode?: string };
+type StoredUser = AccountUser & { salt: string; passwordHash: string; follows?: FollowPreference[]; emailVerifiedAt?: number; referredBy?: string };
 type StoredSession = { hash: string; userId: string; expiresAt: number };
 type StoredToken = { hash: string; userId: string; purpose: "verify_email" | "password_reset"; expiresAt: number; consumedAt?: number };
 export type StoredPick = RealPickTicket & { userId: string; requestId: string; homeId: string; awayId: string };
-export type StoreData = { version: 1; users: StoredUser[]; sessions: StoredSession[]; tickets: StoredPick[]; tokens?: StoredToken[] };
+export type StoredParlay = {
+  id: string;
+  legs: ParlayLeg[];
+  entryId: string;
+  userId: string;
+  createdAt: string;
+  status: "open" | "won" | "lost" | "void" | "cancelled";
+  settledAt: string | null;
+  combinedOdds: number;
+  stake: number;
+  potentialPayout: number;
+};
+export type Contest = { id: string; title: string; kind: 'daily' | 'weekly' | 'seasonal'; startsAt: string; endsAt: string; league: string | null; status: 'upcoming' | 'active' | 'settled'; createdAt: string };
+export type ContestStanding = { rank: number; username: string; decidedEvents: number; wins: number; accuracy: number };
+export type TokenLedgerEntry = { amount: number; reason: string; at: string; userId?: string };
+export type StoreData = { version: 1; users: StoredUser[]; sessions: StoredSession[]; tickets: StoredPick[]; parlays: StoredParlay[]; contests: Contest[]; contestEntries: Array<{userId:string;contestId:string;joinedAt:string}>; tokenLedger: TokenLedgerEntry[]; tokens?: StoredToken[] };
 export type StoreOptions = { directory?: string; now?: () => number };
 const SESSION_SECONDS = 60 * 60 * 24 * 7;
 export const SESSION_MAX_AGE = SESSION_SECONDS;
@@ -22,7 +39,7 @@ const queues = globals.cowboyStoreQueues ??= new Map();
 const digest = (token: string) => createHash("sha256").update(token).digest("hex");
 
 export class AccountError extends Error {
-  constructor(readonly code: string, message: string, readonly status: 400 | 401 | 409 = 400) { super(message); }
+  constructor(readonly code: string, message: string, readonly status: 400 | 401 | 404 | 409 = 400) { super(message); }
 }
 
 function validateStore(data: StoreData): void {
@@ -40,6 +57,8 @@ function validateStore(data: StoreData): void {
         (typeof user.email !== "string" || user.email.length > 254 || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(user.email))) fail();
     if (user.emailVerifiedAt !== undefined && !Number.isSafeInteger(user.emailVerifiedAt)) fail();
     if (user.leaderboardOptIn !== undefined && typeof user.leaderboardOptIn !== "boolean") fail();
+    if (user.tokens !== undefined && (typeof user.tokens !== "number" || !Number.isSafeInteger(user.tokens) || user.tokens < 0)) fail();
+    if (user.referralCode !== undefined && (typeof user.referralCode !== "string" || !/^[a-z0-9]{8}$/.test(user.referralCode))) fail();
     if (user.follows !== undefined && (!Array.isArray(user.follows) ||
         !user.follows.every(isFollowPreference) ||
         new Set(user.follows.map(followKey)).size !== user.follows.length)) fail();
@@ -59,7 +78,13 @@ function validateStore(data: StoreData): void {
       || !nonempty(ticket.eventId) || !nonempty(ticket.league) || !nonempty(ticket.homeId) || !nonempty(ticket.awayId)
       || ticket.homeId === ticket.awayId || !nonempty(ticket.eventName) || !nonempty(ticket.selection)
       || !["home", "away", "draw", "over", "under"].includes(ticket.side) || !["open", "won", "lost", "void", "cancelled"].includes(ticket.status)
-      || (ticket.market !== undefined && !["moneyline", "spread", "total"].includes(ticket.market))
+      || (ticket.market !== undefined && !["moneyline", "spread", "total", "prop"].includes(ticket.market))
+      || (ticket.live !== undefined && typeof ticket.live !== "boolean")
+      || (ticket.odds !== undefined && ticket.odds !== null && !Number.isFinite(ticket.odds))
+      || (ticket.prop !== undefined && (!ticket.prop || typeof ticket.prop.player !== "string"
+        || !ticket.prop.player.trim() || typeof ticket.prop.stat !== "string" || !ticket.prop.stat.trim()
+        || typeof ticket.prop.book !== "string" || !Number.isFinite(ticket.prop.line)))
+      || (ticket.market === "prop" && ticket.prop === undefined)
       || (ticket.line !== undefined && ticket.line !== null && !Number.isFinite(ticket.line))
       || !date(ticket.startsAt) || !date(ticket.createdAt)
       || (ticket.status === "open" ? ticket.settledAt !== null : !date(ticket.settledAt))) fail();
@@ -87,6 +112,34 @@ function validateStore(data: StoreData): void {
       || !Number.isSafeInteger(token.expiresAt) || tokenHashes.has(token.hash)) fail();
     if (token.consumedAt !== undefined && !Number.isSafeInteger(token.consumedAt)) fail();
     tokenHashes.add(token.hash);
+  }
+  const contestIds = new Set(data.contests.map(c => c.id));
+  for (const contest of data.contests) {
+    if (!contest || typeof contest.id !== "string" || !contest.id.trim()
+      || typeof contest.title !== "string" || !contest.title.trim()
+      || !["daily","weekly","seasonal"].includes(contest.kind)
+      || !date(contest.startsAt) || !date(contest.endsAt)
+      || Date.parse(contest.endsAt) <= Date.parse(contest.startsAt)
+      || !["upcoming","active","settled"].includes(contest.status)
+      || contest.league !== null && typeof contest.league !== "string"
+      || !date(contest.createdAt) || contestIds.has(contest.id) && data.contests.filter(c=>c.id===contest.id).length > 1) fail();
+  }
+  const entryKeys = new Set<string>();
+  for (const entry of data.contestEntries ?? []) {
+    if (!entry || typeof entry.userId !== "string" || !userIds.has(entry.userId)
+      || typeof entry.contestId !== "string" || !contestIds.has(entry.contestId)
+      || !date(entry.joinedAt)) fail();
+    const key = `${entry.userId}:${entry.contestId}`;
+    if (entryKeys.has(key)) fail();
+    entryKeys.add(key);
+  }
+  const ledgerKeys = new Set<string>();
+  for (const entry of data.tokenLedger ?? []) {
+    if (!entry || typeof entry.amount !== "number" || !Number.isSafeInteger(entry.amount)
+      || typeof entry.reason !== "string" || !entry.reason.trim() || !date(entry.at)) fail();
+    const k = `${entry.at}:${entry.reason}:${entry.amount}`;
+    if (ledgerKeys.has(k)) fail();
+    ledgerKeys.add(k);
   }
 }
 
@@ -140,7 +193,7 @@ export class AccountStore {
         if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
           throw new AccountError("storage_unavailable", "Local account storage cannot be read safely.", 409);
         }
-        data = { version: 1, users: [], sessions: [], tickets: [] };
+        data = { version: 1, users: [], sessions: [], tickets: [], parlays: [], contests: [] as Contest[], contestEntries: [] as Array<{userId:string;contestId:string;joinedAt:string}>, tokenLedger: [] };
       }
       const result = await operation(data);
       if (write) {
@@ -168,7 +221,9 @@ export class AccountStore {
         throw new AccountError("username_taken", "That username is already registered.", 409);
       }
       const user = { id: randomUUID(), username };
-      data.users.push({ ...user, salt, passwordHash });
+      const referralCode = randomBytes(4).toString("hex");
+      data.users.push({ ...user, salt, passwordHash, tokens: 100, referralCode });
+      data.tokenLedger.push({ userId: user.id, amount: 100, reason: 'signup_bonus', at: new Date(this.now()).toISOString() });
       return this.createSession(data, user);
     });
   }
@@ -199,6 +254,10 @@ export class AccountStore {
       data.users = data.users.filter(record=>record.id!==owner.id);
       data.sessions = data.sessions.filter(session=>session.userId!==owner.id);
       data.tickets = data.tickets.filter(ticket=>ticket.userId!==owner.id);
+      data.parlays = data.parlays.filter(parlay=>parlay.userId!==owner.id);
+      data.contestEntries = data.contestEntries.filter(entry=>entry.userId!==owner.id);
+      data.tokenLedger = (data.tokenLedger ?? []).filter(entry=>entry.userId!==owner.id);
+      data.tokens = (data.tokens ?? []).filter(token=>token.userId!==owner.id);
     });
   }
 
@@ -226,7 +285,7 @@ export class AccountStore {
     data.sessions = data.sessions.filter((session) => session.expiresAt > this.now());
     const token = randomBytes(32).toString("hex");
     data.sessions.push({ hash: digest(token), userId: user.id, expiresAt: this.now() + SESSION_SECONDS * 1000 });
-    return { user: { id: user.id, username: user.username, ...(user.leaderboardOptIn ? {leaderboardOptIn:true} : {}) }, token };
+    return { user: this.userInData(data, token)!, token };
   }
 
   userInData(data: StoreData, token: string | null | undefined): AccountUser | null {
@@ -235,7 +294,9 @@ export class AccountStore {
     const user = session && data.users.find((entry) => entry.id === session.userId);
     return user ? { id: user.id, username: user.username,
       ...(user.email ? { email: user.email, emailVerified: user.emailVerifiedAt !== undefined } : {}),
-      ...(user.leaderboardOptIn ? {leaderboardOptIn:true} : {}) } : null;
+      ...(user.leaderboardOptIn ? {leaderboardOptIn:true} : {}),
+      ...(user.tokens !== undefined ? { tokens: user.tokens } : {}),
+      ...(user.referralCode ? { referralCode: user.referralCode } : {}) } : null;
   }
 
   requireUser(data: StoreData, token: string | null | undefined): AccountUser {
@@ -296,6 +357,117 @@ export class AccountStore {
     }, false);
   }
 
+  async listParlays(token: string | null): Promise<StoredParlay[]> {
+    return this.transaction((data) => {
+      const user = this.requireUser(data, token);
+      return data.parlays.filter((parlay) => parlay.userId === user.id);
+    }, false);
+  }
+
+  async settleParlays(token: string | null, updates: Array<{ id: string; status: StoredParlay["status"]; settledAt: string }>): Promise<StoredParlay[]> {
+    return this.transaction((data) => {
+      const user = this.requireUser(data, token);
+      for (const update of updates) {
+        const parlay = data.parlays.find((entry) => entry.id === update.id && entry.userId === user.id);
+        if (parlay && parlay.status === "open") {
+          parlay.status = update.status;
+          parlay.settledAt = update.settledAt;
+        }
+      }
+      return data.parlays.filter((parlay) => parlay.userId === user.id);
+    });
+  }
+
+  async listContests(): Promise<Contest[]> {
+    return this.transaction((data) => {
+      const today = new Date(this.now());
+      const start = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()));
+      const end = new Date(start.getTime() + 24 * 60 * 60 * 1000 - 1000);
+      const iso = (d: Date) => d.toISOString();
+      if (!data.contests.some(c => c.kind === 'daily' && Date.parse(c.startsAt) >= start.getTime())) {
+        data.contests.push({
+          id: `daily-${iso(start).slice(0, 10)}`,
+          title: 'Daily Free Pick Contest',
+          kind: 'daily',
+          startsAt: iso(start),
+          endsAt: iso(end),
+          league: null,
+          status: 'active',
+          createdAt: iso(new Date(this.now())),
+        });
+      }
+      return [...data.contests].sort((a, b) => Date.parse(b.startsAt) - Date.parse(a.startsAt));
+    }, true);
+  }
+
+  async joinContest(contestId: string, token: string | null): Promise<{ joined: boolean }> {
+    return this.transaction((data) => {
+      const user = this.requireUser(data, token);
+      const contest = data.contests.find(c => c.id === contestId);
+      if (!contest) throw new AccountError("not_found", "Contest not found.", 404);
+      if (contest.status !== "upcoming") throw new AccountError("contest_locked", "This contest is no longer accepting entries.", 409);
+      const already = data.contestEntries.some(e => e.userId === user.id && e.contestId === contestId);
+      if (!already) {
+        data.contestEntries.push({ userId: user.id, contestId, joinedAt: new Date(this.now()).toISOString() });
+      }
+      return { joined: true };
+    });
+  }
+
+  async contestStandings(contestId: string): Promise<ContestStanding[]> {
+    return this.transaction((data) => {
+      const contest = data.contests.find(c => c.id === contestId);
+      if (!contest) throw new AccountError("not_found", "Contest not found.", 404);
+      const joined = new Set(data.contestEntries.filter(e => e.contestId === contestId).map(e => e.userId));
+      const started = Date.parse(contest.startsAt);
+      const ended = Date.parse(contest.endsAt);
+      const league = contest.league;
+      const perUser = new Map<string, { decided: number; wins: number }>();
+      for (const ticket of data.tickets) {
+        if (!joined.has(ticket.userId)) continue;
+        if (ticket.status === "won" || ticket.status === "lost" || ticket.status === "void") {
+          const created = Date.parse(ticket.createdAt);
+          if (created < started || created > ended) continue;
+          if (league !== null && ticket.league !== league) continue;
+          const cur = perUser.get(ticket.userId) ?? { decided: 0, wins: 0 };
+          if (ticket.status !== "void") cur.decided++;
+          if (ticket.status === "won") cur.wins++;
+          perUser.set(ticket.userId, cur);
+        }
+      }
+      const qualified = [...perUser.entries()]
+        .filter(([userId, stats]) => stats.decided >= 5)
+        .map(([userId, stats]) => {
+          const user = data.users.find(u => u.id === userId)!;
+          return user.leaderboardOptIn ? { userId, username: user.username, decided: stats.decided, wins: stats.wins, accuracy: stats.wins / stats.decided } : null;
+        })
+        .filter((entry): entry is NonNullable<typeof entry> => entry !== null)
+        .sort((a, b) => b.accuracy - a.accuracy || b.decided - a.decided || b.wins - a.wins || a.username.localeCompare(b.username));
+      return qualified.map((entry, index) => ({
+        rank: index + 1, username: entry.username, decidedEvents: entry.decided, wins: entry.wins, accuracy: entry.accuracy,
+      }));
+    }, false);
+  }
+
+  async getTokens(token: string | null): Promise<{ tokens: number; ledger: TokenLedgerEntry[] }> {
+    return this.transaction((data) => {
+      const user = this.requireUser(data, token);
+      const ledger = (data.tokenLedger ?? []).filter(entry => entry.userId === user.id)
+        .map(({ amount, reason, at }) => ({ amount, reason, at }));
+      return { tokens: user.tokens ?? 0, ledger };
+    }, false);
+  }
+
+  async awardTokens(token: string | null, userId: string, amount: number, reason: string): Promise<void> {
+    if (!Number.isFinite(amount) || amount <= 0) return;
+    return this.transaction((data) => {
+      const user = data.users.find(u => u.id === userId);
+      if (!user) throw new AccountError("not_found", "User not found.", 404);
+      user.tokens = (user.tokens ?? 0) + amount;
+      data.tokenLedger.push({ userId, amount, reason, at: new Date(this.now()).toISOString() });
+    }, true);
+  }
+
   async consensus(): Promise<PickConsensus> {
     return this.transaction((data) => buildPickConsensus(data.tickets), false);
   }
@@ -340,6 +512,18 @@ export class AccountStore {
       }
       data.tickets.push(...saved);
       return saved;
+    });
+  }
+
+  async saveParlay(token: string | null, parlay: StoredParlay): Promise<StoredParlay[]> {
+    return this.transaction((data) => {
+      const user = this.requireUser(data, token);
+      const existing = data.parlays.filter((p) => p.userId === user.id);
+      if (existing.some((entry) => entry.id === parlay.id)) {
+        throw new AccountError("duplicate_parlay", "This parlay already exists.", 409);
+      }
+      data.parlays.push(parlay);
+      return [parlay];
     });
   }
 

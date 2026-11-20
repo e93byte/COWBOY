@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import '../live.css';
 import { AccountDialog, Modal, PickPanel, PicksHistory, api, useAccount, type Selection } from './AccountPicks';
+import { ParlayBuilder, ParlayReviewModal, type ParlaySelection } from './ParlayBuilder';
 import { ActionIcon, SportIcon, StatusIcon, StarIcon, TabIcon, RefreshIcon, CloseIcon } from './SportIcon';
 import { RankedTeamName, TeamMark } from './TeamMark';
 import { EventDetail } from './EventDetail';
@@ -17,14 +18,17 @@ import { saveOfflineScoreboard } from '../lib/offline-scoreboard';
 import { GameAlertSettings, GameAlertsDialog, GameMomentList, useGameAlerts, type GameMoment } from './GameUpdates';
 import { ScheduleDates, scheduleDateLabel } from './ScheduleDates';
 import { ScheduleTimeZone, ScheduleZoneSelect } from './ScheduleTimeZone';
+import ContestsPage from '../contests/page';
+import RewardsPage from '../rewards/page';
 import { nextScheduleDay, parseScheduleDate, parseSharedScheduleZone, resolvedScheduleZone, scheduleDay, scheduleTime, scheduleZones, type ScheduleZone } from '../lib/schedule-time';
 import { BoardSearch, boardTournamentName, matchesBoardQuery, type BoardSuggestion, type Follow } from './BoardSearch';
 import { useAccountFollows } from './AccountFollows';
 
-import type { LiveBoard, LiveEvent } from '../lib/live-sports';
+import type { LiveBoard, LiveEvent, GameOdds } from '../lib/live-sports';
 import { LIVE_LEAGUES } from '../lib/sports-leagues';
 import { hasActiveScores, LIVE_SCORE_REFRESH_MS, SCHEDULE_REFRESH_MS } from '../lib/score-refresh';
-import { pickName, pickSides, postedPickLine, supportsDrawPick, type PickMarket, type PickSide } from '../lib/pick-outcomes';
+import type { PlayerProps } from '../lib/player-props';
+import { pickName, pickSides, postedPickLine, postedPrice, supportsDrawPick, type PickMarket, type PickSide } from '../lib/pick-outcomes';
 import { consensusKey, consensusPercent } from '../lib/pick-consensus';
 import { usePickConsensus } from './pick-consensus';
 import { americanOdds, lineValue } from '../lib/odds';
@@ -40,7 +44,7 @@ const spotlightOptions = [
   { id: 'following', label: 'Following' },
 ] as const;
 type SpotlightMode = typeof spotlightOptions[number]['id'];
-export type WorkspaceView = 'board' | 'live' | 'picks' | 'preferences' | 'help';
+export type WorkspaceView = 'board' | 'live' | 'picks' | 'parlays' | 'contests' | 'rewards' | 'preferences' | 'help';
 const boardStatuses = ['all','live','upcoming','watchlist'] as const;
 type BoardStatus = typeof boardStatuses[number];
 type LiveScope = 'all' | 'following' | 'final';
@@ -54,11 +58,14 @@ const sportCategories = [
 ] as const;
 const sportFilter = (value: string) => sportCategories.find(([key])=>value === 'sport-'+key)?.[0];
 
-const workspacePaths: Record<WorkspaceView, string> = {board: '/', live: '/live', picks: '/picks', preferences: '/preferences', help: '/help'};
+const workspacePaths: Record<WorkspaceView, string> = {board: '/', live: '/live', picks: '/picks', parlays: '/parlays', contests: '/contests', rewards: '/rewards', preferences: '/preferences', help: '/help'};
 
 function viewFromPath(pathname: string): WorkspaceView {
   if (pathname === workspacePaths.live) return 'live';
   if (pathname === workspacePaths.picks) return 'picks';
+  if (pathname === workspacePaths.parlays) return 'parlays';
+  if (pathname === workspacePaths.contests) return 'contests';
+  if (pathname === workspacePaths.rewards) return 'rewards';
   if (pathname === workspacePaths.preferences) return 'preferences';
   if (pathname === workspacePaths.help) return 'help';
   return 'board';
@@ -280,7 +287,13 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
   const [toast,setToast]=useState('');
   const [consensusNonce,setConsensusNonce]=useState(0);
   const pickConsensus = usePickConsensus(consensusNonce);
+  const [marketByEvent, setMarketByEvent] = useState<Map<string, PickMarket>>(new Map());
+  const [propData, setPropData] = useState<Map<string, { props: Array<{player:string;stat:string;line:number;over:number;under:number}>; loaded: boolean }>>(new Map());
   const [drawer,setDrawer]=useState(false);
+  const [parlaySelections,setParlaySelections]=useState<ParlaySelection[]>([]);
+  const [parlayReview,setParlayReview]=useState(false);
+  const [parlayPending,setParlayPending]=useState(false);
+  const [parlayError,setParlayError]=useState('');
   const [detail,setDetail]=useState<LiveEvent|null>(null);
   const [sharedGameState, setSharedGameState] = useState<'loading'|'unavailable'|null>(null);
   const sharedGameRequest = useRef<AbortController | null>(null);
@@ -440,10 +453,10 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
     return !!event && eligiblePick(event);
   }).length;
   const selectionDisabled = selfExcluded || dailyLimitReached || verifiedDraftCount !== selections.length;
-  const togglePick = (event: LiveEvent, side: PickSide, market: PickMarket = 'moneyline') => {
+  const togglePick = (event: LiveEvent, side: PickSide, market: PickMarket = 'moneyline', prop?: {player:string;stat:string;line:number} | null) => {
     const key = selectionKey(event, market);
     const existing = selectionsByMarket.get(key);
-    if (existing && existing.side === side) {
+    if (existing && existing.side === side && existing.prop === prop) {
       setSelections(previous => previous.filter(item => item.requestId !== existing.requestId));
       setPickError('');
       return;
@@ -461,9 +474,10 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
       return;
     }
     const {id,league,leagueName,name,startsAt,sport,home,away} = event;
+    const line = prop ? prop.line : null;
     const pick: Selection = {event:{id,league,leagueName,name,startsAt,sport,
       home:{name:home.name,shortName:home.shortName},away:{name:away.name,shortName:away.shortName}},
-      side,...(market !== 'moneyline' ? {market} : {}),requestId:crypto.randomUUID()};
+      side,...(market !== 'moneyline' ? {market} : {}),...(market === 'prop' && prop ? {prop} : {}),requestId:crypto.randomUUID(), line};
     setSelections(previous => {
       const selected = previous.find(item => selectionKey(item.event,item.market ?? 'moneyline') === key);
       if (!selected) return previous.length < 5 ? [...previous,pick] : previous;
@@ -510,7 +524,7 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
     setPending(true);
     setPickError('');
     try {
-      const picks = selections.map(({event,side,market,requestId}) => ({eventId:event.id,league:event.league,side,...(market ? {market} : {}),requestId}));
+      const picks = selections.map(({event,side,market,requestId,line,prop}) => ({eventId:event.id,league:event.league,side,...(market ? {market} : {}),...(line !== null && line !== undefined ? {line} : {}),...(market === 'prop' && prop ? {prop} : {}),requestId}));
       await api(picks.length === 1 ? '/api/picks' : '/api/picks/batch', {
         method:'POST',body:JSON.stringify(picks.length === 1 ? picks[0] : {picks}),
       });
@@ -524,6 +538,30 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
       setPickError((error as Error).message);
     } finally {
       setPending(false);
+    }
+  };
+  const chooseParlayLeg = (event: { id: string; league: string; leagueName: string; name: string; startsAt: string; sport: string; home: { name: string; shortName: string }; away: { name: string; shortName: string } }, side: PickSide, market: PickMarket, odds: number, line: number | null) => {
+    const requestId = crypto.randomUUID();
+    setParlaySelections(previous => [...previous, { event, side, market, requestId, odds, line: line ?? null }]);
+  };
+  const changeParlayMarket = (selection: ParlaySelection, event: { odds?: GameOdds }, side: PickSide, market: PickMarket) => {
+    setParlaySelections(previous => previous.map(item => item.requestId === selection.requestId ? { ...item, side, market } : item));
+  };
+  const submitParlay = async () => {
+    if (!parlaySelections.length || parlayPending) return;
+    setParlayPending(true);
+    setParlayError('');
+    try {
+      const legs = parlaySelections.map(({event,side,market,requestId,line}) => ({eventId:event.id,league:event.league,side,...(market ? {market} : {}),line,...(line !== null ? {line} : {}),requestId}));
+      await api('/api/parlay', { method:'POST', body: JSON.stringify({legs}) });
+      await account.loadTickets();
+      setParlaySelections([]);
+      setParlayReview(false);
+      setToast(`${legs.length}-leg parlay saved. Follow it in My parlays.`);
+    } catch (error) {
+      setParlayError((error as Error).message);
+    } finally {
+      setParlayPending(false);
     }
   };
   const pickPanel = <PickPanel selections={selections} user={account.user} disabled={selectionDisabled} pending={pending}
@@ -558,6 +596,9 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
   const openWatchlist = () => { openBoard(); replaceBoardStatus('watchlist'); };
   const openLive = () => { clearTransientFilters(); navigate('live'); replaceLiveFilters(defaultLiveFilters); };
   const openPicks = () => navigate('picks');
+  const openParlays = () => navigate('parlays');
+  const openContests = () => navigate('contests');
+  const openRewards = () => navigate('rewards');
   const [compared,setCompared] = useState<ComparedGame[]>([]);
   const restoredComparison = useRef(false);
   const allEvents = board?.events ?? [];
@@ -859,8 +900,62 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
   const savedPick = failedGame && view === 'picks' && account.user
     ? account.tickets.find(ticket => ticket.eventId === failedGame.id && ticket.league === failedGame.league)
     : undefined;
+  const renderPickOptions = (e: LiveEvent) => {
+    const key = eventKey(e);
+    const currentMarket = marketByEvent.get(key) ?? 'moneyline';
+    const posted = (market: PickMarket) => market === 'moneyline' || pickSides(e.league, market).some(side => postedPickLine(e.odds, side, market) !== null);
+    const marketProps = propData.get(key);
+    const propsLoaded = marketProps?.loaded ?? false;
+    const props = marketProps?.props ?? [];
+    const fetchProps = async () => {
+      if (propsLoaded) return;
+      try {
+        const data = await api<{ props?: PlayerProps | null }>(`/api/sports/props?league=${encodeURIComponent(e.league)}&id=${encodeURIComponent(e.id)}`);
+        const playerProps = data?.props ?? null;
+        setPropData(prev => new Map(prev).set(key, { props: playerProps?.props.map(p => ({ player: p.player, stat: p.name, line: p.line, over: p.over, under: p.under })) ?? [], loaded: true }));
+      } catch {
+        setPropData(prev => new Map(prev).set(key, { props: [], loaded: true }));
+      }
+    };
+    return (
+      <div className="cw-pick-options">
+        <div className="cw-market-tabs" role="group" aria-label={`Pick market for ${e.name}`}>
+          {(['moneyline', 'spread', 'total', 'prop'] as const).map(option => {
+            const disabled = option === 'prop' ? !propsLoaded : !posted(option);
+            return (
+              <button key={option} type="button" aria-pressed={currentMarket === option} disabled={disabled} onClick={() => { if (option === 'prop') fetchProps(); setMarketByEvent(prev => new Map(prev).set(key, option)); }}>
+                {option === 'moneyline' ? 'Winner' : option === 'spread' ? 'Spread' : option === 'total' ? 'Total' : 'Player prop'}
+              </button>
+            );
+          })}
+        </div>
+        <div className={`cw-draft-options ${pickSides(e.league, currentMarket).length === 3 ? 'cw-three-outcomes' : ''}`}>
+          {(currentMarket === 'prop' && props.length
+            ? props.flatMap(prop => [
+                { side: 'over', label: `${prop.player} ${prop.stat} Over ${prop.line}`, price: prop.over, prop },
+                { side: 'under', label: `${prop.player} ${prop.stat} Under ${prop.line}`, price: prop.under, prop },
+              ])
+            : pickSides(e.league, currentMarket).map(side => ({ side, label: pickName(e, side, 'shortName', currentMarket, postedPickLine(e.odds, side, currentMarket)), price: null, prop: null as {player:string;stat:string;line:number} | null }))).map(item => {
+            const side = item.side;
+            const share = currentMarket === 'moneyline' ? consensusPercent(pickConsensus[consensusKey(e.league, e.id)], side as PickSide) : null;
+            const selected = selectionsByMarket.get(selectionKey(e, currentMarket))?.side === side;
+            const canAdd = selections.length < 5 || selectionsByMarket.has(selectionKey(e, currentMarket));
+            const line = currentMarket === 'prop' ? (item.prop?.line ?? null) : postedPickLine(e.odds, side as PickSide, currentMarket);
+            const prop = currentMarket === 'prop' ? item.prop : null;
+            return (
+              <button key={`${side}:${currentMarket}:${item.label}`} aria-label={`Pick ${item.label}`} aria-pressed={selected} onClick={() => togglePick(e, side as PickSide, currentMarket, prop)} disabled={pending || !eligiblePick(e) || !canAdd || (!selected && dailyLimitReached) || line === null}>
+                <span>{item.label}</span>{item.price != null && <small>{americanOdds(item.price)}</small>}
+                <small>{selfExcluded ? 'Excluded' : dailyLimitReached && !selected ? 'Limit' : canPick(e, now) ? 'Pick' : 'Closed'}</small>
+                {share !== null && <em className="cw-pick-share">{share}%</em>}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
   return <ScheduleTimeZone.Provider value={zone}><div className={`cowboy-live ${liveView ? "cw-live-page" : informationView ? "cw-information-page" : view === "picks" ? "cw-picks-page" : "cw-home-page"}`}>
-    <header className="cw-header"><a className="cw-brand" href="/" aria-label="COWBOY home"><img src="/cowboy-mark.webp" alt=""/><span>COWBOY<small>SPORTS / FREE PICKS</small></span></a><nav aria-label="Main navigation"><button aria-pressed={view==='board'} onClick={openBoard}><SportIcon sport="all"/>Sports board</button><button aria-pressed={liveView} onClick={openLive}><StatusIcon status="live"/>Live</button><button aria-pressed={view==='picks'} onClick={openPicks}><ActionIcon action="picks"/>My picks</button></nav><div className="cw-header-actions">
+    <header className="cw-header"><a className="cw-brand" href="/" aria-label="COWBOY home"><img src="/cowboy-mark.webp" alt=""/><span>COWBOY<small>SPORTS / FREE PICKS</small></span></a><nav aria-label="Main navigation"><button aria-pressed={view==='board'} onClick={openBoard}><SportIcon sport="all"/>Sports board</button><button aria-pressed={liveView} onClick={openLive}><StatusIcon status="live"/>Live</button><button aria-pressed={view==='picks'} onClick={openPicks}><ActionIcon action="picks"/>My picks</button><button aria-pressed={view==='parlays'} onClick={openParlays}><TabIcon tab="parlays"/>My parlays</button><button aria-pressed={view==='contests'} onClick={openContests}><TabIcon tab="contests"/>Contests</button><button aria-pressed={view==='rewards'} onClick={openRewards}><TabIcon tab="rewards"/>Rewards</button></nav><div className="cw-header-actions">
       <button className="cw-updates-button" onClick={()=>setAlertsOpen(true)}
         aria-label={unreadAlerts ? `Game updates, ${unreadAlerts} unread` : 'Game updates'}>
         <ActionIcon action="alerts"/>Updates {unreadAlerts > 0 && <span aria-hidden="true">{unreadAlerts}</span>}
@@ -932,7 +1027,7 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
           <button onClick={()=>setAccountOpen(true)}>{account.user ? 'Manage account' : 'Open account settings'}</button>
         </section>
         <ResponsiblePlayTools onChange={setResponsibleLimits}/>
-      </div> : view!=='picks'?<>
+      </div> : view==='rewards' ? <RewardsPage/> : view==='contests' ? <ContestsPage/> : view!=='picks'?<>
       {liveView && <div className="cw-live-switcher" role="group" aria-label="Live board views">
         {liveScopes.map(scope => (
           <button key={scope.key} aria-pressed={scope.key === liveScope} onClick={() => {
@@ -1083,17 +1178,12 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
           </div>}
           {!liveView&&<div className="cw-event-time"><time dateTime={e.startsAt}>{scheduleTime(e.startsAt,zone)}</time> <span>{canPick(e,now)?'Pre-game':'Entry locked'}</span><button onClick={()=>openGame(e)} aria-label={`Open event information for ${e.name}`}>Details</button></div>}
         </div>
-        {liveView?<div className="cw-live-actions">
+        {(liveView ? <div className="cw-live-actions">
           <button className="cw-live-open" onClick={()=>openGame(e)}>Game center <ActionIcon action="details"/></button>
           {e.status==='live' && <button className="cw-compare-toggle" id={'cw-compare-'+eventKey(e)} aria-label={`Compare ${e.name}`}
             aria-pressed={comparedKeys.has(eventKey(e))} disabled={compared.length>=comparisonLimit&&!comparedKeys.has(eventKey(e))}
             onClick={()=>toggleComparison(e)}><ActionIcon action="compare"/>{comparedKeys.has(eventKey(e))?'Comparing':'Compare'}</button>}
-        </div>:<div className="cw-pick-options">{pickSides(e.league).map(side=>{
-          const share = consensusPercent(pickConsensus[consensusKey(e.league,e.id)], side);
-          const selected = selectionsByMarket.get(selectionKey(e,'moneyline'))?.side === side;
-          const canAdd = selections.length < 5 || selectionsByMarket.has(selectionKey(e,'moneyline'));
-          return <button key={side} aria-label={`Pick ${pickName(e,side)}${share !== null ? `, ${share}% of pickers chose this side` : ''}`} aria-pressed={selected} onClick={()=>togglePick(e,side)} disabled={pending||!eligiblePick(e)||!canAdd||(!selected&&dailyLimitReached)}><span>{pickName(e,side,'shortName')}</span><small>{selfExcluded?'Excluded':dailyLimitReached&&!selected?'Limit':canPick(e,now)?side==='draw'?'Pick draw':'Pick winner':'Closed'}</small>{share !== null && <em className="cw-pick-share">{share}%</em>}</button>;
-        })}</div>}
+</div> : renderPickOptions(e))}
       </article>)}{!collapsed.includes(group.id)&&group.events.length>homeGroupLimit&&league!=='ufc'&&(curatedHome&&!showFullBoard
         ? <button className="cw-show-more" onClick={()=>selectLeague(group.events[0].league)}>View all {group.events.length} {group.sport==='mma'?'bouts':'games'} in {group.name}</button>
         : <button className="cw-show-more" aria-expanded={showAllGroups.includes(group.id)} onClick={()=>setShowAllGroups(old=>old.includes(group.id)?old.filter(id=>id!==group.id):[...old,group.id])}>{showAllGroups.includes(group.id)?`Show fewer ${group.sport==='mma'?'bouts':'games'}`:`Show all ${group.events.length} ${group.sport==='mma'?'bouts':'games'}`}</button>)}</section>)}{curatedHome&&<button className="cw-all-leagues" aria-expanded={showFullBoard} onClick={()=>setShowFullBoard(value=>!value)}>{showFullBoard?'Show featured leagues':`View all ${groups.length} leagues`}<span aria-hidden="true">{showFullBoard?'↑':'↓'}</span></button>}</section>}
@@ -1105,10 +1195,13 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
       </section>}
       </>:<PicksHistory key={account.user?.id ?? 'guest'} tickets={account.tickets} onUpdate={account.updateTicket} busy={account.ticketsBusy} error={account.ticketsError} onRefresh={()=>void account.loadTickets(true)} user={account.user} onSignIn={()=>setAccountOpen(true)} events={board?.events??[]} onGame={(ticket,event)=>event ? openGame(event) : openSavedGame(ticket.eventId,ticket.league)} onRebet={rebet} onBrowse={openBoard} feedCurrent={!!board&&!board.stale&&!error}/>}
       <footer className="cw-footer"><b>ALL GAME. NO GAMBLING.</b><p>Free-to-play predictions only. No money, purchase, cash prizes or wagering. Availability and score coverage depend on your location, device, and data sources. Picks close at scheduled start or when the source marks an event live. Results depend on source confirmation.</p><div className="cw-footer-actions"><button className="cw-terms" aria-current={helpView ? "page" : undefined} onClick={()=>navigate('help')}>Help &amp; rules</button><button className="cw-terms" aria-current={preferencesView ? "page" : undefined} onClick={()=>navigate('preferences')}>Preferences</button><PwaControls/></div></footer>
-    </main>{view==='board'&&<aside className="cw-picks-rail">{pickPanel}</aside>}</div>
-    <nav className="cw-mobile-nav" aria-label="Mobile navigation"><button aria-pressed={view==='board'&&filter!=='watchlist'} onClick={openBoard}><SportIcon sport="all"/>Sports</button><button aria-pressed={liveView} onClick={openLive}><StatusIcon status="live"/>Live</button><button aria-pressed={view==='board'&&filter==='watchlist'} onClick={openWatchlist}><StarIcon/>Watchlist</button><button aria-pressed={view==='picks'} onClick={openPicks}><ActionIcon action="picks"/>My picks</button></nav>
+    </main>{view==='board'&&<aside className="cw-picks-rail">{pickPanel}{parlaySelections.length>0&&<ParlayBuilder selections={parlaySelections} user={account.user} disabled={selectionDisabled} pending={parlayPending} draftEvents={draftEvents as unknown as ReadonlyMap<string, { odds?: GameOdds }>} onReview={()=>{setParlayReview(true);}} onChoose={chooseParlayLeg} onChangeMarket={changeParlayMarket} onClear={()=>setParlaySelections([])} onRemove={pick=>setParlaySelections(previous=>previous.filter(item=>item.requestId!==pick.requestId))} onSignIn={()=>{setAccountOpen(true);}} onClose={()=>{}}/>}</aside>}</div>
+    <nav className="cw-mobile-nav" aria-label="Mobile navigation"><button aria-pressed={view==='board'&&filter!=='watchlist'} onClick={openBoard}><SportIcon sport="all"/>Sports</button><button aria-pressed={liveView} onClick={openLive}><StatusIcon status="live"/>Live</button><button aria-pressed={view==='board'&&filter==='watchlist'} onClick={openWatchlist}><StarIcon/>Watchlist</button><button aria-pressed={view==='picks'} onClick={openPicks}><ActionIcon action="picks"/>My picks</button><button aria-pressed={view==='parlays'} onClick={openParlays}><TabIcon tab="parlays"/>My parlays</button></nav>
     {selections.length>0 && <button className="cw-mobile-pick" onClick={()=>setDrawer(true)}>
       {selections.length===1 ? `Your pick: ${pickName(selections[0].event,selections[0].side,'shortName')}` : `Your picks: ${selections.length}`} <span>Review →</span>
+    </button>}
+    {parlaySelections.length>0 && <button className="cw-mobile-pick" onClick={()=>setParlayReview(true)}>
+      {parlaySelections.length}-leg parlay <span>Review →</span>
     </button>}
     {alertsOpen && <GameAlertsDialog alerts={alerts} onClose={()=>setAlertsOpen(false)}
       onGame={event=>{setAlertsOpen(false);openMoment(event);}}
@@ -1149,6 +1242,10 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
         {pending?(selections.length===1?'Saving free pick…':'Saving free picks…'):selections.length===1?'Confirm free pick':`Confirm ${selections.length} free picks`}
       </button>
       <button className="cw-clear" disabled={pending} onClick={()=>setReview(false)}>Cancel review</button>
+    </Modal>}
+    {parlayReview && parlaySelections.length>0 && <Modal title={`${parlaySelections.length}-leg Parlay Review`} locked={parlayPending} onClose={()=>setParlayReview(false)}>
+      <ParlayReviewModal selections={parlaySelections} user={account.user} pending={parlayPending} onConfirm={()=>void submitParlay()} onCancel={()=>setParlayReview(false)} draftEvents={draftEvents as unknown as ReadonlyMap<string, { odds?: GameOdds }>} zone={zone}/>
+      {parlayError && <p role="alert" className="cw-form-error">{parlayError}</p>}
     </Modal>}
     {toast&&<div className="cw-toast" role="status"><span>{toast}</span><button onClick={()=>setToast('')} aria-label="Dismiss notification"><CloseIcon/></button></div>}
   </div></ScheduleTimeZone.Provider>;
