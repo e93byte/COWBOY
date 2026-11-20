@@ -15,13 +15,6 @@ export type StoredPick = RealPickTicket & { userId: string; requestId: string; h
 export type StoreData = { version: 1; users: StoredUser[]; sessions: StoredSession[]; tickets: StoredPick[]; tokens?: StoredToken[] };
 export type StoreOptions = { directory?: string; now?: () => number };
 const SESSION_SECONDS = 60 * 60 * 24 * 7;
-/** Supabase project configuration.
- * The connected Supabase project ID is: ca_lBY496gOPMFZ
- * Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY env vars
- * to override the defaults.
- */
-export const supabaseUrl = 'https://ca_lBY496gOPMFZ.supabase.co';
-export const supabaseAnonKey = '';
 export const SESSION_MAX_AGE = SESSION_SECONDS;
 const globals = globalThis as typeof globalThis & { cowboyStoreQueues?: Map<string, Promise<unknown>> };
 const queues = globals.cowboyStoreQueues ??= new Map();
