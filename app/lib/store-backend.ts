@@ -20,6 +20,10 @@ export interface AccountBackend {
   savePicks(token: string | null, tickets: StoredPick[]): Promise<StoredPick[]>;
   changePick(token: string | null, id: string, action: "cancel" | "edit", side: string | null, selection: string | null, revision: number | null, now?: number, line?: number | null): Promise<StoredPick>;
   settlePicks(token: string | null, updates: Array<{ id: string; status: StoredPick["status"]; settledAt: string }>): Promise<StoredPick[]>;
+  setEmail(token: string | null, email: string): Promise<{ email: string; verifyToken: string }>;
+  verifyEmail(rawToken: string): Promise<boolean>;
+  requestPasswordReset(username: string): Promise<{ email: string; resetToken: string } | null>;
+  resetPassword(rawToken: string, password: string): Promise<void>;
 }
 
 const globals = globalThis as typeof globalThis & { cowboyBackend?: AccountBackend };

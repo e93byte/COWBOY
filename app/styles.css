@@ -72,3 +72,17 @@ body{font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-seri
 .sportscore-credit span{margin-left:5px}
 .feed-disclaimer{margin:9px 0 0;color:#6f7d82;font-size:9px;line-height:1.45}
 @media(max-width:620px){.live-data-card{padding:13px 12px 12px}.live-data-title-wrap h2{font-size:15px}.live-data-title-wrap .eyebrow{font-size:8px}.live-data-meta{display:grid;gap:4px}.real-scoreboard{grid-template-columns:1fr 100px 1fr;padding:12px 8px;gap:5px}.real-team{gap:5px}.real-team-mark{width:27px;height:27px}.real-team strong{font-size:9px}.real-team small{font-size:8px}.real-score-line{font-size:22px;gap:7px}.real-score-center small{max-width:110px;font-size:8px}.real-incident{grid-template-columns:32px minmax(50px,auto) 1fr auto}.feed-head-actions{gap:6px}.feed-refresh{padding:6px 7px;font-size:9px}}
+.cw-recovery{max-width:420px;margin:12vh auto;padding:28px;border:1px solid var(--line,#202a35);border-radius:14px;background:var(--panel,#10151d)}
+.cw-recovery h1{font:700 24px system-ui,sans-serif;margin:0 0 14px}
+.cw-recovery p{color:#a0acb7;font-size:13px;line-height:1.6}
+.cw-recovery form{display:grid;gap:12px}
+.cw-recovery label{display:grid;gap:6px;font-size:12px;font-weight:600;color:#c3ccd5}
+.cw-recovery input{height:40px;padding:0 12px;border:1px solid var(--line,#28313b);border-radius:9px;background:#121820;color:var(--text,#edf3f7);font-size:14px}
+.cw-recovery .cw-primary{height:42px;border:0;border-radius:9px;background:var(--green,#b6fa69);color:#10200a;font-weight:700;cursor:pointer}
+.cw-recovery .cw-primary:disabled{opacity:.6}
+.cw-recovery a{color:var(--green,#b6fa69)}
+.cw-email-form{display:grid;gap:8px;margin:10px 0 4px}
+.cw-email-form label{display:grid;gap:5px;font-size:11px;font-weight:600;color:#9aa6b2}
+.cw-email-form input{height:36px;padding:0 10px;border:1px solid var(--line,#28313b);border-radius:8px;background:#121820;color:var(--text,#edf3f7)}
+.cw-email-form button{height:34px;border:1px solid #394638;border-radius:8px;background:#172016;color:#cceaaa;font-size:11px;font-weight:650;cursor:pointer}
+.cw-email-form button:disabled{opacity:.55}

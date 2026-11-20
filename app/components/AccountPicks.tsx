@@ -3,7 +3,7 @@ import { useCallback, useContext, useEffect, useRef, useState, type ReactNode } 
 import type { LiveEvent } from './LiveWorkspace';
 import {ActionIcon, CloseIcon, SportIcon, TabIcon} from './SportIcon';
 
-export type User = {id:string;username:string};
+export type User = {id:string;username:string;email?:string|null;emailVerified?:boolean};
 import type { RealPickTicket as Ticket } from '../lib/pick-service';
 import { pickName, pickSides, postedPickLine, supportsDrawPick, type PickMarket, type PickSide } from '../lib/pick-outcomes';
 import { ScheduleTimeZone } from './ScheduleTimeZone';
@@ -157,7 +157,8 @@ export function AccountDialog({user,onUser,onClose}:{user:User|null;onUser:(u:Us
   const [username,setUsername]=useState(''),[password,setPassword]=useState('');
   const [deleting,setDeleting] = useState(false);
   const [deletePassword,setDeletePassword] = useState('');
-  const [accountAction,setAccountAction] = useState<'export'|'revoke'|'delete'|null>(null);
+  const [accountAction,setAccountAction] = useState<'export'|'revoke'|'delete'|'email'|null>(null);
+  const [emailInput,setEmailInput] = useState('');
   const [notice,setNotice] = useState('');
   async function manageAccount(action: 'export'|'revoke'|'delete') {
     if (accountAction || pending) return;
@@ -190,6 +191,22 @@ export function AccountDialog({user,onUser,onClose}:{user:User|null;onUser:(u:Us
       setAccountAction(null);
     }
   }
+  async function manageAccountEmail() {
+    if (accountAction || pending || !emailInput.trim()) return;
+    setAccountAction('email');
+    setError('');
+    setNotice('');
+    try {
+      const result = await api<{email:string;emailSent:boolean}>('/api/account/email',{method:'POST',body:JSON.stringify({email:emailInput.trim()})});
+      setEmailInput('');
+      if (user) onUser({...user,email:result.email,emailVerified:false});
+      setNotice(result.emailSent?'Verification email sent. Check your inbox to confirm the address.':'Email saved, but the verification email could not be sent right now. You can request a new one later.');
+    } catch (failure) {
+      setError((failure as Error).message);
+    } finally {
+      setAccountAction(null);
+    }
+  }
   const submit=async()=>{setPending(true);setError('');try{if(user){await api('/api/account',{method:'DELETE'});onUser(null);}else{const r=await api<{user:User}>('/api/account',{method:'POST',body:JSON.stringify({action:mode,username,password})});onUser(r.user);}onClose();}catch(e){setError((e as Error).message);}finally{setPending(false);}};
   return <Modal title={user ? deleting?'Delete account':'Your account' : 'Welcome to COWBOY'} onClose={onClose} locked={pending||!!accountAction}>{user ? deleting ? <>
     <p className="cw-dialog-copy">This permanently removes your COWBOY account, follows, and saved free picks from the active app store and ends all sessions.</p>
@@ -204,6 +221,14 @@ export function AccountDialog({user,onUser,onClose}:{user:User|null;onUser:(u:Us
     </form>
   </> : <>
     <p className="cw-dialog-copy">Signed in as <strong>{user.username}</strong>. Your picks and follows are saved to this account.</p>
+    <form className="cw-email-form" onSubmit={event=>{event.preventDefault();void manageAccountEmail();}}>
+      <label>Recovery email<input type="email" name="email" autoComplete="email" maxLength={254}
+        placeholder={user.email ?? 'you@example.com'} disabled={!!accountAction} onChange={event=>setEmailInput(event.target.value)}/></label>
+      <button type="submit" disabled={!!accountAction||!emailInput.trim()}>
+        {accountAction==='email'?'Sending verification…':user.email?'Update email':'Add recovery email'}
+      </button>
+      {user.email && <span className="cw-field-hint">{user.emailVerified?'Verified':'Verification pending — check your inbox.'}</span>}
+    </form>
     <div className="cw-account-actions">
       <button disabled={pending||!!accountAction} onClick={()=>void manageAccount('export')}>
         {accountAction==='export'?'Preparing download…':'Download my data'}
@@ -217,7 +242,7 @@ export function AccountDialog({user,onUser,onClose}:{user:User|null;onUser:(u:Us
     <button className="cw-primary" disabled={pending||!!accountAction} onClick={submit}>{pending?'Signing out…':'Sign out'}</button>
     <button className="cw-delete-account" disabled={pending||!!accountAction}
       onClick={()=>{setDeletePassword('');setError('');setNotice('');setDeleting(true);}}>Delete account</button>
-  </>:<><div className="cw-auth-tabs"><button aria-pressed={mode==='login'} onClick={()=>{setMode('login');setError('');}} disabled={pending}><ActionIcon action="account"/>Sign in</button><button aria-pressed={mode==='register'} onClick={()=>{setMode('register');setError('');}} disabled={pending}><ActionIcon action="account"/>Create account</button></div><form onSubmit={e=>{e.preventDefault();void submit();}}><label>Username<input autoFocus name="username" autoComplete="username" required minLength={3} maxLength={30} pattern="[A-Za-z0-9_-]+" value={username} disabled={pending} onChange={e=>setUsername(e.target.value)}/></label><span className="cw-field-hint">3–30 letters, numbers, underscores or hyphens.</span><label>Password<input type="password" name="password" autoComplete={mode==='register'?'new-password':'current-password'} required minLength={10} value={password} disabled={pending} onChange={e=>setPassword(e.target.value)}/></label><span className="cw-field-hint">At least 10 characters. Use a unique password for this local prototype.</span>{error&&<p role="alert" className="cw-form-error">{error}</p>}<button className="cw-primary" disabled={pending} type="submit">{pending?'Please wait…':mode==='register'?'Create free account':'Sign in to COWBOY'}</button></form><p className="cw-dialog-footnote">Local-server account, not a production identity service. Do not use a password you use elsewhere. No payments or money are involved.</p></>}</Modal>;
+  </>:<><div className="cw-auth-tabs"><button aria-pressed={mode==='login'} onClick={()=>{setMode('login');setError('');}} disabled={pending}><ActionIcon action="account"/>Sign in</button><button aria-pressed={mode==='register'} onClick={()=>{setMode('register');setError('');}} disabled={pending}><ActionIcon action="account"/>Create account</button></div><form onSubmit={e=>{e.preventDefault();void submit();}}><label>Username<input autoFocus name="username" autoComplete="username" required minLength={3} maxLength={30} pattern="[A-Za-z0-9_-]+" value={username} disabled={pending} onChange={e=>setUsername(e.target.value)}/></label><span className="cw-field-hint">3–30 letters, numbers, underscores or hyphens.</span><label>Password<input type="password" name="password" autoComplete={mode==='register'?'new-password':'current-password'} required minLength={10} value={password} disabled={pending} onChange={e=>setPassword(e.target.value)}/></label><span className="cw-field-hint">At least 10 characters. Use a unique password for this local prototype.</span>{!user&&mode==='login'&&<p className="cw-field-hint"><a href="/forgot-password">Forgot password?</a></p>}{error&&<p role="alert" className="cw-form-error">{error}</p>}<button className="cw-primary" disabled={pending} type="submit">{pending?'Please wait…':mode==='register'?'Create free account':'Sign in to COWBOY'}</button></form><p className="cw-dialog-footnote">Local-server account, not a production identity service. Do not use a password you use elsewhere. No payments or money are involved.</p></>}</Modal>;
 }
 function EditPickDialog({ticket,event,onSave,onClose}: {
   ticket: Ticket; event: LiveEvent; onSave: (ticket: Ticket) => void; onClose: () => void;

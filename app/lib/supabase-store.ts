@@ -46,6 +46,7 @@ async function rpc<T>(config: SupabaseConfig, fn: string, args: Record<string, u
     if (message === "pick_changed") throw new AccountError("pick_changed", "This pick changed. Close this dialog and refresh My picks to see the current selection.", 409);
     if (message === "ticket_unavailable") throw new AccountError("ticket_unavailable", "This ticket is unavailable.", 409);
     if (message === "invalid_input") throw new AccountError("invalid_input", "Supply valid account data.");
+    if (message === "email_taken") throw new AccountError("email_taken", "That email is already registered to another account.", 409);
     throw new AccountError("storage_unavailable", "Account storage is temporarily unavailable.", 409);
   }
   if (response.status === 204) return undefined as T;
@@ -180,6 +181,44 @@ export class SupabaseStore {
     return rpc<StoredPick[]>(this.config, "cowboy_settle_picks", {
       p_token_hash: tokenHash(token)!, p_updates: updates,
     });
+  }
+
+  async setEmail(token: string | null, email: string) {
+    const hash = tokenHash(token);
+    if (!hash) throw new AccountError("unauthorized", "Sign in to manage your free picks.", 401);
+    const verifyToken = randomBytes(32).toString("hex");
+    const result = await rpc<{ email: string }>(this.config, "cowboy_set_email", {
+      p_token_hash: hash, p_email: email,
+      p_token_hash_value: digest(verifyToken), p_ttl_seconds: 24 * 60 * 60,
+    });
+    return { email: result.email, verifyToken };
+  }
+
+  async verifyEmail(rawToken: string): Promise<boolean> {
+    if (!/^[a-f0-9]{64}$/.test(rawToken)) return false;
+    return rpc<boolean>(this.config, "cowboy_verify_email", { p_token_hash_value: digest(rawToken) });
+  }
+
+  async requestPasswordReset(username: string) {
+    if (typeof username !== "string" || username.length > 64) return null;
+    const resetToken = randomBytes(32).toString("hex");
+    const email = await rpc<string | null>(this.config, "cowboy_request_password_reset", {
+      p_username_key: username, p_token_hash_value: digest(resetToken), p_ttl_seconds: 60 * 60,
+    });
+    return email ? { email, resetToken } : null;
+  }
+
+  async resetPassword(rawToken: string, password: string) {
+    if (typeof password !== "string" || password.length < 10 || password.length > 128) {
+      throw new AccountError("invalid_input", "Use a 10–128 character password.");
+    }
+    const salt = randomBytes(16).toString("hex");
+    const passwordHash = (await scrypt(password, salt, 64) as Buffer).toString("hex");
+    const ok = await rpc<boolean>(this.config, "cowboy_reset_password", {
+      p_token_hash_value: /^[a-f0-9]{64}$/.test(rawToken) ? digest(rawToken) : "0".repeat(64),
+      p_salt: salt, p_password_hash: passwordHash,
+    });
+    if (!ok) throw new AccountError("invalid_token", "This reset link is invalid or has expired.", 409);
   }
 }
 

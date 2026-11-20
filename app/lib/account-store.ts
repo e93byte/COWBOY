@@ -7,13 +7,21 @@ import { followKey, isFollowPreference, type FollowPreference } from "./follow-p
 import { buildPickConsensus, type PickConsensus } from "./pick-consensus";
 
 const scrypt = promisify(scryptCallback);
-export type AccountUser = { id: string; username: string };
-type StoredUser = AccountUser & { salt: string; passwordHash: string; follows?: FollowPreference[] };
+export type AccountUser = { id: string; username: string; email?: string | null; emailVerified?: boolean };
+type StoredUser = AccountUser & { salt: string; passwordHash: string; follows?: FollowPreference[]; emailVerifiedAt?: number };
 type StoredSession = { hash: string; userId: string; expiresAt: number };
+type StoredToken = { hash: string; userId: string; purpose: "verify_email" | "password_reset"; expiresAt: number; consumedAt?: number };
 export type StoredPick = RealPickTicket & { userId: string; requestId: string; homeId: string; awayId: string };
-export type StoreData = { version: 1; users: StoredUser[]; sessions: StoredSession[]; tickets: StoredPick[] };
+export type StoreData = { version: 1; users: StoredUser[]; sessions: StoredSession[]; tickets: StoredPick[]; tokens?: StoredToken[] };
 export type StoreOptions = { directory?: string; now?: () => number };
 const SESSION_SECONDS = 60 * 60 * 24 * 7;
+/** Supabase project configuration.
+ * The connected Supabase project ID is: ca_lBY496gOPMFZ
+ * Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY env vars
+ * to override the defaults.
+ */
+export const supabaseUrl = 'https://ca_lBY496gOPMFZ.supabase.co';
+export const supabaseAnonKey = '';
 export const SESSION_MAX_AGE = SESSION_SECONDS;
 const globals = globalThis as typeof globalThis & { cowboyStoreQueues?: Map<string, Promise<unknown>> };
 const queues = globals.cowboyStoreQueues ??= new Map();
@@ -34,6 +42,9 @@ function validateStore(data: StoreData): void {
   for (const user of data.users) {
     if (!user || !nonempty(user.id) || typeof user.username !== "string" || !/^[A-Za-z0-9_][A-Za-z0-9_-]{2,29}$/.test(user.username)
       || !hex(user.salt, 32) || !hex(user.passwordHash, 128) || userIds.has(user.id) || usernames.has(user.username.toLowerCase())) fail();
+    if (user.email !== undefined && user.email !== null &&
+        (typeof user.email !== "string" || user.email.length > 254 || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(user.email))) fail();
+    if (user.emailVerifiedAt !== undefined && !Number.isSafeInteger(user.emailVerifiedAt)) fail();
     if (user.follows !== undefined && (!Array.isArray(user.follows) ||
         !user.follows.every(isFollowPreference) ||
         new Set(user.follows.map(followKey)).size !== user.follows.length)) fail();
@@ -73,6 +84,14 @@ function validateStore(data: StoreData): void {
     const event = JSON.stringify([ticket.userId, ticket.league, ticket.eventId, ticket.market ?? "moneyline"]);
     if (tickets.has(ticket.id) || requests.has(request) || events.has(event)) fail();
     tickets.add(ticket.id); requests.add(request); events.add(event);
+  }
+  const tokenHashes = new Set<string>();
+  for (const token of data.tokens ?? []) {
+    if (!token || !hex(token.hash, 64) || !userIds.has(token.userId)
+      || !["verify_email", "password_reset"].includes(token.purpose)
+      || !Number.isSafeInteger(token.expiresAt) || tokenHashes.has(token.hash)) fail();
+    if (token.consumedAt !== undefined && !Number.isSafeInteger(token.consumedAt)) fail();
+    tokenHashes.add(token.hash);
   }
 }
 
@@ -219,7 +238,8 @@ export class AccountStore {
     if (!token || !/^[a-f0-9]{64}$/.test(token)) return null;
     const session = data.sessions.find((entry) => entry.hash === digest(token) && entry.expiresAt > this.now());
     const user = session && data.users.find((entry) => entry.id === session.userId);
-    return user ? { id: user.id, username: user.username } : null;
+    return user ? { id: user.id, username: user.username,
+      ...(user.email ? { email: user.email, emailVerified: user.emailVerifiedAt !== undefined } : {}) } : null;
   }
 
   requireUser(data: StoreData, token: string | null | undefined): AccountUser {
@@ -352,6 +372,78 @@ export class AccountStore {
         }
       }
       return data.tickets.filter((ticket) => ticket.userId === user.id);
+    });
+  }
+
+  // Email + password-reset surface (store-backend.ts). Raw tokens are returned
+  // to the caller for emailing; only their SHA-256 digests are stored.
+  private issueToken(data: StoreData, userId: string, purpose: StoredToken["purpose"], ttlSeconds: number) {
+    const tokens = data.tokens ??= [];
+    tokens.splice(0, tokens.length, ...tokens.filter((token) =>
+      !(token.userId === userId && token.purpose === purpose && token.consumedAt === undefined)));
+    const raw = randomBytes(32).toString("hex");
+    tokens.push({ hash: digest(raw), userId, purpose, expiresAt: this.now() + ttlSeconds * 1000 });
+    return raw;
+  }
+
+  private consumeToken(data: StoreData, rawToken: string, purpose: StoredToken["purpose"]): StoredToken | undefined {
+    if (!/^[a-f0-9]{64}$/.test(rawToken)) return undefined;
+    const hash = digest(rawToken);
+    const token = (data.tokens ?? []).find((entry) => entry.hash === hash && entry.purpose === purpose
+      && entry.consumedAt === undefined && entry.expiresAt > this.now());
+    if (token) token.consumedAt = this.now();
+    return token;
+  }
+
+  async setEmail(token: string | null, email: string) {
+    const normalized = email.trim().toLowerCase();
+    if (normalized.length > 254 || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(normalized)) {
+      throw new AccountError("invalid_input", "Enter a valid email address.");
+    }
+    return this.transaction((data) => {
+      const owner = this.requireUser(data, token);
+      if (data.users.some((user) => user.id !== owner.id && user.email?.toLowerCase() === normalized)) {
+        throw new AccountError("email_taken", "That email is already registered to another account.", 409);
+      }
+      const user = data.users.find((entry) => entry.id === owner.id)!;
+      user.email = normalized;
+      delete user.emailVerifiedAt;
+      const verifyToken = this.issueToken(data, owner.id, "verify_email", 24 * 60 * 60);
+      return { email: normalized, verifyToken };
+    });
+  }
+
+  async verifyEmail(rawToken: string): Promise<boolean> {
+    return this.transaction((data) => {
+      const token = this.consumeToken(data, rawToken, "verify_email");
+      if (!token) return false;
+      const user = data.users.find((entry) => entry.id === token.userId);
+      if (user?.email) user.emailVerifiedAt = this.now();
+      return user?.email !== undefined;
+    });
+  }
+
+  async requestPasswordReset(username: string) {
+    if (typeof username !== "string" || username.length > 64) return null;
+    return this.transaction((data) => {
+      const user = data.users.find((entry) => entry.username.toLowerCase() === username.toLowerCase() && entry.email);
+      if (!user?.email) return null;
+      const resetToken = this.issueToken(data, user.id, "password_reset", 60 * 60);
+      return { email: user.email, resetToken };
+    });
+  }
+
+  async resetPassword(rawToken: string, password: string) {
+    if (typeof password !== "string" || password.length < 10 || password.length > 128) {
+      throw new AccountError("invalid_input", "Use a 10–128 character password.");
+    }
+    await this.transaction(async (data) => {
+      const token = this.consumeToken(data, rawToken, "password_reset");
+      const user = token && data.users.find((entry) => entry.id === token.userId);
+      if (!token || !user) throw new AccountError("invalid_token", "This reset link is invalid or has expired.", 409);
+      user.salt = randomBytes(16).toString("hex");
+      user.passwordHash = (await scrypt(password, user.salt, 64) as Buffer).toString("hex");
+      data.sessions = data.sessions.filter((session) => session.userId !== user.id);
     });
   }
 }
