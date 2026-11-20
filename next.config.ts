@@ -19,7 +19,8 @@ const nextConfig: NextConfig = {
             // Team logos and news thumbnails come from many provider CDNs.
             "img-src 'self' data: https:",
             // Next.js App Router emits inline bootstrap scripts/styles.
-            "script-src 'self' 'unsafe-inline'",
+            // React dev-mode debugging requires eval; production never uses it.
+            `script-src 'self' 'unsafe-inline'${process.env.NODE_ENV === "development" ? " 'unsafe-eval'" : ""}`,
             "style-src 'self' 'unsafe-inline'",
             "font-src 'self' data:",
             "connect-src 'self'",
