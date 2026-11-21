@@ -326,6 +326,17 @@ export function PicksHistory({tickets,busy,error,onRefresh,onUpdate,user,onSignI
   const [cancelPending,setCancelPending]=useState(false);
   const [cancelError,setCancelError]=useState('');
   const [editing,setEditing]=useState<{ticket:Ticket;event:LiveEvent}|null>(null);
+  const [sharedId,setSharedId]=useState('');
+  const sharePick=async(ticket:Ticket)=>{
+    const result=ticket.status==='won'?'won':'lost';
+    const text=`COWBOY free pick: ${ticket.selection} in ${ticket.eventName} — ${result}. Free picks only, no money. betcowboy.vercel.app`;
+    try{
+      if(navigator.share){await navigator.share({title:'My COWBOY pick',text});}
+      else{await navigator.clipboard.writeText(text);}
+      setSharedId(ticket.id);
+      setTimeout(()=>setSharedId(current=>current===ticket.id?'':current),2000);
+    }catch{/* user dismissed the share sheet */}
+  };
   const [filter,setFilter]=useState<(typeof historyFilters)[number]>('all');
   const [search,setSearch]=useState('');
   const [league,setLeague]=useState('');
@@ -502,6 +513,8 @@ export function PicksHistory({tickets,busy,error,onRefresh,onUpdate,user,onSignI
                     <button onClick={()=>onGame(ticket,event)}>Game center</button>
                     {event && (ticket.status==='won' || ticket.status==='lost' || ticket.status==='cancelled' || ticket.status==='void') && canPick(event, Date.now()) &&
                       <button onClick={()=>onRebet(ticket,event)}>Pick again</button>}
+                    {(ticket.status==='won' || ticket.status==='lost') &&
+                      <button onClick={()=>void sharePick(ticket)}>{sharedId===ticket.id?'Copied':'Share'}</button>}
                     {beforeStart && feedCurrent && event?.status === 'scheduled' && Date.parse(event.startsAt) > Date.now() &&
                       <button disabled={busy} onClick={()=>setEditing({ticket,event})}>Edit pick</button>}
                     {beforeStart && <button className="cw-clear" aria-label={`Cancel pick: ${ticket.selection}`} disabled={busy} onClick={()=>{setCancelError('');setCancelling(ticket);}}>Cancel pick</button>}

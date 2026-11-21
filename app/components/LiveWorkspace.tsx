@@ -645,7 +645,12 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
   const isFollowed = (event: LiveEvent) => isWatched(event) || followedIds.has(event.league) ||
     teamFollows(event).some(id=>followedIds.has(id));
   const scheduledFollows = allEvents.filter(event => eligiblePick(event) && isFollowed(event));
-  const alerts = useGameAlerts(moments.filter(moment=>isFollowed(moment.event)),scheduledFollows,now);
+  const pickedKeys = new Set(account.tickets.filter(ticket => ticket.status === 'open')
+    .map(ticket => `${ticket.league}:${ticket.eventId}`));
+  const alertScheduled = [...scheduledFollows,
+    ...allEvents.filter(event => pickedKeys.has(`${event.league}:${event.id}`) &&
+      !scheduledFollows.some(followed => eventKey(followed) === eventKey(event)))];
+  const alerts = useGameAlerts(moments.filter(moment=>isFollowed(moment.event)),alertScheduled,now);
   const unreadAlerts = alerts.quiet ? 0 : alerts.unread;
   const openMoment = (event: LiveEvent) =>
     openGame(allEvents.find(item=>eventKey(item)===eventKey(event)) ?? event);
@@ -796,6 +801,23 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
   const followedGame = onHome ? followedLive[0] ?? scheduledFollows.slice().sort(upcomingOrder)[0] ??
     finalEvents.filter(isFollowed).sort((a,b)=>upcomingOrder(b,a))[0] : undefined;
   const glanceGame = onHome ? followedGame ?? liveEvents[0] ?? allEvents.filter(event=>eligiblePick(event)).sort(upcomingOrder)[0] : undefined;
+  const communityPick = onHome ? (() => {
+    let best: {event: LiveEvent; side: PickSide; pct: number; total: number} | null = null;
+    for (const event of allEvents) {
+      if (event.status !== 'scheduled' || !eligiblePick(event)) continue;
+      const entry = pickConsensus[consensusKey(event.league, event.id)];
+      if (!entry) continue;
+      const sides: [PickSide, number][] = [['home', entry.home], ['away', entry.away]];
+      if (entry.draw) sides.push(['draw', entry.draw]);
+      const [side, count] = sides.sort((a, b) => b[1] - a[1])[0];
+      const pct = Math.round((count / entry.total) * 100);
+      if (!best || entry.total > best.total ||
+        (entry.total === best.total && Date.parse(event.startsAt) < Date.parse(best.event.startsAt))) {
+        best = {event, side, pct, total: entry.total};
+      }
+    }
+    return best;
+  })() : null;
   const spotlightCandidates=events.filter(event=>event.status==='live'||canPick(event,now));
   const spotlight=spotlightCandidates.filter(event=>{
     if (spotlightMode==='live') return event.status==='live';
@@ -1077,6 +1099,7 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
       {showHighlights && <div id="cw-board-highlights" data-expanded={highlightsExpanded}>
           {onHome && board && <SportsGlance event={glanceGame} personalized={!!followedGame} liveCount={live}
             followedLiveCount={followedLive.length} fetchedAt={board.fetchedAt} delayed={!!error||board.stale}
+            community={communityPick ? {label: pickName(communityPick.event, communityPick.side, 'shortName', 'moneyline'), pct: communityPick.pct, event: communityPick.event} : null}
             onOpen={openGame} onWatchlist={openWatchlist} onLive={openLive}/>}
           {showSpotlight && (
             <section className="cw-spotlight" aria-label="In the spotlight">

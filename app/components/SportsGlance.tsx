@@ -2,7 +2,7 @@ import type {LiveEvent} from '../lib/live-sports';
 import {MatchCard} from './MatchCard';
 
 export function SportsGlance({
-  event, personalized, liveCount, followedLiveCount, fetchedAt, delayed, onOpen, onWatchlist, onLive,
+  event, personalized, liveCount, followedLiveCount, fetchedAt, delayed, onOpen, onWatchlist, onLive, community,
 }: {
   event?: LiveEvent;
   personalized: boolean;
@@ -13,6 +13,7 @@ export function SportsGlance({
   onOpen: (event: LiveEvent) => void;
   onWatchlist: () => void;
   onLive: () => void;
+  community?: { label: string; pct: number; event: LiveEvent } | null;
 }) {
   const eventLabel = personalized
     ? event?.status === 'live' ? 'Your live game' : event?.status === 'scheduled' ? 'Your next game' : 'Your latest final'
@@ -33,6 +34,9 @@ export function SportsGlance({
         <h3>{eventLabel}</h3>
         <MatchCard key={event.league+':'+event.id} event={event} onOpen={onOpen} label={`Glance game: ${event.name}`}/>
       </> : <p>No live or upcoming games in the current feed.</p>}
+      {community && <button className="cw-community-pick" onClick={()=>onOpen(community.event)}>
+        Community pick · <strong>{community.label}</strong> — {community.pct}% of pickers
+      </button>}
     </div>
   </section>;
 }

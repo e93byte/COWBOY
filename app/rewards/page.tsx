@@ -4,6 +4,27 @@ import { useEffect, useState } from 'react';
 import { api, useAccount, type User } from '../components/AccountPicks';
 
 type Badge = { id: string; label: string; earned: boolean; progress: number; target: number };
+type Ticket = { status: string; startsAt: string };
+
+function pickStreaks(tickets: Ticket[]) {
+  const results = tickets
+    .filter(t => (t.status === 'won' || t.status === 'lost') && Number.isFinite(Date.parse(t.startsAt)))
+    .sort((a, b) => Date.parse(b.startsAt) - Date.parse(a.startsAt));
+  let current = 0;
+  if (results[0]) {
+    const latest = results[0].status;
+    for (const ticket of results) {
+      if (ticket.status !== latest) break;
+      current++;
+    }
+  }
+  let best = 0, run = 0;
+  for (const ticket of results) {
+    run = ticket.status === 'won' ? run + 1 : 0;
+    best = Math.max(best, run);
+  }
+  return { current, best, hot: results[0]?.status === 'won' ? current : 0 };
+}
 
 function rewardLabel(reason: string) {
   if (reason === 'signup_bonus') return 'Welcome bonus';
@@ -12,7 +33,7 @@ function rewardLabel(reason: string) {
 }
 
 export default function RewardsPage() {
-  const { user, accountLoading } = useAccount();
+  const { user, accountLoading, tickets } = useAccount();
   const [tokens, setTokens] = useState<{ tokens: number; ledger: Array<{amount:number;reason:string;at:string}> } | null>(null);
   const [badges, setBadges] = useState<Badge[]>([]);
   const [loading, setLoading] = useState(true);
@@ -50,6 +71,14 @@ export default function RewardsPage() {
     <div className="cw-page">
       <h1>Rewards</h1>
       <p className="cw-page-note">Start with 100 tokens and earn 10 for each confirmed correct pick. Tokens have no cash value, cannot be purchased, and are never redeemable for money.</p>
+      {user && tickets.length > 0 && (() => {
+        const streaks = pickStreaks(tickets);
+        return streaks.best > 0 ? <p className="cw-page-note" role="status">
+          {streaks.hot > 0
+            ? <>On a <strong>{streaks.hot}-pick win streak</strong> — best run: {streaks.best}.</>
+            : <>Best win streak: <strong>{streaks.best}</strong> picks.</>}
+        </p> : null;
+      })()}
       {error && <p className="cw-form-error" role="alert">{error}</p>}
       {loading ? <p>Loading rewards…</p> : (
         <>
