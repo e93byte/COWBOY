@@ -73,6 +73,8 @@ type OddsApiMarket = {
   home_team?: string;
   away_team?: string;
   commence_time?: string;
+  /** Provider-side update timestamp; absent means unknown, not "now". */
+  last_updated?: string;
   bookmakers?: Array<{
     title?: string;
     markets?: Array<{
@@ -106,7 +108,15 @@ const object = (value: unknown): Record<string, any> =>
   value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, any> : {};
 
 // ---------- quota ----------
-type QuotaState = { day: string; used: number; exhaustedUntil: number; retryAfterUntil: number };
+type QuotaState = {
+  day: string;
+  used: number;
+  /** Self-imposed daily cap exhaustion — resets at UTC midnight. */
+  capExhaustedUntil: number;
+  /** Provider-reported exhaustion — sticky until headers show credits again. */
+  providerExhausted: boolean;
+  retryAfterUntil: number;
+};
 
 function utcDay(now: number): string {
   return new Date(now).toISOString().slice(0, 10);
@@ -116,19 +126,39 @@ function utcDay(now: number): string {
 export function createQuotaTracker(options: { now?: () => number; dailyCredits?: number } = {}) {
   const now = options.now ?? Date.now;
   const dailyCredits = Math.max(0, options.dailyCredits ?? DEFAULT_DAILY_CREDITS);
-  let state: QuotaState = { day: utcDay(now()), used: 0, exhaustedUntil: 0, retryAfterUntil: 0 };
+  let state: QuotaState = {
+    day: utcDay(now()), used: 0,
+    capExhaustedUntil: 0, providerExhausted: false, retryAfterUntil: 0,
+  };
 
   function rollDay() {
     const day = utcDay(now());
-    if (state.day !== day) state = { day, used: 0, exhaustedUntil: 0, retryAfterUntil: 0 };
+    if (state.day !== day) {
+      state.day = day;
+      state.used = 0;
+      state.capExhaustedUntil = 0;
+      // providerExhausted deliberately survives the day boundary: the
+      // provider's quota window is not guaranteed to be a UTC day.
+    }
   }
 
+  const nextMidnight = () => Date.parse(`${utcDay(now() + 86_400_000)}T00:00:00Z`);
+
   return {
-    /** Reserve one credit before calling upstream. False when budget is spent. */
-    allow(): boolean {
+    /**
+     * Atomically reserve `cost` credits before calling upstream. The
+     * reservation increments `used` synchronously, so concurrent callers
+     * cannot all pass a nearly-empty budget. False when exhausted.
+     */
+    allow(cost = 1): boolean {
       rollDay();
-      if (now() < state.exhaustedUntil || now() < state.retryAfterUntil) return false;
-      return dailyCredits === 0 || state.used < dailyCredits;
+      if (state.providerExhausted || now() < state.capExhaustedUntil || now() < state.retryAfterUntil) return false;
+      if (dailyCredits > 0 && state.used + cost > dailyCredits) {
+        state.capExhaustedUntil = nextMidnight();
+        return false;
+      }
+      state.used += cost;
+      return true;
     },
     /** Honor a provider Retry-After hint by idling upstream calls. */
     noteRetryAfter(seconds: number) {
@@ -136,34 +166,43 @@ export function createQuotaTracker(options: { now?: () => number; dailyCredits?:
         state.retryAfterUntil = Math.max(state.retryAfterUntil, now() + seconds * 1000);
       }
     },
-    /** Record actual usage reported by the provider headers. */
-    observe(headers: Headers | null, estimatedCost = 1) {
+    /**
+     * Reconcile with provider headers after a call. `allow()` already
+     * reserved the credit, so usage is never double-counted: provider
+     * headers can only raise the observed total, and a positive
+     * x-requests-remaining clears provider-reported exhaustion.
+     */
+    observe(headers: Headers | null) {
       rollDay();
-      // Number(null) === 0, so missing headers must be mapped to NaN explicitly.
       const headerNum = (name: string) => {
         const raw = headers?.get(name);
         return raw === null || raw === undefined || raw === '' ? NaN : Number(raw);
       };
       const remaining = headerNum('x-requests-remaining');
       const usedHeader = headerNum('x-requests-used');
-      const last = headerNum('x-requests-last');
-      // Header usage is authoritative when present; otherwise count our call.
       if (Number.isFinite(usedHeader) && usedHeader >= 0) {
         state.used = Math.max(state.used, usedHeader);
-      } else {
-        state.used += Number.isFinite(last) && last > 0 ? last : estimatedCost;
       }
-      if (Number.isFinite(remaining) && remaining <= 0) {
-        // Provider says the quota is gone; stay off until the next UTC day.
-        state.exhaustedUntil = Date.parse(`${utcDay(now() + 86_400_000)}T00:00:00Z`);
-      } else if (dailyCredits > 0 && state.used >= dailyCredits) {
-        state.exhaustedUntil = Date.parse(`${utcDay(now() + 86_400_000)}T00:00:00Z`);
+      if (Number.isFinite(remaining)) {
+        if (remaining <= 0) {
+          // Provider says the quota is gone — sticky until it reports
+          // credits again; its reset window is not assumed to be a UTC day.
+          state.providerExhausted = true;
+        } else {
+          state.providerExhausted = false;
+        }
+      }
+      if (dailyCredits > 0 && state.used >= dailyCredits) {
+        state.capExhaustedUntil = nextMidnight();
       }
       return { used: state.used, remaining: Number.isFinite(remaining) ? remaining : null };
     },
     snapshot() {
       rollDay();
-      return { day: state.day, used: state.used, dailyCredits, exhausted: now() < state.exhaustedUntil };
+      return {
+        day: state.day, used: state.used, dailyCredits,
+        exhausted: state.providerExhausted || now() < state.capExhaustedUntil,
+      };
     },
   };
 }
@@ -227,8 +266,9 @@ export function createHybridOddsClient(options: ClientOptions = {}) {
   // One upstream call returns every event for a sport, so the cache key is the
   // full request signature — provider, sport, market set, region, format —
   // never just league:event. This is what actually saves quota.
+  type BoardResult = { payload: OddsApiMarket[] | null; error: OddsErrorCategory | null; cache: CacheState };
   const cache = new Map<string, { payload: OddsApiMarket[] | null; error: OddsErrorCategory | null; fetchedAt: number; expiresAt: number }>();
-  const pending = new Map<string, Promise<{ payload: OddsApiMarket[] | null; error: OddsErrorCategory | null }>>();
+  const pending = new Map<string, Promise<BoardResult>>();
 
   function cacheKey(sportKey: string): string {
     return ['toa', sportKey, ODDS_REGIONS, ODDS_MARKETS, ODDS_FORMAT].join('|');
@@ -242,47 +282,48 @@ export function createHybridOddsClient(options: ClientOptions = {}) {
     cache.set(key, entry);
   }
 
-  async function fetchSportBoard(sportKey: string): Promise<{ payload: OddsApiMarket[] | null; error: OddsErrorCategory | null }> {
+  async function fetchSportBoard(sportKey: string): Promise<BoardResult> {
     const key = cacheKey(sportKey);
     const cached = cache.get(key);
     if (cached && cached.expiresAt > now()) {
-      return { payload: cached.payload, error: cached.error };
+      return { payload: cached.payload, error: cached.error, cache: 'hit' };
     }
     const inFlight = pending.get(key);
     if (inFlight) return inFlight;
 
-    const request = (async () => {
-      if (!apiKey) return { payload: null, error: 'missing_key' as OddsErrorCategory };
-      if (!quota.allow()) return { payload: null, error: 'quota_exhausted' as OddsErrorCategory };
+    const request = (async (): Promise<BoardResult> => {
+      if (!apiKey) return { payload: null, error: 'missing_key', cache: 'miss' };
+      // Breaker first: an open breaker must not burn a quota reservation.
       if (!clientBreaker.allow(clientBreakerKey)) {
-        return { payload: null, error: 'no_provider' as OddsErrorCategory };
+        return { payload: null, error: 'no_provider', cache: 'miss' };
       }
+      // allow() reserves the credit atomically before the fetch is issued.
+      if (!quota.allow()) return { payload: null, error: 'quota_exhausted', cache: 'miss' };
       const url = `https://api.the-odds-api.com/v4/sports/${sportKey}/odds?apiKey=${encodeURIComponent(apiKey)}&regions=${ODDS_REGIONS}&markets=${ODDS_MARKETS}&oddsFormat=${ODDS_FORMAT}`;
       try {
         const res = await fetcher(url);
         quota.observe(res.headers);
         if (res.status === 401 || res.status === 403) {
           clientBreaker.failure(clientBreakerKey);
-          return { payload: null, error: 'unauthorized' as OddsErrorCategory };
+          return { payload: null, error: 'unauthorized', cache: 'miss' };
         }
         if (res.status === 429) {
           clientBreaker.failure(clientBreakerKey);
-          quota.observe(res.headers);
           quota.noteRetryAfter(Number(res.headers.get('retry-after')));
-          return { payload: null, error: 'rate_limited' as OddsErrorCategory };
+          return { payload: null, error: 'rate_limited', cache: 'miss' };
         }
-        if (res.status === 451) return { payload: null, error: 'region_unavailable' as OddsErrorCategory };
+        if (res.status === 451) return { payload: null, error: 'region_unavailable', cache: 'miss' };
         if (!res.ok) {
           clientBreaker.failure(clientBreakerKey);
-          return { payload: null, error: 'network' as OddsErrorCategory };
+          return { payload: null, error: 'network', cache: 'miss' };
         }
         const contentType = res.headers.get('content-type') ?? '';
         if (!contentType.includes('application/json')) {
           await res.body?.cancel().catch(() => undefined);
-          return { payload: null, error: 'malformed' as OddsErrorCategory };
+          return { payload: null, error: 'malformed', cache: 'miss' };
         }
         const data = await res.json();
-        if (!Array.isArray(data)) return { payload: null, error: 'malformed' as OddsErrorCategory };
+        if (!Array.isArray(data)) return { payload: null, error: 'malformed', cache: 'miss' };
         clientBreaker.success(clientBreakerKey);
         // Empty board is a valid market state, not an error.
         const hasLive = data.some((e: OddsApiMarket) =>
@@ -292,20 +333,29 @@ export function createHybridOddsClient(options: ClientOptions = {}) {
           payload: data as OddsApiMarket[], error: null,
           fetchedAt: now(), expiresAt: now() + ttl,
         });
-        return { payload: data as OddsApiMarket[], error: null };
+        return { payload: data as OddsApiMarket[], error: null, cache: 'miss' };
       } catch {
         clientBreaker.failure(clientBreakerKey);
-        return { payload: null, error: 'network' as OddsErrorCategory };
+        return { payload: null, error: 'network', cache: 'miss' };
       }
     })().finally(() => pending.delete(key));
     pending.set(key, request);
     return request;
   }
 
-  function freshnessFor(state: FreshnessState, provider: string | null, fetchedAt: number | null, cache: CacheState, error: OddsErrorCategory | null): OddsFreshness {
+  function freshnessFor(
+    state: FreshnessState, provider: string | null,
+    sourceAt: number | string | null, fetchedAt: number | null,
+    cache: CacheState, error: OddsErrorCategory | null,
+  ): OddsFreshness {
+    // Provider timestamps pass through verbatim when they parse — re-serializing
+    // would rewrite '...Z' to '....000Z' and break string equality for clients.
+    const sourceIso = sourceAt === null ? null
+      : typeof sourceAt === 'number' ? new Date(sourceAt).toISOString()
+      : typeof sourceAt === 'string' && Number.isFinite(Date.parse(sourceAt)) ? sourceAt.trim() : null;
     return {
       state, provider,
-      sourceAt: fetchedAt !== null ? new Date(fetchedAt).toISOString() : null,
+      sourceAt: sourceIso,
       fetchedAt: fetchedAt !== null ? new Date(fetchedAt).toISOString() : null,
       cache, error,
     };
@@ -333,7 +383,7 @@ export function createHybridOddsClient(options: ClientOptions = {}) {
     // ids are opaque and never equal ESPN ids, so matching goes through the
     // canonical identity layer: both team names + commence window must agree.
     if (sportKey && apiKey && espnEvent) {
-      const { payload, error } = await fetchSportBoard(sportKey);
+      const { payload, error, cache: cacheState } = await fetchSportBoard(sportKey);
       const refs: ProviderEventRef[] = (payload ?? []).map(e => ({
         provider: 'the-odds-api',
         providerId: String(e.id ?? ''),
@@ -364,24 +414,25 @@ export function createHybridOddsClient(options: ClientOptions = {}) {
             provider: primary.provider,
             source: 'the-odds-api',
             event: espnEvent,
-            freshness: freshnessFor('fresh', 'the-odds-api', now(), 'miss', null),
+            freshness: freshnessFor('fresh', 'the-odds-api', matched.last_updated ?? null, now(), cacheState, null),
           };
         }
       }
       if (payload && payload.length === 0) {
         // Valid empty market: fall through to ESPN but record the category.
-        return espnResult(espnEvent, base, 'empty_market');
+        return espnResult(espnEvent, base, 'empty_market', cacheState);
       }
-      return espnResult(espnEvent, base, error ?? 'no_provider');
+      return espnResult(espnEvent, base, error ?? 'no_provider', cacheState);
     }
 
-    return espnResult(espnEvent, base, apiKey ? 'no_provider' : 'missing_key');
+    return espnResult(espnEvent, base, apiKey ? 'no_provider' : 'missing_key', 'miss');
   }
 
   function espnResult(
     event: LiveEvent | null,
     base: Omit<HybridOddsResult, 'freshness'>,
     error: OddsErrorCategory | null,
+    cache: CacheState = 'miss',
   ): HybridOddsResult {
     if (event) {
       return {
@@ -395,12 +446,12 @@ export function createHybridOddsClient(options: ClientOptions = {}) {
         provider: event.odds?.provider ?? null,
         source: 'espn',
         event,
-        freshness: freshnessFor('fresh', 'espn', now(), 'miss', error),
+        freshness: freshnessFor('fresh', 'espn', null, now(), cache, error),
       };
     }
     return {
       ...base,
-      freshness: freshnessFor('unavailable', null, null, 'miss', error ?? 'no_provider'),
+      freshness: freshnessFor('unavailable', null, null, null, cache, error ?? 'no_provider'),
     };
   }
 

@@ -164,9 +164,9 @@ test('451 reports region_unavailable', async () => {
 test('quota exhaustion disables upstream refresh until the next day', async () => {
   let now = NOW;
   const tracker = createQuotaTracker({ now: () => now, dailyCredits: 2 });
+  // allow() reserves atomically: two reservations exhaust a cap of 2.
   assert.equal(tracker.allow(), true);
-  tracker.observe(jsonResponse([]).headers);
-  tracker.observe(jsonResponse([]).headers);
+  assert.equal(tracker.allow(), true);
   assert.equal(tracker.allow(), false);
   assert.equal(tracker.snapshot().exhausted, true);
   now += 86_400_000;
