@@ -1,5 +1,6 @@
 import { getLiveEvent } from './live-sports';
 import { CircuitBreaker } from './circuit-breaker';
+import { matchProviderEvent, type ProviderEventRef } from './event-identity';
 import type { GameOdds, LiveEvent } from './live-sports';
 
 // Hybrid odds resolves bookmaker lines for one event. The Odds API is the
@@ -252,8 +253,9 @@ export function createHybridOddsClient(options: ClientOptions = {}) {
 
     const request = (async () => {
       if (!apiKey) return { payload: null, error: 'missing_key' as OddsErrorCategory };
-      if (!quota.allow() || !clientBreaker.allow(clientBreakerKey)) {
-        return { payload: null, error: 'quota_exhausted' as OddsErrorCategory };
+      if (!quota.allow()) return { payload: null, error: 'quota_exhausted' as OddsErrorCategory };
+      if (!clientBreaker.allow(clientBreakerKey)) {
+        return { payload: null, error: 'no_provider' as OddsErrorCategory };
       }
       const url = `https://api.the-odds-api.com/v4/sports/${sportKey}/odds?apiKey=${encodeURIComponent(apiKey)}&regions=${ODDS_REGIONS}&markets=${ODDS_MARKETS}&oddsFormat=${ODDS_FORMAT}`;
       try {
@@ -317,65 +319,84 @@ export function createHybridOddsClient(options: ClientOptions = {}) {
       source: null as HybridOddsResult['source'], event: null as LiveEvent | null,
     };
 
-    // Primary: The Odds API (bookmaker-odds capability only).
-    if (sportKey && apiKey) {
+    // Resolve the canonical ESPN event first — it supplies the identity
+    // (team names + start) used to safely match provider odds boards, and it
+    // is also the fallback payload when the primary provider can't serve.
+    let espnEvent: LiveEvent | null = null;
+    try {
+      espnEvent = await getEvent(league, id);
+    } catch {
+      espnEvent = null;
+    }
+
+    // Primary: The Odds API (bookmaker-odds capability only). Provider event
+    // ids are opaque and never equal ESPN ids, so matching goes through the
+    // canonical identity layer: both team names + commence window must agree.
+    if (sportKey && apiKey && espnEvent) {
       const { payload, error } = await fetchSportBoard(sportKey);
-      const matched = payload?.find(e => String(e.id) === String(id)) ?? null;
+      const refs: ProviderEventRef[] = (payload ?? []).map(e => ({
+        provider: 'the-odds-api',
+        providerId: String(e.id ?? ''),
+        homeName: e.home_team ?? '',
+        awayName: e.away_team ?? '',
+        startsAt: e.commence_time ?? null,
+      }));
+      const match = matchProviderEvent(refs, {
+        canonicalId: espnEvent.id,
+        league,
+        homeName: espnEvent.home.name,
+        awayName: espnEvent.away.name,
+        startsAt: espnEvent.startsAt,
+      });
+      const matched = match ? payload!.find(e => String(e.id) === match.ref.providerId) ?? null : null;
       if (matched) {
         const oddsBooks = mapOddsApiEventToOddsBooks(matched);
         const primary = oddsBooks[0] ?? null;
-        const commence = matched.commence_time ?? null;
-        return {
-          ...base,
-          eventId: String(matched.id ?? id),
-          name: matched.home_team && matched.away_team ? `${matched.away_team} @ ${matched.home_team}` : null,
-          startsAt: commence,
-          odds: primary,
-          oddsBooks,
-          provider: primary?.provider ?? 'the-odds-api',
-          source: 'the-odds-api',
-          freshness: freshnessFor('fresh', 'the-odds-api', now(), 'miss', null),
-        };
+        if (primary) {
+          return {
+            ...base,
+            eventId: espnEvent.id,
+            name: espnEvent.name,
+            startsAt: espnEvent.startsAt,
+            status: espnEvent.status,
+            odds: primary,
+            oddsBooks,
+            provider: primary.provider,
+            source: 'the-odds-api',
+            event: espnEvent,
+            freshness: freshnessFor('fresh', 'the-odds-api', now(), 'miss', null),
+          };
+        }
       }
       if (payload && payload.length === 0) {
         // Valid empty market: fall through to ESPN but record the category.
-        return espnFallback(league, id, base, 'empty_market');
+        return espnResult(espnEvent, base, 'empty_market');
       }
-      if (error === 'quota_exhausted' || error === 'missing_key' || error === 'unauthorized'
-        || error === 'rate_limited' || error === 'region_unavailable') {
-        return espnFallback(league, id, base, error);
-      }
-      // network/malformed: still try the fallback provider.
-      return espnFallback(league, id, base, error ?? 'network');
+      return espnResult(espnEvent, base, error ?? 'no_provider');
     }
 
-    return espnFallback(league, id, base, apiKey ? 'no_provider' : 'missing_key');
+    return espnResult(espnEvent, base, apiKey ? 'no_provider' : 'missing_key');
   }
 
-  async function espnFallback(
-    league: string, id: string,
+  function espnResult(
+    event: LiveEvent | null,
     base: Omit<HybridOddsResult, 'freshness'>,
     error: OddsErrorCategory | null,
-  ): Promise<HybridOddsResult> {
-    try {
-      const event = await getEvent(league, id);
-      if (event) {
-        return {
-          ...base,
-          eventId: event.id,
-          name: event.name,
-          startsAt: event.startsAt,
-          status: event.status,
-          odds: event.odds ?? null,
-          oddsBooks: event.oddsBooks ?? [],
-          provider: event.odds?.provider ?? null,
-          source: 'espn',
-          event,
-          freshness: freshnessFor('fresh', 'espn', now(), 'miss', error),
-        };
-      }
-    } catch {
-      // fall through
+  ): HybridOddsResult {
+    if (event) {
+      return {
+        ...base,
+        eventId: event.id,
+        name: event.name,
+        startsAt: event.startsAt,
+        status: event.status,
+        odds: event.odds ?? null,
+        oddsBooks: event.oddsBooks ?? [],
+        provider: event.odds?.provider ?? null,
+        source: 'espn',
+        event,
+        freshness: freshnessFor('fresh', 'espn', now(), 'miss', error),
+      };
     }
     return {
       ...base,

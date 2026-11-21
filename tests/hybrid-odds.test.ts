@@ -31,19 +31,33 @@ function jsonResponse(body: unknown, init: { status?: number; headers?: Record<s
   });
 }
 
+// Canonical ESPN event the ToA fixture must identity-match: same team names,
+// start within the 72h provider-drift window.
+function espnEvent(id = '401') {
+  return {
+    id, league: 'nfl', sport: 'football', leagueName: 'NFL',
+    name: 'Away Team at Home Team', startsAt: '2026-11-22T00:00:00Z',
+    status: 'scheduled', statusText: 'Scheduled', clock: null, period: null,
+    home: { id: '11', name: 'Home Team', shortName: 'Home', score: null },
+    away: { id: '22', name: 'Away Team', shortName: 'Away', score: null },
+    winner: null, completed: false,
+  } as any;
+}
+
 function client(overrides: {
   fetch?: (url: string, init?: RequestInit) => Promise<Response>;
   env?: Record<string, string>;
   now?: () => number;
   ttl?: { liveMs?: number; pregameMs?: number };
-  getEvent?: (league: string, id: string) => Promise<null>;
+  getEvent?: (league: string, id: string) => Promise<any>;
+  event?: any;
 } = {}) {
   return createHybridOddsClient({
     fetch: overrides.fetch ?? (async () => jsonResponse([oddsEvent()])),
     env: overrides.env ?? { ODDS_API_KEY: 'test-key' },
     now: overrides.now ?? (() => NOW),
     ttl: overrides.ttl,
-    getEvent: overrides.getEvent ?? (async () => null),
+    getEvent: overrides.getEvent ?? (async () => overrides.event === undefined ? espnEvent() : overrides.event),
   });
 }
 
@@ -59,14 +73,14 @@ test('sport key mapping covers supported leagues only', () => {
 test('cache hit avoids a second upstream call for the same sport board', async () => {
   let calls = 0;
   const c = client({
-    fetch: async () => { calls++; return jsonResponse([oddsEvent('e1'), oddsEvent('e2')]); },
+    fetch: async () => { calls++; return jsonResponse([oddsEvent('e1'), oddsEvent('e2', '2026-12-15T00:00:00Z')]); },
   });
   const first = await c.fetchOddsWithFallback('nfl', 'e1');
-  const second = await c.fetchOddsWithFallback('nfl', 'e2');
+  const second = await c.fetchOddsWithFallback('nfl', 'e1');
   assert.equal(calls, 1);
   assert.equal(first.source, 'the-odds-api');
   assert.equal(second.source, 'the-odds-api');
-  assert.equal(second.eventId, 'e2');
+  assert.equal(second.eventId, '401'); // canonical ESPN id, not provider id
   assert.equal(first.odds?.provider, 'DraftKings');
   assert.equal(first.freshness.cache, 'miss');
 });
@@ -120,7 +134,7 @@ test('different sports, markets and regions never share cache entries', async ()
 test('missing API key skips upstream and reports missing_key', async () => {
   const c = client({ env: {} });
   const result = await c.fetchOddsWithFallback('nfl', 'e1');
-  assert.equal(result.source, null); // ESPN stub returns nothing
+  assert.equal(result.source, 'espn');
   assert.equal(result.freshness.error, 'missing_key');
 });
 
@@ -129,7 +143,7 @@ test('401 and 403 mark the provider unauthorized and fall back', async () => {
     const c = client({ fetch: async () => jsonResponse({ error: 'no' }, { status }) });
     const result = await c.fetchOddsWithFallback('nfl', 'e1');
     assert.equal(result.freshness.error, 'unauthorized');
-    assert.equal(result.source, null);
+    assert.equal(result.source, 'espn');
   }
 });
 
@@ -185,7 +199,7 @@ test('network failure falls back without throwing', async () => {
   const c = client({ fetch: async () => { throw new Error('socket hangup'); } });
   const result = await c.fetchOddsWithFallback('nfl', 'e1');
   assert.equal(result.freshness.error, 'network');
-  assert.equal(result.source, null);
+  assert.equal(result.source, 'espn');
 });
 
 test('league without an odds-api mapping never calls upstream', async () => {
@@ -210,7 +224,7 @@ test('recovery: a later success clears the breaker after failures', async () => 
   // Breaker open after 3 failures — upstream is skipped, error surfaces.
   const blocked = await c.fetchOddsWithFallback('nfl', 'e1');
   assert.equal(calls, 3);
-  assert.equal(blocked.source, null);
+  assert.equal(blocked.source, 'espn');
 });
 
 test('freshness never labels unavailable data as fresh', async () => {
