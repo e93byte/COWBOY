@@ -171,6 +171,11 @@ export type LiveEvent = {
   pregameLeaders?: GameLeaderCategory[];
   probablePitchers?: Partial<Record<'away'|'home',ProbablePitcher>>;
   pitchingDecisions?: {kind:'win'|'loss'|'save'; name:string; side:'away'|'home'}[];
+  baseballSituation?: {
+    balls: number; strikes: number; outs: number;
+    runners: {base: 'First' | 'Second' | 'Third'; name: string}[];
+    batter?: string; pitcher?: string;
+  };
   scoringPlays?: ScoringPlay[];
   timeline?: ScoringPlay[];
   soccerCommentary?: {sequence:number; clock:string | null; description:string}[];
@@ -1650,9 +1655,11 @@ export function createLiveSportsClient(options: ClientOptions = {}) {
       .catch(() => null);
     if (exchange && (exchange.home !== null || exchange.away !== null)) {
       oddsBooks.push({
-        provider: 'Kalshi', spread: null, total: null,
+        provider: 'Kalshi',
+        spread: exchange.spread, total: exchange.total,
         homeMoneyline: exchange.home, awayMoneyline: exchange.away, drawMoneyline: exchange.draw,
-        homeSpreadPrice: null, awaySpreadPrice: null, overPrice: null, underPrice: null,
+        homeSpreadPrice: exchange.homeSpreadPrice, awaySpreadPrice: exchange.awaySpreadPrice,
+        overPrice: exchange.overPrice, underPrice: exchange.underPrice,
         openSpread: null, openTotal: null, openHomeMoneyline: null, openAwayMoneyline: null, openDrawMoneyline: null,
         favorite: exchange.home !== null && exchange.away !== null
           ? (Math.abs(exchange.home) < Math.abs(exchange.away) ? 'home' : 'away') : null,
