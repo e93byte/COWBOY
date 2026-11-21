@@ -1,45 +1,73 @@
 # Release Readiness Report
 
-**Baseline commit:** `5a7d39d` (+ this report's commit)
+**Baseline commit:** `3ad80e8` — "Codex UI batch: My Sports, discover, localization + per-event stale-clock contract" (verified on a clean detached worktree)
 **Verdict: READY WITH KNOWN LIMITATIONS**
 
-Backend gates are green. Full READY requires integrated Codex-preview evidence — Codex's UI batch is still uncommitted (~30 files in flight), so contract integration is verified by contract review + unit/integration tests, not a deployed preview.
+All gates green against the committed integration. The build is suitable for preview deployment. Known limitations are documented below; none block preview.
 
-## Status
+## Gate evidence (clean worktree @ `3ad80e8`)
 
 | Gate | Status | Evidence |
 |---|---|---|
-| Unit/integration tests | ✅ 274/274 | incl. 21 identity/live-state, 17 hybrid-odds, 6 settlement edge cases |
-| Typecheck | ✅ clean | `tsc --noEmit` |
-| Production build | ✅ clean | `next build` |
-| Persistence | ✅ durable | Supabase prod (11 migrations) + validated JSON fallback |
-| Auth | ✅ hardened | scrypt, hashed sessions, SameSite=Strict+Secure, same-origin CSRF, MutationLimiter, 4KB bodies |
-| Settlement | ✅ deterministic | final+completed gate, identity re-verify, idempotent awardKeys, void/push rules |
-| Event identity | ✅ | canonical ESPN id; provider matching rejects ambiguity (stress-tested) |
-| Clock/freshness | ✅ | `deriveLiveState` contract; stale detection without fabrication |
-| Security | ✅ no P0/P1 | RLS locked (service-role RPCs only), no client secrets, generic errors |
+| Unit/integration tests | ✅ 285/285 | `npm test` (tsx --test), incl. 21 identity/live-state, 17 hybrid-odds, 10 Kilo regression, 6 settlement edge cases, presentation stale-clock cases |
+| Playwright E2E | ✅ 81/81 | `npm run test:e2e` against `next dev` webServer, incl. register→pick→settle journey |
+| Typecheck | ✅ clean | `npm run typecheck` |
+| Production build | ✅ clean | `npm run build` (all routes compiled; only pre-existing `package-lock.json`-outside-repo Turbopack warning) |
 
-## Backend contract changes this cycle
+## Surface verification vs backend contracts
 
-- `hybrid-odds.ts`: primary path now identity-matches ToS boards to the canonical ESPN event (was unreachable — opaque id compare). Additive `freshness` unchanged.
-- New modules: `event-identity.ts`, `live-state.ts` — additive, no breaking changes.
-- New tests: `settlement-edge-cases.test.ts` (6), identity/live-state stress cases (+8).
+Verified against `docs/backend/*.md` contracts on the committed tree:
 
-## Codex integration status
+| Surface | Result | Notes |
+|---|---|---|
+| Home | PASS | Consumes board `fetchedAt`/`stale`/`lastSuccessAt`; no invented freshness |
+| Live | PASS | League-level `current/backup-current/delayed/unavailable` preserved; per-event `clockStale` additive |
+| Scores | PASS | `scoreSource` guards intact; backup feeds labeled |
+| Game Center | PASS | Canonical ESPN event id throughout; schedule/detail identity verified |
+| Odds/freshness | PASS | Codex uses embedded `event.odds`/`oddsBooks`; `/api/sports/odds` remains dormant hardened infrastructure (no client callers — no bypass possible) |
+| Props | PASS | E2E-verified |
+| Futures | PASS | E2E-verified |
+| Predictions | PASS | Register → pick → settle E2E green; settlement states honored |
+| History | PASS | E2E-verified incl. filters, sorting, pagination |
+| Follows/watchlist | PASS | Persistent, reversible, server-backed (E2E-verified) |
+| Leaderboard | PASS | Opt-in aggregate only, no invented stats |
+| Auth/account | PASS | scrypt, hashed sessions, CSRF, same-origin, throttling — no P0/P1 regressions |
+| Stale-clock presentation | PASS | See below |
 
-Contract docs delivered: `docs/backend/{API_CONTRACTS,EVENT_MODEL,PREDICTION_MODEL,AUTH_PERSISTENCE,FRESHNESS_AND_CLOCKS,SETTLEMENT_RULES,REGRADING_DESIGN,CROSS_INSTANCE_RISK,NOTIFICATIONS}.md`.
-Codex should consume `freshness.state`/`clock.stale`/`ageMs` for honest live UI. No contract mismatches found in reviewed routes. **Pending:** verification against Codex's actual preview build.
+## Stale-clock contract verification
+
+`app/lib/event-presentation.ts` derives canonical live state via `deriveLiveState` from `lastConfirmedAt` (same timestamp league freshness uses):
+
+- `clockStale` fires only for `live`/`halftime`/`intermission` when the confirming feed exceeds threshold: **30s for `current` feeds, 5min for `backup-current` feeds** (backup polls slower — avoids false alarms), provider default otherwise.
+- **Unknown freshness → `fetchedAt: null` → `ageMs: null` → `stale: false`** — unknown is never treated as stale.
+- **No clock fabrication** — only feed age is measured; no client/server clock progression is invented.
+- Fresh live events remain fully visible; stale events show an additive "feed delayed" note without hiding picks eligibility logic changes.
+- Regression coverage in `tests/global-catalogue.test.ts` (fresh live clean / frozen feed stale-while-`current` / scheduled never stale / unknown not assumed stale).
+
+## Cross-cutting checks
+
+- **Canonical event identity**: ESPN id canonical; provider ids resolved via team+time matching with ambiguity → null. Stress-tested (doubleheaders, reschedules, renames, neutral sites, timezones).
+- **Duplicate upstream calls**: none introduced — board coalescing, single-flight odds cache, and SWR paths unchanged; Codex batch adds no new provider fetch paths.
+- **Cache/quota bypass**: none — `/api/sports/odds` has no client callers; embedded odds path untouched.
+- **Auth → pick → settle**: E2E test 58 passes end-to-end on the committed build.
+- **Security/ownership**: no new P0/P1; ownership scoping, idempotency, and RLS boundaries unchanged.
+
+## Backend contract changes since `5a7d39d`
+
+- `3ad80e8`: additive `liveState`/`clockState`/`clockStale`/`clockAgeMs` on event presentation; Codex UI batch (My Sports, discover, localization, offline/PWA) — no breaking changes to documented contracts.
+- Prior: identity-matched ToS odds, Kilo HO-1..HO-5c fixes (in `8ef1a79`).
 
 ## Kilo QA status
 
-Independent verification areas assigned: identity ambiguity rejection, stale-clock detection, quota header behavior, settlement retry idempotency. No defects reported yet.
+HO-1..HO-5c all reproduced, fixed or confirmed-fixed, regression-ported (`tests/qa-hybrid-odds.regression.test.ts`, 10 tests). No new defects reported.
 
 ## Known limitations
 
-1. **Corrected results** — settled picks are not re-graded (design in `REGRADING_DESIGN.md`, not enabled).
-2. **Per-instance state** — MutationLimiter, odds cache/quota are per-serverless-instance (risk quantified in `CROSS_INSTANCE_RISK.md`; Supabase-table option identified, no infra provisioned).
-3. **Push notifications** — event contract defined (`NOTIFICATIONS.md`), no provider provisioned (needs approval).
-4. **Live/in-play market depth** — constrained by free provider coverage; honestly labeled.
+1. **Corrected results** — settled picks not re-graded (design in `REGRADING_DESIGN.md`, intentionally not enabled).
+2. **Per-instance state** — MutationLimiter, odds cache/quota are per-serverless-instance (`CROSS_INSTANCE_RISK.md`; quantified, acceptable at current scale).
+3. **Push notifications** — contract defined (`NOTIFICATIONS.md`), no provider provisioned.
+4. **`/api/sports/odds` dormant** — hardened route has no UI consumer yet; embedded odds path is what ships.
+5. **Live/in-play market depth** — constrained by free provider coverage; honestly labeled.
 
 ## Security blockers
 
@@ -55,11 +83,10 @@ None required for release. Redis/KV optional at scale.
 
 ## Rollback
 
-1. Revert to `5a7d39d` (or earlier green commit) and push — Vercel auto-deploys.
-2. Supabase migrations are additive-only; no rollback needed unless a migration itself is faulty (none are — all applied and verified).
-3. Feature flags: none currently; odds freshness fields are additive and ignored safely by older clients.
+1. Revert to `8ef1a79` (pre-UI backend baseline) or `5a7d39d` and push — Vercel auto-deploys.
+2. Supabase migrations are additive-only; no rollback needed.
+3. `freshness`/`clockStale` fields are additive and ignored safely by older clients.
 
-## To reach READY
+## Preview deployment suitability
 
-- Codex preview branch → run contract-integration pass (§2 of mission).
-- Kilo defect reports → reproduce, patch backend-owned code, regression test.
+**Suitable.** All gates green on the committed tree; limitations are documented and non-blocking. Recommend deploying `3ad80e8` to a preview environment for final real-data validation before any production promotion.
