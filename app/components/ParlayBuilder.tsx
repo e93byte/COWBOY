@@ -8,7 +8,7 @@ import { ScheduleTimeZone } from './ScheduleTimeZone';
 import { scheduleTime } from '../lib/schedule-time';
 import { LIVE_LEAGUES } from '../lib/sports-leagues';
 import { pickName, pickSides, postedPickLine, supportsDrawPick, type PickMarket, type PickSide } from '../lib/pick-outcomes';
-import { calculateCombinedOdds, calculatePotentialPayout, checkCorrelation, validateParlayLegs, type ParlayLeg, type ParlayInput } from '../lib/parlay';
+import { calculateCombinedOdds, checkCorrelation, validateParlayLegs, type ParlayLeg, type ParlayInput } from '../lib/parlay';
 import { americanOdds, impliedProbability } from '../lib/odds';
 import type { GameOdds } from '../lib/live-sports';
 
@@ -82,7 +82,6 @@ export function ParlayBuilder({
   const correlation = checkCorrelation(legsWithOdds);
   const validation = validateParlayLegs(legsWithOdds);
   const combinedOdds = legsWithOdds.length >= 2 ? calculateCombinedOdds(legsWithOdds) : 0;
-  const potentialPayout = combinedOdds > 0 ? calculatePotentialPayout(100, combinedOdds) : 0;
 
   useEffect(() => {
     if (correlation.correlatedGroups.length > 0 && !showCorrelationWarning) {
@@ -187,10 +186,7 @@ export function ParlayBuilder({
               <span>Combined Odds</span>
               <strong>{combinedOdds > 0 ? americanOdds(combinedOdds) : '—'}</strong>
             </div>
-            <div className="cw-parlay-payout">
-              <span>Potential Payout (per 100)</span>
-              <strong>{potentialPayout > 0 ? potentialPayout.toFixed(2) : '—'}</strong>
-            </div>
+            <div className="cw-parlay-payout"><span>Free-play entry</span><strong>No cash value</strong></div>
           </div>
           {disabled && <p className="cw-form-error" role="status">A leg is paused or locked. Refresh the board or remove the unavailable leg.</p>}
           <button className="cw-primary cw-parlay-review" disabled={disabled || pending || count < 2 || !validation.valid} onClick={user ? onReview : onSignIn}>
@@ -254,7 +250,6 @@ export function ParlayReviewModal({
   });
 
   const combinedOdds = calculateCombinedOdds(legsWithOdds);
-  const potentialPayout = calculatePotentialPayout(100, combinedOdds);
 
   return (
     <Modal title={`${selections.length}-leg Parlay Review`} locked={pending} onClose={onCancel}>
@@ -279,8 +274,8 @@ export function ParlayReviewModal({
         );
       })}
       <div className="cw-parlay-summary cw-review-summary">
-        <div><span>Combined Odds</span><strong>{americanOdds(combinedOdds)}</strong></div>
-        <div><span>Potential Payout (per 100)</span><strong>{potentialPayout.toFixed(2)}</strong></div>
+        <div><span>Combined reference odds</span><strong>{americanOdds(combinedOdds)}</strong></div>
+        <div><span>Free-play entry</span><strong>No cash value</strong></div>
       </div>
       <p className="cw-dialog-copy">Each leg settles independently. All legs must win for parlay to win. Voided legs reduce parlay to remaining legs.</p>
       <button className="cw-primary" disabled={pending} onClick={() => void onConfirm()}>

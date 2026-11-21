@@ -254,7 +254,7 @@ export class PickService {
     const user = await this.store.getUser(token);
     if (user) {
       for (const update of updates) {
-        if (update.status === "won") await this.store.awardTokens(token, user.id, 10, "pick_win");
+        if (update.status === "won") await this.store.awardTokens(token, user.id, 10, "pick_win", `pick_win:${update.id}`);
       }
     }
     return this.list(token);

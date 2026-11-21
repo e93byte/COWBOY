@@ -85,8 +85,8 @@ export default function ParlaysPage() {
                     ))}
                   </div>
                   <div className="cw-parlay-summary">
-                    <span>Combined Odds</span>
-                    <strong>{americanOdds(parlay.combinedOdds ?? 0)}</strong>{' · '}<span>Potential payout on $100</span> <strong>${(parlay.potentialPayout ?? 0).toFixed(2)}</strong>
+                    <span>Combined reference odds</span>
+                    <strong>{americanOdds(parlay.combinedOdds ?? 0)}</strong>{' · '}<span>Free-play entry</span> <strong>No cash value</strong>
                   </div>
                 </div>
               ))}

@@ -192,8 +192,6 @@ export class SupabaseStore {
       p_created_at: parlay.createdAt,
       p_status: parlay.status,
       p_combined_odds: parlay.combinedOdds,
-      p_stake: parlay.stake,
-      p_potential_payout: parlay.potentialPayout,
     });
   }
 
@@ -222,16 +220,16 @@ export class SupabaseStore {
     return (await rpc<ContestStanding[]>(this.config, "cowboy_contest_standings", { p_contest_id: contestId })) ?? [];
   }
 
-  async getTokens(token: string | null): Promise<{ tokens: number; ledger: Array<{amount:number;reason:string;at:string}> }> {
-    return rpc<{ tokens: number; ledger: Array<{amount:number;reason:string;at:string}> }>(this.config, "cowboy_user_tokens", {
+  async getTokens(token: string | null): Promise<{ tokens: number; ledger: Array<{amount:number;reason:string;at:string;awardKey?:string}> }> {
+    return rpc<{ tokens: number; ledger: Array<{amount:number;reason:string;at:string;awardKey?:string}> }>(this.config, "cowboy_user_tokens", {
       p_token_hash: tokenHash(token)!,
     });
   }
 
-  async awardTokens(token: string | null, userId: string, amount: number, reason: string): Promise<void> {
+  async awardTokens(token: string | null, userId: string, amount: number, reason: string, awardKey: string): Promise<void> {
     if (!token) throw new AccountError("unauthorized", "Sign in to award tokens.", 401);
     await rpc<{ tokens: number }>(this.config, "cowboy_award_tokens", {
-      p_token_hash: tokenHash(token)!, p_amount: amount, p_reason: reason,
+      p_token_hash: tokenHash(token)!, p_amount: amount, p_reason: reason, p_award_key: awardKey,
     });
   }
 

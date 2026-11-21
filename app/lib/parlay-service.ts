@@ -2,15 +2,13 @@ import { AccountError, type StoredParlay } from "./account-store";
 import type { AccountBackend } from "./store-backend";
 import { LIVE_LEAGUES, type LiveEvent } from "./live-sports";
 import { pickName, pickSides, postedPrice, type PickMarket, type PickSide } from "./pick-outcomes";
-import { settleParlay, type ParlayTicket, type ParlayLeg, validateParlayLegs, checkCorrelation, generateParlayId, calculateCombinedOdds, calculatePotentialPayout } from "./parlay";
+import { settleParlay, type ParlayTicket, type ParlayLeg, validateParlayLegs, checkCorrelation, generateParlayId, calculateCombinedOdds } from "./parlay";
 import type { ParlayInput } from "./parlay";
 
 export type RealParlayTicket = {
   id: string;
   legs: ParlayLeg[];
   combinedOdds: number;
-  stake: number;
-  potentialPayout: number;
   status: "open" | "won" | "lost" | "void" | "cancelled";
   createdAt: string;
   settledAt: string | null;
@@ -26,8 +24,6 @@ export function publicParlayTicket(parlay: StoredParlay): RealParlayTicket {
     id: parlay.id,
     legs: parlay.legs,
     combinedOdds: parlay.combinedOdds,
-    stake: parlay.stake,
-    potentialPayout: parlay.potentialPayout,
     status: parlay.status,
     createdAt: parlay.createdAt,
     settledAt: parlay.settledAt,
@@ -88,8 +84,6 @@ export class ParlayService {
     if (!legCorrelation.allowed) throw new AccountError("invalid_input", legCorrelation.reason ?? "Correlated legs not allowed.");
 
     const combinedOdds = legsWithDetails.length >= 2 ? calculateCombinedOdds(legsWithDetails) : 0;
-    const stake = 100;
-    const potentialPayout = combinedOdds > 0 ? calculatePotentialPayout(stake, combinedOdds) : 0;
 
     const parlayId = generateParlayId();
     const entryId = parlayId;
@@ -103,8 +97,6 @@ export class ParlayService {
       status: "open",
       settledAt: null,
       combinedOdds,
-      stake,
-      potentialPayout,
     });
     return publicParlayTicket(saved[0]);
   }
@@ -139,8 +131,6 @@ export class ParlayService {
         id: parlay.id,
         legs: parlay.legs,
         combinedOdds: 0,
-        stake: 100,
-        potentialPayout: 0,
         status: "open",
         createdAt: parlay.createdAt,
         settledAt: null,
@@ -168,8 +158,9 @@ export class ParlayService {
           if (["home", "away", "draw"].includes(event.winner ?? "")) {
             const legWinner = leg.market === "moneyline"
               ? (leg.side === event.winner ? "won" : "lost")
-              : marketResult(leg, event);
-            legResults.set(`${leg.league}:${leg.eventId}:${leg.market}:${leg.side}`, legWinner);
+              : gradeParlayMarket(leg, event);
+            if (legWinner) legResults.set(`${leg.league}:${leg.eventId}:${leg.market}:${leg.side}`, legWinner);
+            else allLegsResolved = false;
           } else {
             allLegsResolved = false;
           }
@@ -193,22 +184,21 @@ function validParticipants(event: LiveEvent): boolean {
   return event.home.id !== "" && event.away.id !== "" && event.home.name !== "" && event.away.name !== "";
 }
 
-function marketResult(leg: ParlayLeg, event: LiveEvent): "won" | "lost" {
+/** Grade against the exact line saved with the free pick, never a later feed line. */
+export function gradeParlayMarket(leg: ParlayLeg, event: LiveEvent): "won" | "lost" | "void" | null {
+  const homeScore = event.home.score;
+  const awayScore = event.away.score;
+  if (homeScore === null || homeScore === undefined || awayScore === null || awayScore === undefined) return null;
   if (leg.market === "spread") {
-    const spread = event.odds?.spread;
-    if (spread === null || spread === undefined) return "lost";
-    const homeCover = event.home.score !== null && event.away.score !== null
-      ? (event.home.score - event.away.score) > spread
-      : false;
-    return leg.side === "home" ? (homeCover ? "won" : "lost") : (!homeCover ? "won" : "lost");
+    if (leg.line === null || leg.line === undefined) return null;
+    const margin = leg.side === "home" ? homeScore - awayScore : awayScore - homeScore;
+    const differential = margin + leg.line;
+    return differential > 0 ? "won" : differential < 0 ? "lost" : "void";
   }
   if (leg.market === "total") {
-    const total = event.odds?.total;
-    if (total === null || total === undefined) return "lost";
-    const over = event.home.score !== null && event.away.score !== null
-      ? (event.home.score + event.away.score) > total
-      : false;
-    return leg.side === "over" ? (over ? "won" : "lost") : (!over ? "won" : "lost");
+    if (leg.line === null || leg.line === undefined) return null;
+    const differential = leg.side === "over" ? homeScore + awayScore - leg.line : leg.line - (homeScore + awayScore);
+    return differential > 0 ? "won" : differential < 0 ? "lost" : "void";
   }
-  return "lost";
+  return null;
 }

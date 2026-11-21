@@ -15,8 +15,6 @@ export type StoredParlay = {
   status: "open" | "won" | "lost" | "void" | "cancelled";
   settledAt: string | null;
   combinedOdds: number;
-  stake: number;
-  potentialPayout: number;
 };
 
 export interface AccountBackend {
@@ -46,8 +44,8 @@ export interface AccountBackend {
   listContests(): Promise<Contest[]>;
   joinContest(contestId: string, token: string | null): Promise<{ joined: boolean }>;
   contestStandings(contestId: string): Promise<ContestStanding[]>;
-  getTokens(token: string | null): Promise<{ tokens: number; ledger: Array<{amount:number;reason:string;at:string}> }>;
-  awardTokens(token: string | null, userId: string, amount: number, reason: string): Promise<void>;
+  getTokens(token: string | null): Promise<{ tokens: number; ledger: Array<{amount:number;reason:string;at:string;awardKey?:string}> }>;
+  awardTokens(token: string | null, userId: string, amount: number, reason: string, awardKey: string): Promise<void>;
 }
 
 const globals = globalThis as typeof globalThis & { cowboyBackend?: AccountBackend };

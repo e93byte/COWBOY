@@ -79,6 +79,21 @@ test("login validates credentials, isolates sessions, revokes logout and expires
   });
 });
 
+test("token awards are owner-bound and idempotent across refresh retries", async () => {
+  await fixture(async (store) => {
+    const owner = await store.register("TokenOwner", password);
+    const other = await store.register("TokenOther", password);
+    assert.equal((await store.getTokens(owner.token)).tokens, 100);
+    await store.awardTokens(owner.token, owner.user.id, 10, "pick_win", "pick_win:ticket-1");
+    await store.awardTokens(owner.token, owner.user.id, 10, "pick_win", "pick_win:ticket-1");
+    const rewards = await store.getTokens(owner.token);
+    assert.equal(rewards.tokens, 110);
+    assert.equal(rewards.ledger.filter(entry => entry.awardKey === "pick_win:ticket-1").length, 1);
+    await rejectsCode(store.awardTokens(owner.token, other.user.id, 10, "pick_win", "pick_win:ticket-2"), "unauthorized");
+    assert.equal((await store.getTokens(other.token)).tokens, 100);
+  });
+});
+
 test("registration rejects unsafe usernames, weak or oversized passwords, and concurrent case-insensitive duplicates", async () => {
   await fixture(async (store, dir) => {
     for (const username of ["ab", "x".repeat(31), " bad", "a<b", "a/b", "🦁abc"]) {
@@ -807,8 +822,6 @@ test("parlay store saves and lists parlays", async () => {
       status: "open" as const,
       settledAt: null,
       combinedOdds: 264,
-      stake: 100,
-      potentialPayout: 364,
     };
 
     const saved = await store.saveParlay(token, parlay);
@@ -839,8 +852,6 @@ test("parlay store settleParlays updates status", async () => {
       status: "open" as const,
       settledAt: null,
       combinedOdds: -110,
-      stake: 100,
-      potentialPayout: 90.91,
     };
 
     await store.saveParlay(token, parlay);
@@ -868,8 +879,6 @@ test("parlay store isolates parlays per user", async () => {
       status: "open" as const,
       settledAt: null,
       combinedOdds: -110,
-      stake: 100,
-      potentialPayout: 90.91,
     };
     const parlay2: StoredParlay = {
       id: "parlay_2",
@@ -880,8 +889,6 @@ test("parlay store isolates parlays per user", async () => {
       status: "open" as const,
       settledAt: null,
       combinedOdds: -110,
-      stake: 100,
-      potentialPayout: 90.91,
     };
 
     await store.saveParlay(user1.token, parlay1);

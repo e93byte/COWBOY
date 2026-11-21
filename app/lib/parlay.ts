@@ -17,8 +17,6 @@ export type ParlayTicket = {
   id: string;
   legs: ParlayLeg[];
   combinedOdds: number;
-  stake: number;
-  potentialPayout: number;
   status: "open" | "won" | "lost" | "void" | "cancelled";
   createdAt: string;
   settledAt: string | null;
@@ -59,11 +57,6 @@ export function calculateCombinedOdds(legs: ParlayLeg[]): number {
   const decimalOdds = legs.map((leg) => americanToDecimal(leg.odds));
   const combined = decimalOdds.reduce((acc, odds) => acc * odds, 1);
   return decimalToAmerican(combined);
-}
-
-export function calculatePotentialPayout(stake: number, combinedOdds: number): number {
-  const decimal = americanToDecimal(combinedOdds);
-  return Math.round(stake * decimal * 100) / 100;
 }
 
 export function validateParlayLegs(legs: ParlayLeg[]): { valid: boolean; errors: string[] } {

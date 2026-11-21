@@ -2,7 +2,6 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
   calculateCombinedOdds,
-  calculatePotentialPayout,
   validateParlayLegs,
   checkCorrelation,
   settleParlay,
@@ -11,6 +10,7 @@ import {
   type ParlayTicket,
   type ParlayInput,
 } from "../app/lib/parlay";
+import { gradeParlayMarket } from "../app/lib/parlay-service";
 import type { PickMarket, PickSide } from "../app/lib/pick-outcomes";
 
 function makeLeg(overrides: Partial<ParlayLeg> = {}): ParlayLeg {
@@ -42,16 +42,6 @@ test("calculateCombinedOdds: three legs with mixed odds", () => {
   ];
   const combined = calculateCombinedOdds(legs);
   assert.equal(combined, 855);
-});
-
-test("calculatePotentialPayout: $100 at +264 returns $364", () => {
-  const payout = calculatePotentialPayout(100, 264);
-  assert.equal(payout, 364);
-});
-
-test("calculatePotentialPayout: $50 at -110 returns $95.45", () => {
-  const payout = calculatePotentialPayout(50, -110);
-  assert.equal(payout, 95.45);
 });
 
 test("validateParlayLegs: valid parlay returns valid", () => {
@@ -149,8 +139,6 @@ test("settleParlay: all won returns won", () => {
     id: "p1",
     legs: [makeLeg({ eventId: "1" }), makeLeg({ eventId: "2" })],
     combinedOdds: 264,
-    stake: 100,
-    potentialPayout: 364,
     status: "open",
     createdAt: new Date().toISOString(),
     settledAt: null,
@@ -170,8 +158,6 @@ test("settleParlay: any lost returns lost", () => {
     id: "p1",
     legs: [makeLeg({ eventId: "1" }), makeLeg({ eventId: "2" })],
     combinedOdds: 264,
-    stake: 100,
-    potentialPayout: 364,
     status: "open",
     createdAt: new Date().toISOString(),
     settledAt: null,
@@ -191,8 +177,6 @@ test("settleParlay: void leg returns void if no losses", () => {
     id: "p1",
     legs: [makeLeg({ eventId: "1" }), makeLeg({ eventId: "2" })],
     combinedOdds: 264,
-    stake: 100,
-    potentialPayout: 364,
     status: "open",
     createdAt: new Date().toISOString(),
     settledAt: null,
@@ -205,6 +189,19 @@ test("settleParlay: void leg returns void if no losses", () => {
   results.set("nba:2:moneyline:home", "void");
   const outcome = settleParlay(ticket, results);
   assert.equal(outcome, "void");
+});
+
+test("parlay market grading honors the saved line, not a later provider line", () => {
+  const final = {
+    id: "1", league: "nba", sport: "basketball", leagueName: "NBA", name: "Away at Home",
+    startsAt: "2030-01-01T00:00:00.000Z", status: "final" as const, statusText: "Final", clock: null, period: null,
+    home: { id: "home", name: "Home", shortName: "HOME", score: 110 },
+    away: { id: "away", name: "Away", shortName: "AWAY", score: 105 },
+    winner: "home" as const, completed: true,
+    odds: { provider: "later", spread: -7.5, total: 225.5, homeMoneyline: null, awayMoneyline: null, drawMoneyline: null, homeSpreadPrice: null, awaySpreadPrice: null, overPrice: null, underPrice: null, openSpread: null, openTotal: null, openHomeMoneyline: null, openAwayMoneyline: null, openDrawMoneyline: null, favorite: "home" as const },
+  };
+  assert.equal(gradeParlayMarket(makeLeg({ market: "spread", side: "home", line: -3.5 }), final), "won");
+  assert.equal(gradeParlayMarket(makeLeg({ market: "total", side: "under", line: 215 }), final), "void");
 });
 
 test("generateParlayId: produces unique IDs", () => {

@@ -57,6 +57,20 @@ test("supabase store registers, hashes the session token and maps RPC errors", a
   } finally { restore(); }
 });
 
+test("supabase token awards send an immutable reward key", async () => {
+  const { calls, restore } = stubFetch((call) => {
+    assert.equal(call.fn, "cowboy_award_tokens");
+    return { body: { tokens: 110 } };
+  });
+  try {
+    const store = new SupabaseStore(config);
+    await store.awardTokens("a".repeat(64), "u1", 10, "pick_win", "pick_win:ticket-1");
+    assert.equal(calls[0].args.p_amount, 10);
+    assert.equal(calls[0].args.p_reason, "pick_win");
+    assert.equal(calls[0].args.p_award_key, "pick_win:ticket-1");
+  } finally { restore(); }
+});
+
 test("supabase store login rejects bad passwords without leaking which field failed", async () => {
   const { restore } = stubFetch((call) => {
     if (call.fn === "cowboy_lookup_user") {

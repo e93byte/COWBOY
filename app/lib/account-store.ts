@@ -24,12 +24,10 @@ export type StoredParlay = {
   status: "open" | "won" | "lost" | "void" | "cancelled";
   settledAt: string | null;
   combinedOdds: number;
-  stake: number;
-  potentialPayout: number;
 };
 export type Contest = { id: string; title: string; kind: 'daily' | 'weekly' | 'seasonal'; startsAt: string; endsAt: string; league: string | null; status: 'upcoming' | 'active' | 'settled'; createdAt: string };
 export type ContestStanding = { rank: number; username: string; decidedEvents: number; wins: number; accuracy: number };
-export type TokenLedgerEntry = { amount: number; reason: string; at: string; userId?: string };
+export type TokenLedgerEntry = { amount: number; reason: string; at: string; userId?: string; awardKey?: string };
 export type StoreData = { version: 1; users: StoredUser[]; sessions: StoredSession[]; tickets: StoredPick[]; parlays: StoredParlay[]; contests: Contest[]; contestEntries: Array<{userId:string;contestId:string;joinedAt:string}>; tokenLedger: TokenLedgerEntry[]; tokens?: StoredToken[] };
 export type StoreOptions = { directory?: string; now?: () => number };
 const SESSION_SECONDS = 60 * 60 * 24 * 7;
@@ -134,12 +132,20 @@ function validateStore(data: StoreData): void {
     entryKeys.add(key);
   }
   const ledgerKeys = new Set<string>();
+  const awardKeys = new Set<string>();
   for (const entry of data.tokenLedger ?? []) {
     if (!entry || typeof entry.amount !== "number" || !Number.isSafeInteger(entry.amount)
-      || typeof entry.reason !== "string" || !entry.reason.trim() || !date(entry.at)) fail();
-    const k = `${entry.at}:${entry.reason}:${entry.amount}`;
+      || typeof entry.reason !== "string" || !entry.reason.trim() || !date(entry.at)
+      || (entry.userId !== undefined && !userIds.has(entry.userId))
+      || (entry.awardKey !== undefined && (typeof entry.awardKey !== "string" || !/^[a-z][a-z0-9_:-]{2,160}$/.test(entry.awardKey)))) fail();
+    const k = `${entry.userId ?? ""}:${entry.at}:${entry.reason}:${entry.amount}`;
     if (ledgerKeys.has(k)) fail();
     ledgerKeys.add(k);
+    if (entry.awardKey) {
+      const award = `${entry.userId ?? ""}:${entry.awardKey}`;
+      if (awardKeys.has(award)) fail();
+      awardKeys.add(award);
+    }
   }
 }
 
@@ -223,7 +229,7 @@ export class AccountStore {
       const user = { id: randomUUID(), username };
       const referralCode = randomBytes(4).toString("hex");
       data.users.push({ ...user, salt, passwordHash, tokens: 100, referralCode });
-      data.tokenLedger.push({ userId: user.id, amount: 100, reason: 'signup_bonus', at: new Date(this.now()).toISOString() });
+      data.tokenLedger.push({ userId: user.id, amount: 100, reason: 'signup_bonus', awardKey: 'signup_bonus', at: new Date(this.now()).toISOString() });
       return this.createSession(data, user);
     });
   }
@@ -453,18 +459,20 @@ export class AccountStore {
     return this.transaction((data) => {
       const user = this.requireUser(data, token);
       const ledger = (data.tokenLedger ?? []).filter(entry => entry.userId === user.id)
-        .map(({ amount, reason, at }) => ({ amount, reason, at }));
+        .map(({ amount, reason, at, awardKey }) => ({ amount, reason, at, ...(awardKey ? { awardKey } : {}) }));
       return { tokens: user.tokens ?? 0, ledger };
     }, false);
   }
 
-  async awardTokens(token: string | null, userId: string, amount: number, reason: string): Promise<void> {
-    if (!Number.isFinite(amount) || amount <= 0) return;
+  async awardTokens(token: string | null, userId: string, amount: number, reason: string, awardKey: string): Promise<void> {
+    if (!Number.isSafeInteger(amount) || amount <= 0 || !/^[a-z][a-z0-9_:-]{2,160}$/.test(awardKey)) return;
     return this.transaction((data) => {
-      const user = data.users.find(u => u.id === userId);
-      if (!user) throw new AccountError("not_found", "User not found.", 404);
+      const owner = this.requireUser(data, token);
+      if (owner.id !== userId) throw new AccountError("unauthorized", "You cannot award tokens to another account.", 401);
+      const user = data.users.find(u => u.id === owner.id)!;
+      if (data.tokenLedger.some(entry => entry.userId === owner.id && entry.awardKey === awardKey)) return;
       user.tokens = (user.tokens ?? 0) + amount;
-      data.tokenLedger.push({ userId, amount, reason, at: new Date(this.now()).toISOString() });
+      data.tokenLedger.push({ userId: owner.id, amount, reason, awardKey, at: new Date(this.now()).toISOString() });
     }, true);
   }
 

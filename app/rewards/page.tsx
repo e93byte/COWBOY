@@ -5,6 +5,12 @@ import { api, useAccount, type User } from '../components/AccountPicks';
 
 type Badge = { id: string; label: string; earned: boolean; progress: number; target: number };
 
+function rewardLabel(reason: string) {
+  if (reason === 'signup_bonus') return 'Welcome bonus';
+  if (reason === 'pick_win') return 'Confirmed correct pick';
+  return reason.replaceAll('_', ' ');
+}
+
 export default function RewardsPage() {
   const { user, accountLoading } = useAccount();
   const [tokens, setTokens] = useState<{ tokens: number; ledger: Array<{amount:number;reason:string;at:string}> } | null>(null);
@@ -43,7 +49,7 @@ export default function RewardsPage() {
   return (
     <div className="cw-page">
       <h1>Rewards</h1>
-      <p className="cw-page-note">Tokens are a free reward for correct picks — they have no cash value and cannot be purchased.</p>
+      <p className="cw-page-note">Start with 100 tokens and earn 10 for each confirmed correct pick. Tokens have no cash value, cannot be purchased, and are never redeemable for money.</p>
       {error && <p className="cw-form-error" role="alert">{error}</p>}
       {loading ? <p>Loading rewards…</p> : (
         <>
@@ -61,7 +67,7 @@ export default function RewardsPage() {
                   {tokens.ledger.slice(0, 20).map((e, i) => (
                     <tr key={i}>
                       <td>{e.amount > 0 ? '+' : ''}{e.amount}</td>
-                      <td>{e.reason}</td>
+                      <td>{rewardLabel(e.reason)}</td>
                       <td><time dateTime={e.at}>{new Date(e.at).toLocaleDateString()}</time></td>
                     </tr>
                   ))}
