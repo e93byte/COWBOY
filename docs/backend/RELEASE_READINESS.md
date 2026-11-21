@@ -139,9 +139,18 @@ None required for release. Redis/KV optional at scale.
 - No `*.supabase.co` URL in client bundles — Supabase is server-side only via custom API routes (service role never reaches the client).
 - API JSON responses contain no key material; `freshness.error:"missing_key"` reveals only that a key is absent, not its value.
 
-### Supabase persistence
+### Supabase persistence — PASS (verified 2026-11-21T08:29–08:33 UTC)
 
-- **BLOCKED (read-only):** auth routes are functional (anonymous session + credential validation work), but distinguishing SupabaseStore vs local-JSON fallback requires a write (registration/pick). No test accounts were created per instructions. **Action for Kilo/user:** confirm `COWBOY_SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` are set in Vercel env, or authorize one disposable-account journey test.
+Authorized disposable-account test on production, fully cleaned up:
+
+1. `POST /api/account {action:"register"}` → 200, user `devin_persist_20261121082953`, UUID `42e31a24-0f90-448d-b35c-8e811cbe58ae`, 5000-chip signup award applied.
+2. `PATCH /api/account/follows` → followed team `nfl:2` (Buffalo Bills) → 200 `{follows:[…]}`.
+3. `DELETE /api/account` (logout) → session cleared.
+4. Fresh `POST /api/account {action:"login"}` → new session, same user id.
+5. `GET /api/account/follows` → **follow persisted across sessions** — durable storage confirmed (local JSON fallback on serverless cannot reliably survive across instances; UUID user ids match the Supabase `cowboy_users` shape).
+6. Cleanup: unfollow → `DELETE /api/account/delete {password}` → 200; subsequent login → 401 `invalid_credentials`, session → `{user:null}`. No residual test data.
+
+No wagers, picks, or paid entries created. No infrastructure or env changes made.
 
 ### Provider traffic / polling
 
