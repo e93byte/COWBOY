@@ -96,7 +96,9 @@ test('HO-2: concurrent distinct requests respect the daily credit cap', async ()
   let release!: () => void;
   const gate = new Promise<void>(resolve => { release = resolve; });
   const c = makeClient({
-    env: { ODDS_API_KEY: 'test-key', ODDS_API_DAILY_CREDITS: '1' },
+    // One board costs 3 credits (3 markets × 1 region), so a cap of 3
+    // admits exactly one upstream request.
+    env: { ODDS_API_KEY: 'test-key', ODDS_API_DAILY_CREDITS: '3' },
     fetch: async () => {
       calls += 1;
       await gate;

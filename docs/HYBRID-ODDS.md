@@ -11,7 +11,7 @@ Commit: `450d952` · Files: `app/lib/hybrid-odds.ts`, `app/api/sports/odds/route
 | Success cache + TTL by data type | ✅ | 60s live boards, 5m pregame (env-overridable per client) |
 | Single-flight dedup | ✅ | `pending` map keyed identically to cache |
 | Bounded eviction | ✅ | 500-entry FIFO cap |
-| Quota manager | ✅ | `createQuotaTracker` — `x-requests-remaining/used/last`, daily cap (`ODDS_API_DAILY_CREDITS`, default 400), Retry-After backoff, exhausts until next UTC day |
+| Quota manager | ✅ | `createQuotaTracker` — `x-requests-remaining/used/last`, daily cap (`ODDS_API_DAILY_CREDITS`, default 20), Retry-After backoff, exhausts until next UTC day |
 | Freshness metadata | ✅ | `freshness: { state, provider, sourceAt, fetchedAt, cache, error }` — additive on result + API response |
 | Error categories | ✅ | `missing_key, quota_exhausted, unauthorized, rate_limited, region_unavailable, network, empty_market, malformed, no_provider` |
 | Capability registry | ✅ | `PROVIDER_CAPABILITIES` — only `bookmaker-odds` providers enter the odds chain; score feeds excluded |
@@ -49,8 +49,9 @@ Score/schedule providers are structurally excluded: `fetchSportBoard` only knows
 
 ## Quota policy
 
-- **Budget**: `ODDS_API_DAILY_CREDITS` env (default 400/day per instance). `allow()` refuses upstream calls once `used >= cap`.
-- **Provider truth**: response headers `x-requests-remaining/used/last` override local counting; `remaining <= 0` parks upstream until next UTC midnight.
+- **Budget**: `ODDS_API_DAILY_CREDITS` env (default 20/day per instance ≈ free-tier ~500 credits/month spread conservatively). `allow()` refuses upstream calls once `used >= cap`.
+- **Credit cost**: each board request bills `markets × regions` = 3 credits (`h2h,spreads,totals` × `us`); `allow(3)` reserves the full cost atomically before the fetch.
+- **Provider truth**: response headers `x-requests-remaining/used/last` override local counting; `remaining <= 0` marks provider exhaustion, which is sticky until headers report credits again (the provider's window is not assumed to be a UTC day).
 - **Rate limit**: 429 → `rate_limited` + `noteRetryAfter(seconds)` idles calls for the hinted duration; circuit breaker (3 failures / 60s cooldown) adds failure backoff.
 - **Never** enables paid plans or auto-purchases.
 

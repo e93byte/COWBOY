@@ -96,13 +96,17 @@ type ClientOptions = {
   getEvent?: (league: string, id: string) => Promise<LiveEvent | null>;
 };
 
-const DEFAULT_DAILY_CREDITS = 400;
+// Free tier is ~500 credits/month. The self-imposed daily cap spreads that
+// budget conservatively; provider x-requests-* headers remain authoritative.
+const DEFAULT_DAILY_CREDITS = 20;
 const LIVE_TTL_MS = 60_000;
 const PREGAME_TTL_MS = 5 * 60_000;
 const MAX_CACHE_ENTRIES = 500;
 const ODDS_MARKETS = 'h2h,spreads,totals';
 const ODDS_REGIONS = 'us';
 const ODDS_FORMAT = 'american';
+// The Odds API bills markets × regions per request: h2h,spreads,totals × us = 3.
+const ODDS_CREDIT_COST = ODDS_MARKETS.split(',').length * ODDS_REGIONS.split(',').length;
 
 const object = (value: unknown): Record<string, any> =>
   value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, any> : {};
@@ -298,7 +302,7 @@ export function createHybridOddsClient(options: ClientOptions = {}) {
         return { payload: null, error: 'no_provider', cache: 'miss' };
       }
       // allow() reserves the credit atomically before the fetch is issued.
-      if (!quota.allow()) return { payload: null, error: 'quota_exhausted', cache: 'miss' };
+      if (!quota.allow(ODDS_CREDIT_COST)) return { payload: null, error: 'quota_exhausted', cache: 'miss' };
       const url = `https://api.the-odds-api.com/v4/sports/${sportKey}/odds?apiKey=${encodeURIComponent(apiKey)}&regions=${ODDS_REGIONS}&markets=${ODDS_MARKETS}&oddsFormat=${ODDS_FORMAT}`;
       try {
         const res = await fetcher(url);

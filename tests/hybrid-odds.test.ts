@@ -173,6 +173,22 @@ test('quota exhaustion disables upstream refresh until the next day', async () =
   assert.equal(tracker.allow(), true);
 });
 
+test('quota reservations bill markets × regions per board call', async () => {
+  // 3 markets × 1 region = 3 credits per upstream board request. A daily cap
+  // of 6 therefore allows exactly two sport boards before exhaustion.
+  let calls = 0;
+  const c = client({
+    env: { ODDS_API_KEY: 'test-key', ODDS_API_DAILY_CREDITS: '6' },
+    fetch: async () => { calls++; return jsonResponse([oddsEvent('e1')]); },
+  });
+  await c.fetchOddsWithFallback('nfl', 'e1');
+  await c.fetchOddsWithFallback('nba', 'e1');
+  const third = await c.fetchOddsWithFallback('mlb', 'e1');
+  assert.equal(calls, 2);
+  assert.equal(third.freshness.error, 'quota_exhausted');
+  assert.equal(third.source, 'espn'); // degraded, never fabricated odds
+});
+
 test('provider header usage is authoritative over local counting', () => {
   const tracker = createQuotaTracker({ now: () => NOW, dailyCredits: 500 });
   const headers = new Headers({
