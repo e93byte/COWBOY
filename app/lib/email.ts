@@ -62,5 +62,10 @@ export async function sendEmail(message: EmailMessage): Promise<boolean> {
   if (key && (process.env.RESEND_FROM ?? "").trim()) return sendViaResend(message, key);
   const smtp = smtpConfig();
   if (smtp) return sendViaSmtp(message, smtp);
+  // Development needs a visible recovery path without pretending an email was
+  // delivered. Never log mail in production: reset links are credentials.
+  if (process.env.NODE_ENV !== 'production') {
+    console.info('[COWBOY email preview]', { to: message.to, subject: message.subject, text: message.text });
+  }
   return false;
 }

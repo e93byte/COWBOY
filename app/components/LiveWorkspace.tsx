@@ -26,7 +26,7 @@ import { BoardSearch, boardTournamentName, matchesBoardQuery, type BoardSuggesti
 import { useAccountFollows } from './AccountFollows';
 
 import type { LiveBoard, LiveEvent, GameOdds } from '../lib/live-sports';
-import { LIVE_LEAGUES } from '../lib/sports-leagues';
+import { SPORTS_CATALOGUE } from '../lib/sports-leagues';
 import { hasActiveScores, LIVE_SCORE_REFRESH_MS, SCHEDULE_REFRESH_MS } from '../lib/score-refresh';
 import type { PlayerProps } from '../lib/player-props';
 import { pickName, pickSides, postedPickLine, postedPrice, supportsDrawPick, type PickMarket, type PickSide } from '../lib/pick-outcomes';
@@ -80,7 +80,7 @@ function readBoardStatus(params: URLSearchParams): BoardStatus {
 function readLeagueFilter(params: URLSearchParams): string {
   const leagues = params.getAll('filterLeague');
   const sports = params.getAll('filterSport');
-  if (leagues.length === 1 && !sports.length && LIVE_LEAGUES.some(item=>item.id===leagues[0])) return leagues[0];
+  if (leagues.length === 1 && !sports.length && SPORTS_CATALOGUE.some(item=>item.id===leagues[0])) return leagues[0];
   if (!leagues.length && sports.length === 1 && sportFilter('sport-'+sports[0])) return 'sport-'+sports[0];
   return 'all';
 }
@@ -869,6 +869,7 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
   };
   const deviceFollows = view === 'board' && filter === 'watchlist' ? subscriptions.importable(allEvents,availableLeagues) : [];
   const pickedLeague = availableLeagues.find(item=>item.id===league);
+  const catalogueLeague = SPORTS_CATALOGUE.find(item=>item.id===league);
   const leagueSport = selectedSport ?? pickedLeague?.sport;
   const sportLabel = sportCategories.find(([sport])=>sport===leagueSport)?.[1];
   const sidebarLeagues = availableLeagues.filter(item=>!leagueSport || item.sport===leagueSport).sort((a,b)=>
@@ -1140,7 +1141,7 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
             <TabIcon tab={f}/>{f==='all' ? 'All games' : f==='live' ? 'Live now' : f==='watchlist' ? 'Watchlist' : 'Upcoming'}
           </button>)}
         </div>}
-        <BoardSearch events={leagueEvents} leagues={availableLeagues} query={query} onChange={setQuery} onSelect={selectSuggestion}/>
+        <BoardSearch events={leagueEvents} leagues={SPORTS_CATALOGUE} query={query} onChange={setQuery} onSelect={selectSuggestion}/>
       </div>}
       {!liveView && filter==='watchlist' && deviceFollows.length > 0 && <div className="cw-follow-list">
         <button disabled={subscriptions.disabled} onClick={()=>void subscriptions.save(deviceFollows,true)}>
@@ -1197,7 +1198,7 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
         </div>
       </div>
       {view==='board' && !liveView && pickedLeague && <><LeagueNews league={pickedLeague.id} name={pickedLeague.name}/><LeagueFutures league={pickedLeague.id} name={pickedLeague.name}/></>}
-      {golfView ? <GolfLeaderboard events={golfEvents}/> : !board&&busy?<BoardLoadingSkeleton/>:events.length===0?<div className="cw-empty"><h3>{error?'No games available':liveView?liveEmpty[0]:'No games in this view'}</h3><p>{error?'Refresh the sports feed to try again.':liveView?liveEmpty[1]:filter==='watchlist'?'Follow a team or league, or star a game to add it here.':dateFilter!=='all'?'Choose another schedule date or clear the filters.':'Try another league, status, or search.'}</p></div>:<section className="cw-events" aria-label="Games"><div className="cw-event-head"><span>EVENT / SCORE</span>{!liveView&&<span>FREE WINNER PICK</span>}</div>{displayedGroups.map(group=><section className="cw-league-group" key={group.id} aria-label={`${group.name} ${group.sport==='mma'?'bouts':'games'}`}><button className="cw-league-toggle" aria-expanded={!collapsed.includes(group.id)} aria-label={`${collapsed.includes(group.id)?'Expand':'Collapse'} ${group.name}`} onClick={()=>setCollapsed(old=>old.includes(group.id)?old.filter(id=>id!==group.id):[...old,group.id])}><SportIcon sport={group.sport}/><strong>{group.name}</strong><small>{group.events.length} {group.sport==='mma'?'bouts':'games'}</small>{leagueFreshness(group.leagueId) && <small className="cw-league-fresh">{leagueFreshness(group.leagueId)}</small>}<span aria-hidden="true">{collapsed.includes(group.id)?'+':'−'}</span></button>{!collapsed.includes(group.id)&&group.events.slice(0,showAllGroups.includes(group.id) || (league==='ufc' && group.sport==='mma') ? undefined : homeGroupLimit).map(e=><article key={e.league+e.id} className="cw-event" data-event-status={e.status}>
+      {golfView ? <GolfLeaderboard events={golfEvents}/> : !board&&busy?<BoardLoadingSkeleton/>:events.length===0?<div className="cw-empty"><h3>{error?'No games available':catalogueLeague && !catalogueLeague.sourceEnabled?'Live data is coming soon':liveView?liveEmpty[0]:'No games in this view'}</h3><p>{error?'Refresh the sports feed to try again.':catalogueLeague && !catalogueLeague.sourceEnabled?`${catalogueLeague.name} is in the global catalogue. Live scores, token picks, and markets remain disabled until its approved data source is connected and verified.`:liveView?liveEmpty[1]:filter==='watchlist'?'Follow a team or league, or star a game to add it here.':dateFilter!=='all'?'Choose another schedule date or clear the filters.':'Try another league, status, or search.'}</p></div>:<section className="cw-events" aria-label="Games"><div className="cw-event-head"><span>EVENT / SCORE</span>{!liveView&&<span>FREE WINNER PICK</span>}</div>{displayedGroups.map(group=><section className="cw-league-group" key={group.id} aria-label={`${group.name} ${group.sport==='mma'?'bouts':'games'}`}><button className="cw-league-toggle" aria-expanded={!collapsed.includes(group.id)} aria-label={`${collapsed.includes(group.id)?'Expand':'Collapse'} ${group.name}`} onClick={()=>setCollapsed(old=>old.includes(group.id)?old.filter(id=>id!==group.id):[...old,group.id])}><SportIcon sport={group.sport}/><strong>{group.name}</strong><small>{group.events.length} {group.sport==='mma'?'bouts':'games'}</small>{leagueFreshness(group.leagueId) && <small className="cw-league-fresh">{leagueFreshness(group.leagueId)}</small>}<span aria-hidden="true">{collapsed.includes(group.id)?'+':'−'}</span></button>{!collapsed.includes(group.id)&&group.events.slice(0,showAllGroups.includes(group.id) || (league==='ufc' && group.sport==='mma') ? undefined : homeGroupLimit).map(e=><article key={e.league+e.id} className="cw-event" data-event-status={e.status}>
         <div className="cw-event-info">
           <div className="cw-event-meta"><SportIcon sport={e.sport}/><b>{e.leagueName}</b>{e.fight?.weightClass && <span>{e.fight.weightClass}</span>}<GameStatus status={e.status}>{e.status==='live'?'LIVE · ':''}{e.statusText}{e.shootoutScores&&` · Penalties ${e.shootoutScores.away}–${e.shootoutScores.home}`}{e.status==='live'&&e.clock&&!e.statusText.includes(e.clock)?` · ${e.clock}`:''}</GameStatus>{eventUpdated(e) && <small className="cw-event-updated">{eventUpdated(e)}</small>}<button className="cw-watch" disabled={subscriptions.disabled} aria-label={`${watched.includes(e.league+':'+e.id)?'Unwatch':'Watch'} ${e.name}`} aria-pressed={watched.includes(e.league+':'+e.id)} onClick={()=>toggleWatch(e)}><StarIcon filled={watched.includes(e.league+':'+e.id)}/></button></div>
           <button className="cw-event-detail" aria-label={`Details: ${e.name}`} onClick={()=>openGame(e)}><div className="cw-team"><span className="cw-team-identity"><TeamMark team={e.away}/><RankedTeamName team={e.away}/></span><BoardScore event={e} side="away"/></div><div className="cw-team"><span className="cw-team-identity"><TeamMark team={e.home}/><RankedTeamName team={e.home}/></span><BoardScore event={e} side="home"/></div></button>

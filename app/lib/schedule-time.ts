@@ -8,9 +8,22 @@ export const scheduleZones = [
   {id: 'Europe/London', label: 'London'},
   {id: 'Europe/Paris', label: 'Central Europe'},
   {id: 'Australia/Sydney', label: 'Sydney'},
-] as const;
+];
 
-export type ScheduleZone = (typeof scheduleZones)[number]['id'];
+export type ScheduleZone = string;
+
+/**
+ * Modern runtimes expose the full IANA database. Keep a compact, familiar
+ * prefix, then offer every runtime-supported zone for a genuinely global
+ * selector. Older runtimes retain the curated choices above.
+ */
+export function allScheduleZones(): Array<{id: string; label: string}> {
+  const supported = typeof Intl.supportedValuesOf === 'function'
+    ? Intl.supportedValuesOf('timeZone')
+    : [];
+  const ids = [...new Set([...scheduleZones.map(zone => zone.id), ...supported])];
+  return ids.map(id => ({ id, label: id === 'local' ? 'Device timezone' : id.replaceAll('_', ' ') }));
+}
 
 const dayFormats = new Map<string, Intl.DateTimeFormat>();
 const timeFormats = new Map<string, Intl.DateTimeFormat>();

@@ -1,4 +1,4 @@
-import { LIVE_LEAGUES, hasRecordStandings } from './sports-leagues';
+import { LIVE_LEAGUES, SOURCE_LEAGUES, hasRecordStandings } from './sports-leagues';
 import { supportsDrawPick } from './pick-outcomes';
 import { hasActiveScores, LIVE_SCORE_REFRESH_MS, SCHEDULE_REFRESH_MS, SCORE_RETRY_MS, PACING_MIN_MS, PACING_MAX_MS, TTL_STALE_WINDOW_MS } from './score-refresh';
 import { applyNhlScores, easternScoreDate } from './nhl-score-fallback';
@@ -1508,7 +1508,7 @@ export function createLiveSportsClient(options: ClientOptions = {}) {
     }
   }
 
-  function loadLeague(config: (typeof LIVE_LEAGUES)[number]): Promise<void> {
+  function loadLeague(config: (typeof SOURCE_LEAGUES)[number]): Promise<void> {
     const current = leagueLoads.get(config.id);
     if (current) return current;
     const pending = updateLeague(config).finally(() => { leagueLoads.delete(config.id); });
@@ -1516,9 +1516,9 @@ export function createLiveSportsClient(options: ClientOptions = {}) {
     return pending;
   }
 
-  async function refreshBoard(target?: (typeof LIVE_LEAGUES)[number], liveOnly = false): Promise<LiveBoard> {
+  async function refreshBoard(target?: (typeof SOURCE_LEAGUES)[number], liveOnly = false): Promise<LiveBoard> {
     const started = now();
-    const due = LIVE_LEAGUES.filter(league => (leagueDueAt.get(league.id) ?? 0) <= started);
+    const due = SOURCE_LEAGUES.filter(league => (leagueDueAt.get(league.id) ?? 0) <= started);
     const active = new Set(due.filter(league => {
       const data = leagueResults.get(league.id);
       return data && hasActiveScores(data, started);
@@ -1534,7 +1534,7 @@ export function createLiveSportsClient(options: ClientOptions = {}) {
     const timeout = new Promise<void>(resolve => setTimeout(() => { timedOut = true; resolve(); }, BOARD_REFRESH_TIMEOUT_MS));
     await Promise.race([workers, timeout]);
     const deadline = now();
-    for (const config of LIVE_LEAGUES) {
+    for (const config of SOURCE_LEAGUES) {
       if (!leagueResults.has(config.id)) {
         leagueDueAt.set(config.id, deadline + SCORE_RETRY_MS);
         leagueResults.set(config.id, {
@@ -1549,10 +1549,10 @@ export function createLiveSportsClient(options: ClientOptions = {}) {
         });
       }
     }
-    const results = LIVE_LEAGUES.map(config => leagueResults.get(config.id)!);
+    const results = SOURCE_LEAGUES.map(config => leagueResults.get(config.id)!);
     const timestamps = results.flatMap(({league}) => league.status !== 'error' && league.lastSuccessAt
       ? [Date.parse(league.lastSuccessAt)] : []);
-    const expires = Math.min(...LIVE_LEAGUES.map(config => leagueDueAt.get(config.id) ?? deadline + SCORE_RETRY_MS));
+    const expires = Math.min(...SOURCE_LEAGUES.map(config => leagueDueAt.get(config.id) ?? deadline + SCORE_RETRY_MS));
     const board: LiveBoard = {
       events: results.flatMap(result => result.events), leagues: results.map(result => result.league),
       golf: results.flatMap(result => result.golf ?? []),
@@ -1566,8 +1566,8 @@ export function createLiveSportsClient(options: ClientOptions = {}) {
   }
 
   async function getLiveBoard(league?: string, liveOnly = false): Promise<LiveBoard> {
-    const target = league ? LIVE_LEAGUES.find(config => config.id === league) : undefined;
-    if (league && !target) throw new LiveSportsError('Supply one supported league key', 400);
+    const target = league ? SOURCE_LEAGUES.find(config => config.id === league) : undefined;
+    if (league && !target) throw new LiveSportsError('This league is not yet enabled for live scores.', 409);
     if (!target && liveOnly && boardCache) {
       // A warm live request joins per-league loads without waiting for the full schedule.
       await refreshBoard(undefined, true);
@@ -1590,7 +1590,7 @@ export function createLiveSportsClient(options: ClientOptions = {}) {
     return copy;
   }
 
-  async function refreshScheduledBoard(target?: (typeof LIVE_LEAGUES)[number], wait = true) {
+  async function refreshScheduledBoard(target?: (typeof SOURCE_LEAGUES)[number], wait = true) {
     if (refreshing) {
       if (wait) await refreshing;
       return;

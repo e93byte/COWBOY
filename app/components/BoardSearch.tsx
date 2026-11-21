@@ -5,7 +5,7 @@ import { useId, useMemo, useRef, useState } from 'react';
 import type { KeyboardEvent } from 'react';
 import type { LiveBoard, LiveEvent } from '../lib/live-sports';
 
-type League = LiveBoard['leagues'][number];
+type League = Pick<LiveBoard['leagues'][number], 'id' | 'name'>;
 export type Follow = { id: string; name: string; league: string };
 export type BoardSuggestion =
   | { kind: 'league'; id: string; name: string }
