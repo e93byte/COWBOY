@@ -16,9 +16,9 @@ export function createParlayHandlers({ service, limiter = new MutationLimiter({ 
     GET: (request: Request) => safely(async () => response({ parlays: await service.list(sessionToken(request)) })),
     POST: (request: Request) => safely(async () => {
       const token = await mutation(request);
-      const body = await readJson(request, ["legs"]);
-      const input = body as { legs: Array<{ eventId: string; league: string; market: "moneyline" | "spread" | "total"; side: "home" | "away" | "draw" | "over" | "under"; line: number | null; requestId: string }> };
-      return response({ parlay: await service.submit(token, { legs: input.legs }) });
+      const body = await readJson(request, ["legs", "chipStake"]);
+      const input = body as { legs: Array<{ eventId: string; league: string; market: "moneyline" | "spread" | "total"; side: "home" | "away" | "draw" | "over" | "under"; line: number | null; requestId: string }>; chipStake?: number };
+      return response({ parlay: await service.submit(token, { legs: input.legs, chipStake: input.chipStake }) });
     }),
     REFRESH: (request: Request) => safely(async () => {
       const token = await mutation(request);

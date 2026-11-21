@@ -2,7 +2,7 @@ import { AccountError, type StoredParlay } from "./account-store";
 import type { AccountBackend } from "./store-backend";
 import { LIVE_LEAGUES, type LiveEvent } from "./live-sports";
 import { pickName, pickSides, postedPrice, type PickMarket, type PickSide } from "./pick-outcomes";
-import { settleParlay, type ParlayTicket, type ParlayLeg, validateParlayLegs, checkCorrelation, generateParlayId, calculateCombinedOdds } from "./parlay";
+import { settleParlay, type ParlayTicket, type ParlayLeg, validateParlayLegs, checkCorrelation, generateParlayId, calculateCombinedOdds, americanToDecimal } from "./parlay";
 import type { ParlayInput } from "./parlay";
 
 export type RealParlayTicket = {
@@ -15,6 +15,8 @@ export type RealParlayTicket = {
   entryId: string;
   userId: string;
   requestId: string;
+  /** Optional play-money chip stake escrowed at submission; no cash value. */
+  chipStake?: number;
 };
 
 export type EventGetter = (league: string, id: string) => Promise<LiveEvent | null>;
@@ -30,6 +32,7 @@ export function publicParlayTicket(parlay: StoredParlay): RealParlayTicket {
     entryId: parlay.entryId,
     userId: parlay.userId,
     requestId: "",
+    ...(parlay.chipStake ? { chipStake: parlay.chipStake } : {}),
   };
 }
 
@@ -84,21 +87,41 @@ export class ParlayService {
     if (!legCorrelation.allowed) throw new AccountError("invalid_input", legCorrelation.reason ?? "Correlated legs not allowed.");
 
     const combinedOdds = legsWithDetails.length >= 2 ? calculateCombinedOdds(legsWithDetails) : 0;
+    const chipStake = input.chipStake ?? 0;
+    if (!Number.isSafeInteger(chipStake) || chipStake < 0 || chipStake > 1000000) {
+      throw new AccountError("invalid_input", "chipStake must be a whole number of chips between 0 and 1,000,000.");
+    }
+    if (chipStake > 0 && !Number.isFinite(combinedOdds)) {
+      throw new AccountError("event_unavailable", "Chip stakes need a posted price for every leg. No parlay was saved.");
+    }
 
     const parlayId = generateParlayId();
     const entryId = parlayId;
     const now = new Date(this.now()).toISOString();
-    const saved = await this.store.saveParlay(token, {
-      id: parlayId,
-      legs: legsWithDetails,
-      entryId,
-      userId: user.id,
-      createdAt: now,
-      status: "open",
-      settledAt: null,
-      combinedOdds,
-    });
-    return publicParlayTicket(saved[0]);
+    try {
+      if (chipStake > 0) {
+        await this.store.adjustTokens(token, user.id, -chipStake, "chip_stake", `chip_stake:${parlayId}`);
+      }
+      const saved = await this.store.saveParlay(token, {
+        id: parlayId,
+        legs: legsWithDetails,
+        entryId,
+        userId: user.id,
+        createdAt: now,
+        status: "open",
+        settledAt: null,
+        combinedOdds,
+        chipStake,
+      });
+      return publicParlayTicket(saved[0]);
+    } catch (error) {
+      if (chipStake > 0) {
+        try {
+          await this.store.adjustTokens(token, user.id, chipStake, "chip_stake_refund", `chip_stake_refund:${parlayId}`);
+        } catch { /* balance already restored or session gone */ }
+      }
+      throw error;
+    }
   }
 
   async refresh(token: string | null): Promise<RealParlayTicket[]> {
@@ -176,6 +199,20 @@ export class ParlayService {
     }
 
     if (updates.length) await this.store.settleParlays(token, updates);
+    // Chip settlement: won pays stake × decimal combined odds, void/cancelled
+    // refunds the escrow, lost keeps nothing. One award key per parlay is idempotent.
+    for (const parlay of openParlays) {
+      const update = updates.find((u) => u.id === parlay.id);
+      const stake = parlay.chipStake ?? 0;
+      if (!update || stake <= 0) continue;
+      const credit = update.status === "won"
+        ? (parlay.combinedOdds ? Math.round(stake * americanToDecimal(parlay.combinedOdds)) : 0)
+        : update.status === "void" || update.status === "cancelled" ? stake : 0;
+      if (credit > 0) {
+        await this.store.awardTokens(token, user.id, credit,
+          update.status === "won" ? "chip_win" : "chip_refund", `chip_result:${parlay.id}`);
+      }
+    }
     return this.list(token);
   }
 }

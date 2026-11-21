@@ -2092,4 +2092,13 @@
 .cw-parlay-summary{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-top:1px solid #343337;background:#222226}
 .cw-parlay-summary span{font-size:11px;color:#a69a91}
 .cw-parlay-summary strong{font-size:14px;color:#ffc18b;font-variant-numeric:tabular-nums}
+.cw-chip-stake{margin:14px 0;padding:12px 14px;border:1px solid #343337;border-radius:10px;background:#1b1b1e}
+.cw-chip-stake-head{display:flex;justify-content:space-between;align-items:center;font-size:12px;color:#a69a91;margin-bottom:8px}
+.cw-chip-stake-head strong{color:#ffc18b;font-variant-numeric:tabular-nums}
+.cw-chip-options{display:flex;gap:6px;flex-wrap:wrap}
+.cw-chip-options button{flex:1;min-width:52px;padding:7px 4px;border:1px solid #343337;border-radius:8px;background:#222226;color:#d8d2ca;font-size:12px;font-weight:600;cursor:pointer}
+.cw-chip-options button[aria-pressed="true"]{background:#ffc18b;border-color:#ffc18b;color:#1b1b1e}
+.cw-chip-options button:disabled{opacity:.4;cursor:not-allowed}
+.cw-chip-note{font-size:12px;color:#a69a91;margin:4px 0 0}
+.cw-chip-note::before{content:'🎲 ';}
 .cw-page-note{font-size:11px;color:#a69a91;margin-bottom:16px}

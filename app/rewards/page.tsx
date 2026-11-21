@@ -29,6 +29,10 @@ function pickStreaks(tickets: Ticket[]) {
 function rewardLabel(reason: string) {
   if (reason === 'signup_bonus') return 'Welcome bonus';
   if (reason === 'pick_win') return 'Confirmed correct pick';
+  if (reason === 'chip_stake') return 'Chip stake';
+  if (reason === 'chip_stake_refund') return 'Stake refund';
+  if (reason === 'chip_win') return 'Chip payout';
+  if (reason === 'chip_refund') return 'Chip refund';
   return reason.replaceAll('_', ' ');
 }
 
@@ -62,7 +66,7 @@ export default function RewardsPage() {
     return (
       <div className="cw-page">
         <h1>Rewards</h1>
-        <p>Sign in to see your token balance and badges.</p>
+        <p>Sign in to see your chip balance and badges.</p>
       </div>
     );
   }
@@ -70,7 +74,7 @@ export default function RewardsPage() {
   return (
     <div className="cw-page">
       <h1>Rewards</h1>
-      <p className="cw-page-note">Start with 100 tokens and earn 10 for each confirmed correct pick. Tokens have no cash value, cannot be purchased, and are never redeemable for money.</p>
+      <p className="cw-page-note">Start with 5,000 play chips and earn 10 for each confirmed correct pick. Stake chips on picks and parlays for bigger chip payouts at the posted odds. Chips have no cash value, cannot be purchased, and are never redeemable for money.</p>
       {user && tickets.length > 0 && (() => {
         const streaks = pickStreaks(tickets);
         return streaks.best > 0 ? <p className="cw-page-note" role="status">
@@ -82,11 +86,11 @@ export default function RewardsPage() {
       {error && <p className="cw-form-error" role="alert">{error}</p>}
       {loading ? <p>Loading rewards…</p> : (
         <>
-          <section aria-label="Token balance">
-            <h2>Tokens</h2>
+          <section aria-label="Chip balance">
+            <h2>Chips</h2>
             <div className="cw-token-balance">
               <span className="cw-token-amount">{tokens?.tokens ?? 0}</span>
-              <span>tokens</span>
+              <span>chips</span>
             </div>
             <p>Your referral code: <strong>{user.referralCode}</strong> <span className="cw-note">Share it so friends can join under your referral.</span></p>
             {tokens?.ledger.length ? (
@@ -102,7 +106,7 @@ export default function RewardsPage() {
                   ))}
                 </tbody>
               </table>
-            ) : <p>No token activity yet.</p>}
+            ) : <p>No chip activity yet.</p>}
           </section>
           <section aria-label="Badges">
             <h2>Badges</h2>

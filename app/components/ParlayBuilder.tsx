@@ -8,7 +8,7 @@ import { ScheduleTimeZone } from './ScheduleTimeZone';
 import { scheduleTime } from '../lib/schedule-time';
 import { LIVE_LEAGUES } from '../lib/sports-leagues';
 import { pickName, pickSides, postedPickLine, supportsDrawPick, type PickMarket, type PickSide } from '../lib/pick-outcomes';
-import { calculateCombinedOdds, checkCorrelation, validateParlayLegs, type ParlayLeg, type ParlayInput } from '../lib/parlay';
+import { calculateCombinedOdds, checkCorrelation, validateParlayLegs, americanToDecimal, type ParlayLeg, type ParlayInput } from '../lib/parlay';
 import { americanOdds, impliedProbability } from '../lib/odds';
 import type { GameOdds } from '../lib/live-sports';
 
@@ -213,14 +213,18 @@ export function ParlayReviewModal({
   onCancel,
   draftEvents,
   zone,
+  chipStake = 0,
+  onChipStake,
 }: {
   selections: ParlaySelection[];
-  user: { id: string; username: string } | null;
+  user: { id: string; username: string; tokens?: number } | null;
   pending: boolean;
   onConfirm: () => void;
   onCancel: () => void;
   draftEvents: ReadonlyMap<string, { odds?: EventOdds }>;
   zone: string;
+  chipStake?: number;
+  onChipStake?: (amount: number) => void;
 }) {
   const legsWithOdds: ParlayLeg[] = selections.map((sel) => {
     const event = draftEvents.get(`${sel.event.league}:${sel.event.id}`);
@@ -277,6 +281,13 @@ export function ParlayReviewModal({
         <div><span>Combined reference odds</span><strong>{americanOdds(combinedOdds)}</strong></div>
         <div><span>Free-play entry</span><strong>No cash value</strong></div>
       </div>
+      {user && onChipStake && <div className="cw-chip-stake">
+        <div className="cw-chip-stake-head"><span>Play chips</span><strong>{(user.tokens ?? 0).toLocaleString()} chips</strong></div>
+        <div className="cw-chip-options" role="group" aria-label="Parlay chip stake">
+          {[0,100,250,500,1000].map(amount=><button key={amount} type="button" aria-pressed={chipStake===amount} disabled={pending||(amount>0&&(user.tokens??0)<amount)} onClick={()=>onChipStake(amount)}>{amount===0?'Free':amount.toLocaleString()}</button>)}
+        </div>
+        {chipStake>0&&<p className="cw-dialog-copy">Stakes {chipStake.toLocaleString()} chips. A winning parlay pays {Math.round(chipStake*americanToDecimal(combinedOdds)).toLocaleString()} chips at the combined reference odds; voided legs adjust or refund. Chips have no cash value.</p>}
+      </div>}
       <p className="cw-dialog-copy">Each leg settles independently. All legs must win for parlay to win. Voided legs reduce parlay to remaining legs.</p>
       <button className="cw-primary" disabled={pending} onClick={() => void onConfirm()}>
         {pending ? 'Saving parlay…' : `Confirm ${selections.length}-leg parlay`}

@@ -26,6 +26,7 @@ export type ParlayTicket = {
 };
 
 export type ParlayInput = {
+  chipStake?: number;
   legs: Array<{
     eventId: string;
     league: string;
@@ -42,7 +43,7 @@ export type CorrelationCheck = {
   correlatedGroups: Array<{ legIndices: number[]; reason: string }>;
 };
 
-function americanToDecimal(american: number): number {
+export function americanToDecimal(american: number): number {
   if (american > 0) return 1 + american / 100;
   if (american < 0) return 1 + 100 / Math.abs(american);
   return 1;

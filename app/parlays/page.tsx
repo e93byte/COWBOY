@@ -6,6 +6,7 @@ import { api } from '../components/AccountPicks';
 import { Modal } from '../components/AccountPicks';
 import { RefreshIcon } from '../components/SportIcon';
 import { americanOdds } from '../lib/odds';
+import { americanToDecimal } from '../lib/parlay';
 
 export default function ParlaysPage() {
   const { user } = useAccount();
@@ -88,6 +89,7 @@ export default function ParlaysPage() {
                     <span>Combined reference odds</span>
                     <strong>{americanOdds(parlay.combinedOdds ?? 0)}</strong>{' · '}<span>Free-play entry</span> <strong>No cash value</strong>
                   </div>
+                  {!!parlay.chipStake && <p className="cw-chip-note">{parlay.chipStake.toLocaleString()} chips staked{parlay.combinedOdds ? ` · pays ${Math.round(parlay.chipStake * americanToDecimal(parlay.combinedOdds)).toLocaleString()} chips at ${americanOdds(parlay.combinedOdds)}` : ''}</p>}
                 </div>
               ))}
             </div>

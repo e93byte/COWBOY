@@ -6,6 +6,8 @@ import {ActionIcon, CloseIcon, SportIcon, TabIcon} from './SportIcon';
 export type User = {id:string;username:string;email?:string|null;emailVerified?:boolean;leaderboardOptIn?:boolean;tokens?:number;referralCode?:string};
 import type { RealPickTicket as Ticket } from '../lib/pick-service';
 import { pickName, pickSides, postedPickLine, supportsDrawPick, type PickMarket, type PickSide } from '../lib/pick-outcomes';
+import { americanToDecimal } from '../lib/parlay';
+import { americanOdds } from '../lib/odds';
 import { ScheduleTimeZone } from './ScheduleTimeZone';
 import { scheduleDay, scheduleTime } from '../lib/schedule-time';
 import { LIVE_LEAGUES } from '../lib/sports-leagues';
@@ -497,6 +499,7 @@ export function PicksHistory({tickets,busy,error,onRefresh,onUpdate,user,onSignI
                     {event.statusText}{event.away.score!==null&&event.home.score!==null&&` · ${event.away.shortName} ${event.away.score}–${event.home.score} ${event.home.shortName}`}
                   </p>}
                   <p>Your pick: <strong>{ticket.selection}</strong></p>
+                  {!!ticket.chipStake && <p className="cw-chip-note">{ticket.chipStake.toLocaleString()} chips staked{ticket.odds ? ` · pays ${Math.round(ticket.chipStake * americanToDecimal(ticket.odds)).toLocaleString()} chips at ${americanOdds(ticket.odds)}` : ''}</p>}
                   {!!ticket.changes?.length && <details className="cw-pick-changes">
                     <summary>Change history ({ticket.changes.length})</summary>
                     <ol>{ticket.changes.map((change,index) => (

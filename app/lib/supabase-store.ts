@@ -192,6 +192,7 @@ export class SupabaseStore {
       p_created_at: parlay.createdAt,
       p_status: parlay.status,
       p_combined_odds: parlay.combinedOdds,
+      p_chip_stake: parlay.chipStake ?? 0,
     });
   }
 
@@ -229,6 +230,13 @@ export class SupabaseStore {
   async awardTokens(token: string | null, userId: string, amount: number, reason: string, awardKey: string): Promise<void> {
     if (!token) throw new AccountError("unauthorized", "Sign in to award tokens.", 401);
     await rpc<{ tokens: number }>(this.config, "cowboy_award_tokens", {
+      p_token_hash: tokenHash(token)!, p_amount: amount, p_reason: reason, p_award_key: awardKey,
+    });
+  }
+
+  async adjustTokens(token: string | null, userId: string, amount: number, reason: string, awardKey: string): Promise<void> {
+    if (!token) throw new AccountError("unauthorized", "Sign in to adjust chips.", 401);
+    await rpc<{ tokens: number }>(this.config, "cowboy_adjust_tokens", {
       p_token_hash: tokenHash(token)!, p_amount: amount, p_reason: reason, p_award_key: awardKey,
     });
   }

@@ -295,6 +295,8 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
   const [parlayReview,setParlayReview]=useState(false);
   const [parlayPending,setParlayPending]=useState(false);
   const [parlayError,setParlayError]=useState('');
+  const [chipStake,setChipStake]=useState(0);
+  const [parlayChipStake,setParlayChipStake]=useState(0);
   const [detail,setDetail]=useState<LiveEvent|null>(null);
   const [sharedGameState, setSharedGameState] = useState<'loading'|'unavailable'|null>(null);
   const sharedGameRequest = useRef<AbortController | null>(null);
@@ -525,14 +527,17 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
     setPending(true);
     setPickError('');
     try {
-      const picks = selections.map(({event,side,market,requestId,line,prop}) => ({eventId:event.id,league:event.league,side,...(market ? {market} : {}),...(line !== null && line !== undefined ? {line} : {}),...(market === 'prop' && prop ? {prop} : {}),requestId}));
+      const picks = selections.map(({event,side,market,requestId,line,prop}) => ({eventId:event.id,league:event.league,side,...(market ? {market} : {}),...(line !== null && line !== undefined ? {line} : {}),...(market === 'prop' && prop ? {prop} : {}),...(chipStake>0 ? {chipStake} : {}),requestId}));
       await api(picks.length === 1 ? '/api/picks' : '/api/picks/batch', {
         method:'POST',body:JSON.stringify(picks.length === 1 ? picks[0] : {picks}),
       });
+      const me = await api<{user: typeof account.user}>('/api/account');
+      account.setUser(me.user);
       await account.loadTickets();
       setConsensusNonce(nonce => nonce + 1);
       setSelections([]);
       setReview(false);
+      setChipStake(0);
       setDrawer(false);
       setToast(picks.length === 1 ? 'Free pick saved. Follow it in My picks.' : `${picks.length} free picks saved. Follow them in My picks.`);
     } catch (error) {
@@ -554,10 +559,13 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
     setParlayError('');
     try {
       const legs = parlaySelections.map(({event,side,market,requestId,line}) => ({eventId:event.id,league:event.league,side,...(market ? {market} : {}),line,...(line !== null ? {line} : {}),requestId}));
-      await api('/api/parlay', { method:'POST', body: JSON.stringify({legs}) });
+      await api('/api/parlay', { method:'POST', body: JSON.stringify({legs,...(parlayChipStake>0 ? {chipStake:parlayChipStake} : {})}) });
+      const me = await api<{user: typeof account.user}>('/api/account');
+      account.setUser(me.user);
       await account.loadTickets();
       setParlaySelections([]);
       setParlayReview(false);
+      setParlayChipStake(0);
       setToast(`${legs.length}-leg parlay saved. Follow it in My parlays.`);
     } catch (error) {
       setParlayError((error as Error).message);
@@ -1260,6 +1268,13 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
         <p className="cw-dialog-copy">{scheduleTime(event.startsAt,zone)}</p>
       </div>)}
       <p className="cw-dialog-copy">Each pick is saved and tracked separately. Edit or cancel in My picks before kickoff, subject to a fresh source check.</p>
+      {account.user && <div className="cw-chip-stake">
+        <div className="cw-chip-stake-head"><span>Play chips</span><strong>{(account.user.tokens ?? 0).toLocaleString()} chips</strong></div>
+        <div className="cw-chip-options" role="group" aria-label="Chip stake per pick">
+          {[0,100,250,500,1000].map(amount=><button key={amount} type="button" aria-pressed={chipStake===amount} disabled={pending||(amount>0&&(account.user!.tokens??0)<amount*selections.length)} onClick={()=>setChipStake(amount)}>{amount===0?'Free':amount.toLocaleString()}</button>)}
+        </div>
+        {chipStake>0&&<p className="cw-dialog-copy">Stakes {chipStake.toLocaleString()} chips per pick ({(chipStake*selections.length).toLocaleString()} total escrow). Winning picks pay stake × odds in chips; voided picks refund. Chips have no cash value.</p>}
+      </div>}
       {pickError && <p role="alert" className="cw-form-error">{pickError}</p>}
       {selectionDisabled && <p className="cw-form-error">One or more games are unavailable for entry. Close this review to adjust your picks.</p>}
       <button className="cw-primary" disabled={pending||selectionDisabled} onClick={()=>void submitPick()}>
@@ -1268,7 +1283,7 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
       <button className="cw-clear" disabled={pending} onClick={()=>setReview(false)}>Cancel review</button>
     </Modal>}
     {parlayReview && parlaySelections.length>0 && <Modal title={`${parlaySelections.length}-leg Parlay Review`} locked={parlayPending} onClose={()=>setParlayReview(false)}>
-      <ParlayReviewModal selections={parlaySelections} user={account.user} pending={parlayPending} onConfirm={()=>void submitParlay()} onCancel={()=>setParlayReview(false)} draftEvents={draftEvents as unknown as ReadonlyMap<string, { odds?: GameOdds }>} zone={zone}/>
+      <ParlayReviewModal selections={parlaySelections} user={account.user} pending={parlayPending} onConfirm={()=>void submitParlay()} onCancel={()=>{setParlayReview(false);setParlayChipStake(0);}} draftEvents={draftEvents as unknown as ReadonlyMap<string, { odds?: GameOdds }>} zone={zone} chipStake={parlayChipStake} onChipStake={setParlayChipStake}/>
       {parlayError && <p role="alert" className="cw-form-error">{parlayError}</p>}
     </Modal>}
     {toast&&<div className="cw-toast" role="status"><span>{toast}</span><button onClick={()=>setToast('')} aria-label="Dismiss notification"><CloseIcon/></button></div>}

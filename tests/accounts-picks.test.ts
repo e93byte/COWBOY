@@ -83,14 +83,29 @@ test("token awards are owner-bound and idempotent across refresh retries", async
   await fixture(async (store) => {
     const owner = await store.register("TokenOwner", password);
     const other = await store.register("TokenOther", password);
-    assert.equal((await store.getTokens(owner.token)).tokens, 100);
+    assert.equal((await store.getTokens(owner.token)).tokens, 5000);
     await store.awardTokens(owner.token, owner.user.id, 10, "pick_win", "pick_win:ticket-1");
     await store.awardTokens(owner.token, owner.user.id, 10, "pick_win", "pick_win:ticket-1");
     const rewards = await store.getTokens(owner.token);
-    assert.equal(rewards.tokens, 110);
+    assert.equal(rewards.tokens, 5010);
     assert.equal(rewards.ledger.filter(entry => entry.awardKey === "pick_win:ticket-1").length, 1);
     await rejectsCode(store.awardTokens(owner.token, other.user.id, 10, "pick_win", "pick_win:ticket-2"), "unauthorized");
-    assert.equal((await store.getTokens(other.token)).tokens, 100);
+    assert.equal((await store.getTokens(other.token)).tokens, 5000);
+  });
+});
+
+test("chip adjustments debit, refund, and stay idempotent with a non-negative balance", async () => {
+  await fixture(async (store) => {
+    const owner = await store.register("ChipOwner", password);
+    await store.adjustTokens(owner.token, owner.user.id, -500, "chip_stake", "chip_stake:req-1");
+    await store.adjustTokens(owner.token, owner.user.id, -500, "chip_stake", "chip_stake:req-1");
+    assert.equal((await store.getTokens(owner.token)).tokens, 4500);
+    await store.adjustTokens(owner.token, owner.user.id, 500, "chip_stake_refund", "chip_stake_refund:req-1");
+    assert.equal((await store.getTokens(owner.token)).tokens, 5000);
+    const ledger = (await store.getTokens(owner.token)).ledger;
+    assert.equal(ledger.filter(entry => entry.awardKey === "chip_stake:req-1").length, 1);
+    await rejectsCode(store.adjustTokens(owner.token, owner.user.id, -999999, "chip_stake", "chip_stake:req-2"), "insufficient_chips");
+    assert.equal((await store.getTokens(owner.token)).tokens, 5000);
   });
 });
 

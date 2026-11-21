@@ -24,6 +24,7 @@ export type StoredParlay = {
   status: "open" | "won" | "lost" | "void" | "cancelled";
   settledAt: string | null;
   combinedOdds: number;
+  chipStake?: number;
 };
 export type Contest = { id: string; title: string; kind: 'daily' | 'weekly' | 'seasonal'; startsAt: string; endsAt: string; league: string | null; status: 'upcoming' | 'active' | 'settled'; createdAt: string };
 export type ContestStanding = { rank: number; username: string; decidedEvents: number; wins: number; accuracy: number };
@@ -228,8 +229,8 @@ export class AccountStore {
       }
       const user = { id: randomUUID(), username };
       const referralCode = randomBytes(4).toString("hex");
-      data.users.push({ ...user, salt, passwordHash, tokens: 100, referralCode });
-      data.tokenLedger.push({ userId: user.id, amount: 100, reason: 'signup_bonus', awardKey: 'signup_bonus', at: new Date(this.now()).toISOString() });
+      data.users.push({ ...user, salt, passwordHash, tokens: 5000, referralCode });
+      data.tokenLedger.push({ userId: user.id, amount: 5000, reason: 'signup_bonus', awardKey: 'signup_bonus', at: new Date(this.now()).toISOString() });
       return this.createSession(data, user);
     });
   }
@@ -471,6 +472,19 @@ export class AccountStore {
       if (owner.id !== userId) throw new AccountError("unauthorized", "You cannot award tokens to another account.", 401);
       const user = data.users.find(u => u.id === owner.id)!;
       if (data.tokenLedger.some(entry => entry.userId === owner.id && entry.awardKey === awardKey)) return;
+      user.tokens = (user.tokens ?? 0) + amount;
+      data.tokenLedger.push({ userId: owner.id, amount, reason, awardKey, at: new Date(this.now()).toISOString() });
+    }, true);
+  }
+
+  async adjustTokens(token: string | null, userId: string, amount: number, reason: string, awardKey: string): Promise<void> {
+    if (!Number.isSafeInteger(amount) || amount === 0 || !/^[a-z][a-z0-9_:-]{2,160}$/.test(reason) || !/^[a-z][a-z0-9_:-]{2,160}$/.test(awardKey)) return;
+    return this.transaction((data) => {
+      const owner = this.requireUser(data, token);
+      if (owner.id !== userId) throw new AccountError("unauthorized", "You cannot adjust tokens on another account.", 401);
+      const user = data.users.find(u => u.id === owner.id)!;
+      if (data.tokenLedger.some(entry => entry.userId === owner.id && entry.awardKey === awardKey)) return;
+      if ((user.tokens ?? 0) + amount < 0) throw new AccountError("insufficient_chips", "Not enough chips for that stake.", 409);
       user.tokens = (user.tokens ?? 0) + amount;
       data.tokenLedger.push({ userId: owner.id, amount, reason, awardKey, at: new Date(this.now()).toISOString() });
     }, true);

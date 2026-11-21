@@ -3,6 +3,7 @@ import { AccountError, type StoredPick } from "./account-store";
 import type { AccountBackend } from "./store-backend";
 import { LIVE_LEAGUES, type LiveEvent } from "./live-sports";
 import { pickName, pickSides, postedPrice, supportsDrawPick, type PickMarket, type PickSide, type PropSelection } from "./pick-outcomes";
+import { americanToDecimal } from "./parlay";
 import { getPlayerProps } from "./player-props";
 import { getPlayerPropValue, gradePropValue } from "./prop-grading";
 import type { PickConsensus } from "./pick-consensus";
@@ -35,20 +36,23 @@ export type RealPickTicket = {
   entryId?: string;
   entryIndex?: number;
   entrySize?: number;
+  /** Optional play-money chip stake escrowed at submission; no cash value. */
+  chipStake?: number;
 };
 export type EventGetter = (league: string, id: string) => Promise<LiveEvent | null>;
 export function publicTicket(ticket: StoredPick): RealPickTicket {
-  const { id, eventId, league, eventName, selection, side, startsAt, createdAt, status, settledAt, market, line, prop, live, odds, changes, entryId, entryIndex, entrySize } = ticket;
+  const { id, eventId, league, eventName, selection, side, startsAt, createdAt, status, settledAt, market, line, prop, live, odds, changes, entryId, entryIndex, entrySize, chipStake } = ticket;
   return {
     id, eventId, league, eventName, selection, side, startsAt, createdAt, status, settledAt,
     ...(market && market !== "moneyline" ? {market} : {}), ...(line !== null && line !== undefined ? {line} : {}),
     ...(prop ? {prop: prop as PropSelection} : {}), ...(live ? {live:true} : {}), ...(odds !== null && odds !== undefined ? {odds} : {}),
     ...(changes ? {changes} : {}),
     ...(entryId ? {entryId, entryIndex, entrySize} : {}),
+    ...(chipStake ? {chipStake} : {}),
   };
 }
 
-type PickInput = { eventId: string; league: string; side: PickSide; requestId: string; market: PickMarket; line: number | null; prop?: { player: string; stat: string } };
+type PickInput = { eventId: string; league: string; side: PickSide; requestId: string; market: PickMarket; line: number | null; prop?: { player: string; stat: string }; chipStake?: number };
 const PICK_MARKETS: readonly PickMarket[] = ["moneyline", "spread", "total", "prop"];
 const isPickSide = (value: unknown): value is PickSide =>
   value === "home" || value === "away" || value === "draw" || value === "over" || value === "under";
@@ -59,7 +63,7 @@ function validatePick(input: unknown): PickInput {
   const line = value.line === undefined || value.line === null ? null : value.line;
   const sides = typeof value.league === "string" ? pickSides(value.league, market as PickMarket) : [];
   const rawProp = value.prop && typeof value.prop === "object" && !Array.isArray(value.prop) ? value.prop as Record<string, unknown> : null;
-  if (Object.keys(value).some((field) => !["eventId", "league", "side", "requestId", "market", "line", "prop"].includes(field))
+  if (Object.keys(value).some((field) => !["eventId", "league", "side", "requestId", "market", "line", "prop", "chipStake"].includes(field))
     || typeof value.eventId !== "string" || !/^[0-9]{1,16}(?:-[0-9]{1,16})?$/.test(value.eventId)
     || typeof value.league !== "string" || !LIVE_LEAGUES.some((league) => league.id === value.league && league.sport !== "golf")
     || typeof value.requestId !== "string" || !/^[A-Za-z0-9_-]{8,128}$/.test(value.requestId)
@@ -71,7 +75,8 @@ function validatePick(input: unknown): PickInput {
       || (market === "total" && (line <= 0 || line > 2000))
       || (market === "prop" && (line <= 0 || line > 10000))))
     || (market === "prop" && (!rawProp || typeof rawProp.player !== "string" || !rawProp.player.trim() || rawProp.player.length > 80
-      || typeof rawProp.stat !== "string" || !rawProp.stat.trim() || rawProp.stat.length > 60 || line === null))) {
+      || typeof rawProp.stat !== "string" || !rawProp.stat.trim() || rawProp.stat.length > 60 || line === null))
+    || (value.chipStake !== undefined && (!Number.isSafeInteger(value.chipStake) || (value.chipStake as number) < 0 || (value.chipStake as number) > 1000000))) {
     throw new AccountError("invalid_input", "Supply an event, league, supported market, outcome and 8–128 character unique requestId.");
   }
   return { ...(value as PickInput), market: market as PickMarket, line: line as number | null,
@@ -180,7 +185,15 @@ export class PickService {
   }
 
   async cancel(token: string | null, id: unknown): Promise<RealPickTicket> {
-    return this.changeOpenPick(token, id, () => ({ action: "cancel", side: null, selection: null, revision: null }));
+    const tickets = await this.store.listPicks(token);
+    const snapshot = typeof id === "string" ? tickets.find(ticket => ticket.id === id) : undefined;
+    const cancelled = await this.changeOpenPick(token, id, () => ({ action: "cancel", side: null, selection: null, revision: null }));
+    const stake = snapshot?.chipStake ?? 0;
+    if (stake > 0) {
+      const user = await this.store.getUser(token);
+      if (user) await this.store.awardTokens(token, user.id, stake, "chip_refund", `chip_refund:${id}`);
+    }
+    return cancelled;
   }
 
   async edit(token: string | null, input: Record<string, unknown>): Promise<RealPickTicket> {
@@ -255,6 +268,18 @@ export class PickService {
     if (user) {
       for (const update of updates) {
         if (update.status === "won") await this.store.awardTokens(token, user.id, 10, "pick_win", `pick_win:${update.id}`);
+        const storedTicket = byId.get(update.id);
+        const stake = storedTicket?.chipStake ?? 0;
+        if (stake <= 0) continue;
+        // Chip settlement: won pays stake × decimal odds, void refunds the
+        // escrow, lost keeps nothing. One award key per ticket stays idempotent.
+        const credit = update.status === "won"
+          ? (storedTicket?.odds ? Math.round(stake * americanToDecimal(storedTicket.odds)) : 0)
+          : update.status === "void" ? stake : 0;
+        if (credit > 0) {
+          await this.store.awardTokens(token, user.id, credit,
+            update.status === "won" ? "chip_win" : "chip_refund", `chip_result:${update.id}`);
+        }
       }
     }
     return this.list(token);
@@ -317,17 +342,40 @@ export class PickService {
       }
       const effectiveLine = pick.market === "moneyline" ? null : posted;
       const odds = resolved?.odds ?? postedPrice(event.odds, pick.side, pick.market);
+      const chipStake = pick.chipStake ?? 0;
+      if (chipStake > 0 && odds === null) {
+        throw new AccountError("event_unavailable", "Chip stakes need a posted price for this selection. No picks were saved.", 409);
+      }
       tickets.push({
         id: randomUUID(), eventId: pick.eventId, league: pick.league, eventName: event.name,
         selection: pickName(event, pick.side, "name", pick.market, effectiveLine, resolved?.prop),
         side: pick.side, market: pick.market, line: effectiveLine,
         ...(resolved ? { prop: resolved.prop } : {}), ...(live ? { live: true } : {}), ...(odds !== null && odds !== undefined ? { odds } : {}),
+        ...(chipStake > 0 ? { chipStake } : {}),
         startsAt: event.startsAt, createdAt: new Date(now).toISOString(), status: "open", settledAt: null,
         userId: user.id, requestId: pick.requestId, homeId: event.home.id, awayId: event.away.id,
         ...(entryId ? {entryId, entryIndex: index, entrySize: picks.length} : {}),
       });
     }
-    // The backend performs the atomic replay/duplicate checks inside its write.
-    return (await this.store.savePicks(token, tickets)).map(publicTicket);
+    // Escrow chip stakes before saving. Award keys make retries idempotent:
+    // a replayed batch cannot double-charge, and a failed save refunds below.
+    const escrowed: Array<{ requestId: string; amount: number }> = [];
+    try {
+      for (const ticket of tickets) {
+        const stake = ticket.chipStake ?? 0;
+        if (stake <= 0) continue;
+        await this.store.adjustTokens(token, user.id, -stake, "chip_stake", `chip_stake:${ticket.requestId}`);
+        escrowed.push({ requestId: ticket.requestId, amount: stake });
+      }
+      // The backend performs the atomic replay/duplicate checks inside its write.
+      return (await this.store.savePicks(token, tickets)).map(publicTicket);
+    } catch (error) {
+      for (const entry of escrowed) {
+        try {
+          await this.store.adjustTokens(token, user.id, entry.amount, "chip_stake_refund", `chip_stake_refund:${entry.requestId}`);
+        } catch { /* balance already restored or session gone; settle will not double-pay */ }
+      }
+      throw error;
+    }
   }
 }
