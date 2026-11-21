@@ -1880,13 +1880,22 @@
 }
 /* Keep the home board wide on desktop; the sports rail spans its own row. */
 .cowboy-live.cw-home-page .cw-grid { grid-template-columns: minmax(0, 1fr) 300px; }
+.cowboy-live.cw-home-page .cw-grid-empty-tray { grid-template-columns: minmax(0, 1fr) 218px; }
+.cowboy-live.cw-grid-empty-tray .cw-picks-rail > :not(.cw-selected) { display: none; }
+.cowboy-live.cw-grid-empty-tray .cw-slip-empty { padding-block: 17px; }
+.cowboy-live.cw-grid-empty-tray .cw-slip-empty img { width: 48px; height: 48px; margin-bottom: 7px; }
+.cowboy-live .cw-event-updated { color: #e9b879; border: 1px solid rgba(233,184,121,.26); border-radius: 999px; padding: 2px 6px; font-size: 8px; white-space: nowrap; }
 .cowboy-live.cw-live-page .cw-grid,
 .cowboy-live.cw-picks-page .cw-grid { grid-template-columns: minmax(0, 1fr); }
 @media (max-width: 1000px) {
   .cowboy-live.cw-home-page .cw-grid { grid-template-columns: minmax(0, 1fr) 250px; }
+  .cowboy-live.cw-home-page .cw-grid-empty-tray { grid-template-columns: minmax(0, 1fr) 210px; }
+  .cowboy-live .cw-sports nav { scrollbar-width: none; }
+  .cowboy-live .cw-sports nav::-webkit-scrollbar { display: none; }
 }
 @media (max-width: 700px) {
   .cowboy-live.cw-home-page .cw-grid,
+  .cowboy-live.cw-home-page .cw-grid-empty-tray,
   .cowboy-live.cw-live-page .cw-grid,
   .cowboy-live.cw-picks-page .cw-grid { grid-template-columns: minmax(0, 1fr); }
   .cowboy-live .cw-toolbar > div[role="group"] {
@@ -2062,6 +2071,37 @@
 .cowboy-live .cw-market-tabs button{flex:1;min-height:30px;padding:5px 8px;font-size:10px;letter-spacing:.6px;text-transform:uppercase;background:#232227;border-color:#3c383d;color:#b6ada6;border-radius:5px}
 .cowboy-live .cw-market-tabs button[aria-pressed=true]{background:#3a2c22;border-color:#a06a3d;color:#ffc18b}
 .cowboy-live .cw-market-tabs button:disabled{opacity:.4}
+.cw-home-page .cw-event .cw-pick-options,
+.cw-home-page .cw-event .cw-draft-options {
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr);
+}
+.cw-home-page .cw-event .cw-market-tabs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  min-width: 0;
+  margin-block: 0;
+}
+.cowboy-live.cw-home-page .cw-event .cw-market-tabs button {
+  min-width: 0;
+  padding-inline: 3px;
+  font-size: 9px;
+  letter-spacing: 0;
+  overflow-wrap: anywhere;
+}
+.cowboy-live.cw-home-page .cw-event .cw-market-tabs button[aria-pressed=true] { color: #211309; }
+.cw-home-page .cw-event .cw-draft-options button > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 700px) {
+  .cowboy-live.cw-home-page .cw-event { grid-template-columns: minmax(0, 1fr); }
+  .cw-home-page .cw-event .cw-pick-options { margin-block-start: 4px; }
+  .cw-home-page .cw-event .cw-market-tabs { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .cw-home-page .cw-event .cw-draft-options { grid-template-columns: repeat(2, minmax(0, 1fr)); margin-block: 4px; }
+  .cw-home-page .cw-event .cw-draft-options.cw-three-outcomes { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .cowboy-live.cw-home-page .cw-event .cw-pick-options button { min-height: 44px; }
+}
 .cw-feature-panel{margin:18px 0;padding:16px;border:1px solid var(--edge);border-radius:8px;background:#1b1b1e}
 .cw-feature-heading{display:flex;align-items:center;justify-content:space-between;gap:12px}
 .cw-feature-heading h2{font-size:16px;margin-top:3px}
@@ -2102,3 +2142,64 @@
 .cw-chip-note{font-size:12px;color:#a69a91;margin:4px 0 0}
 .cw-chip-note::before{content:'🎲 ';}
 .cw-page-note{font-size:11px;color:#a69a91;margin-bottom:16px}
+.cw-picks-destinations { display: flex; flex-wrap: wrap; gap: 8px 20px; margin-block-end: 16px; }
+.cw-picks-destinations a { display: inline-flex; align-items: center; min-height: 44px; color: var(--tan); }
+.cw-interest-list { display: flex; flex-wrap: wrap; gap: 8px; margin-block: 12px; }
+.cowboy-live .cw-interest-list button { min-height: 44px; }
+.cowboy-live .cw-interest-list button[aria-pressed=true] { color: var(--tan); border-color: var(--tan); }
+.cw-discover-link { display: inline-flex; align-items: center; min-height: 44px; padding-inline: 8px; color: var(--tan); }
+.cw-discover-main { max-width: 1040px; margin-inline: auto; padding: clamp(16px,4vw,48px); }
+.cw-discover-main h1 { margin-block-end: 18px; font-size: clamp(25px,4vw,38px); }
+.cw-discover-filters, .cw-discover-list { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit,minmax(min(100%,230px),1fr)); }
+.cw-discover-filters > div { display: grid; gap: 6px; }
+.cw-discover-filters :is(input,select) { width: 100%; min-height: 44px; padding-inline: 10px; border: 1px solid var(--edge); border-radius: 8px; background: var(--surface); color: var(--paper); }
+.cw-discover-filters select {
+  appearance: none;
+  padding-inline-end: 30px;
+  background: var(--surface) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%23b4ada7' stroke-width='1.5'/%3E%3C/svg%3E") right 10px center / 12px 8px no-repeat;
+}
+@media (max-width: 700px) {
+  .cw-discover-filters :is(input,select) { font-size: 16px; }
+}
+.cw-discover-main .cw-discover-count { margin-block: 18px 10px; color: var(--dim); }
+.cw-discover-list { list-style: none; padding: 0; margin-block-end: 16px; }
+.cw-discover-list a { display: flex; gap: 10px; align-items: center; min-height: 70px; padding: 12px; border: 1px solid var(--edge); border-radius: 10px; color: var(--paper); background: var(--surface); text-decoration: none; }
+.cw-discover-list a span { min-width: 0; overflow-wrap: anywhere; }
+.cw-discover-list small { display: block; color: var(--dim); }
+@media (max-width: 700px) {
+  .cowboy-live .cw-dialog.cw-game-dialog {
+    inset: 0; margin: 0; box-sizing: border-box; width: 100%; height: 100dvh;
+    max-width: 100%; max-height: none; border-radius: 0;
+    padding: max(12px, env(safe-area-inset-top)) 12px max(12px, env(safe-area-inset-bottom));
+  }
+  .cw-game-dialog .cw-game-header { position: sticky; top: 0; z-index: 2; }
+  .cw-game-dialog .cw-game-scoreboard { padding-block: 8px; }
+  .cw-game-dialog .cw-game-team .cw-team-mark { width: 32px; height: 32px; }
+  .cw-game-dialog .cw-game-team > b { font-size: 22px; }
+  .cowboy-live .cw-dialog.cw-pick-sheet {
+    inset: auto 0 0; margin: 0; width: 100%; max-width: 100%; max-height: 85dvh;
+    border-radius: 16px 16px 0 0; padding-bottom: max(16px, env(safe-area-inset-bottom));
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .cowboy-live .cw-game-dialog[open] { animation: cw-game-enter 180ms ease-out; }
+  .cowboy-live .cw-pick-sheet[open] { animation: cw-pick-sheet-enter 240ms cubic-bezier(.2,.75,.25,1); }
+}
+@keyframes cw-game-enter {
+  from { opacity: .72; }
+  to { opacity: 1; }
+}
+@keyframes cw-pick-sheet-enter {
+  from { opacity: .72; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.cowboy-live .cw-game-dialog::backdrop,
+.cowboy-live .cw-pick-sheet::backdrop { backdrop-filter: none; }
+.cowboy-live .cw-pick-reason { color: var(--muted-strong); font-size: 11px; line-height: 1.4; }
+.cowboy-live .cw-team-preview > summary {
+  align-content: center;
+  min-height: 44px;
+  color: var(--tan);
+  font-weight: 700;
+  cursor: pointer;
+}

@@ -302,6 +302,9 @@ test("pick entry rejects unverified, unavailable, missing-team, started or non-s
     }
     const unavailable = new PickService({ store, getEvent: async () => { throw new Error("private upstream details"); }, now: () => eventTime });
     await rejectsCode(unavailable.submit(token, pick()), "feed_unavailable");
+    const backup = new PickService({ store, getEvent: async () => event({scoreSource: "ESPN summary"}), now: () => eventTime });
+    await rejectsCode(backup.submit(token, pick()), "feed_unavailable");
+    assert.deepEqual(await backup.list(token), []);
   });
 });
 
@@ -347,6 +350,9 @@ test("refresh grades only authoritative completed winners and never infers a res
       current = uncertain;
       assert.deepEqual(await service.refresh(first.token), [firstTicket]);
     }
+    current = event({ status: "final", completed: true, winner: "home", scoreSource: "ESPN summary" });
+    await rejectsCode(service.refresh(first.token), "feed_unavailable");
+    assert.deepEqual(await service.list(first.token), [firstTicket]);
     current = event({ status: "final", completed: true, winner: "home" });
     const won = await service.refresh(first.token);
     assert.equal(won[0].status, "won");

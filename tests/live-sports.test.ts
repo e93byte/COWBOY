@@ -1242,7 +1242,9 @@ test('MLB backup uses both teams and kickoff to disambiguate doubleheaders', asy
   const providerGame = {
     gameDate:game.startsAt,status:{abstractGameState:'Live',detailedState:'In Progress'},
     teams:{away:{team:{abbreviation:game.away.shortName},score:3},home:{team:{abbreviation:game.home.shortName},score:5}},
-    linescore:{currentInning:6,inningState:'Bottom'},
+    linescore:{currentInning:6,inningState:'Bottom',balls:2,strikes:1,outs:0,
+      offense:{first:{fullName:'Runner One'},batter:{fullName:'Batter One'}},
+      defense:{pitcher:{fullName:'Pitcher One'}}},
   };
   const client = live.createLiveSportsClient({now:()=>clock,fetch:async input=>{
     const url = String(input);
@@ -1261,6 +1263,8 @@ test('MLB backup uses both teams and kickoff to disambiguate doubleheaders', asy
   assert.equal(updated?.scoreSource,'MLB');
   assert.equal(updated?.home.score,5);
   assert.equal(updated?.statusText,'Bottom 6');
+  assert.deepEqual(updated?.baseballSituation,{balls:2,strikes:1,outs:0,
+    runners:[{base:'First',name:'Runner One'}],batter:'Batter One',pitcher:'Pitcher One'});
   assert.equal(result.leagues.find(league=>league.id==='mlb')?.backupSource,'MLB');
 });
 

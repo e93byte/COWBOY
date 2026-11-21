@@ -1,16 +1,32 @@
-const VERSION = "cowboy-live-shell-v5";
+const VERSION = "cowboy-live-shell-v9";
 const PRECACHE = ["/offline.html", "/offline-board.js", "/icon-192.png", "/icon-512.png", "/icon-maskable-512.png"];
+const NAVIGATION_TIMEOUT_MS = 6000;
+
+async function offlinePage() {
+  const cache = await caches.open(VERSION);
+  return (await cache.match("/offline.html")) || new Response("Offline", { status: 503, headers: { "Content-Type": "text/plain" } });
+}
+
+async function navigate(request) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), NAVIGATION_TIMEOUT_MS);
+  try {
+    return await fetch(request, { cache: "no-store", signal: controller.signal });
+  } catch {
+    return offlinePage();
+  } finally {
+    clearTimeout(timeout);
+  }
+}
 
 self.addEventListener("install", (event) => {
-  event.waitUntil(caches.open(VERSION).then((cache) => cache.addAll(PRECACHE)));
-  self.skipWaiting();
+  event.waitUntil(caches.open(VERSION).then((cache) => cache.addAll(PRECACHE)).then(() => self.skipWaiting()));
 });
 
 self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches.keys().then((keys) => Promise.all(keys.filter((key) => (key.startsWith("northstar-") || key.startsWith("cowboy-")) && key !== VERSION).map((key) => caches.delete(key))))
+    caches.keys().then((keys) => Promise.all(keys.filter((key) => (key.startsWith("northstar-") || key.startsWith("cowboy-")) && key !== VERSION).map((key) => caches.delete(key)))).then(() => self.clients.claim())
   );
-  self.clients.claim();
 });
 
 self.addEventListener("fetch", (event) => {
@@ -23,10 +39,7 @@ self.addEventListener("fetch", (event) => {
   if (url.pathname.startsWith("/api/") || url.pathname.startsWith("/auth/") || url.pathname.startsWith("/account/")) return;
 
   if (request.mode === "navigate") {
-    event.respondWith(fetch(request).catch(async () => {
-      const cache = await caches.open(VERSION);
-      return (await cache.match("/offline.html")) || new Response("Offline", { status: 503, headers: { "Content-Type": "text/plain" } });
-    }));
+    event.respondWith(url.pathname === "/offline.html" ? offlinePage() : navigate(request));
     return;
   }
 

@@ -9,6 +9,22 @@ function count(value: unknown): value is number {
   return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0;
 }
 
+function liveSituation(lines: Record<string, unknown>): LiveEvent['baseballSituation'] {
+  const {balls, strikes, outs} = lines;
+  if (!count(balls) || balls > 3 || !count(strikes) || strikes > 2 || !count(outs) || outs > 2) return;
+  const offense = record(lines.offense);
+  const defense = record(lines.defense);
+  const name = (value: unknown) => {
+    const player = record(value);
+    return typeof player.fullName === 'string' ? player.fullName.trim().slice(0, 100) || undefined : undefined;
+  };
+  const runners = (['First','Second','Third'] as const).flatMap(base => {
+    const runner = name(offense[base.toLowerCase()]);
+    return runner ? [{base, name:runner}] : [];
+  });
+  return {balls, strikes, outs, runners, batter:name(offense.batter), pitcher:name(defense.pitcher)};
+}
+
 /** Match both clubs in order and the exact scheduled time, including doubleheaders. */
 export function applyMlbScores(events: LiveEvent[], payload: unknown): LiveEvent[] {
   const dates = record(payload).dates;
@@ -44,6 +60,7 @@ export function applyMlbScores(events: LiveEvent[], payload: unknown): LiveEvent
     return {
       ...event, status: final ? 'final' : 'live', statusText: final ? 'Final' : hasInning ? `${inningState} ${period}` : 'In progress',
       clock:null, period,
+      baseballSituation: live && (inningState === 'Top' || inningState === 'Bottom') ? liveSituation(lines) : undefined,
       away:{...event.away,score:away,linescores:undefined,baseballTotals:undefined},
       home:{...event.home,score:home,linescores:undefined,baseballTotals:undefined},
       scoreSource:'MLB',

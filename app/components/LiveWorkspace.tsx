@@ -11,28 +11,32 @@ import { RankedTeamName, TeamMark } from './TeamMark';
 import { EventDetail } from './EventDetail';
 import { GolfLeaderboard } from './GolfLeaderboard';
 import PwaControls from './PwaControls';
-import { BoardScore, GameStatus, MatchCard } from './MatchCard';
+import { BoardScore, MatchCard, MatchStatus } from './MatchCard';
+import { TeamSchedulePreview } from './TeamScheduleGames';
 import { SportsGlance } from './SportsGlance';
 import { HelpCenter } from './HelpCenter';
 import { ResponsiblePlayTools, readResponsibleLimits, isSelfExcluded, type ResponsibleLimits } from './ResponsiblePlayTools';
-import { saveOfflineScoreboard } from '../lib/offline-scoreboard';
+import { openSavedBoardOnStandaloneStartup, saveOfflineScoreboard } from '../lib/offline-scoreboard';
+import { emptyHomeInterests, readHomeInterests, saveHomeInterests } from '../lib/home-interests';
 import { GameAlertSettings, GameAlertsDialog, GameMomentList, useGameAlerts, type GameMoment } from './GameUpdates';
 import { ScheduleDates, scheduleDateLabel } from './ScheduleDates';
 import { ScheduleTimeZone, ScheduleZoneSelect } from './ScheduleTimeZone';
 import ContestsPage from '../contests/page';
 import RewardsPage from '../rewards/page';
-import { nextScheduleDay, parseScheduleDate, parseSharedScheduleZone, resolvedScheduleZone, scheduleDay, scheduleTime, scheduleZones, type ScheduleZone } from '../lib/schedule-time';
+import { nextScheduleDay, parseScheduleDate, parseSharedScheduleZone, resolvedScheduleZone, scheduleDay, scheduleTime, type ScheduleZone } from '../lib/schedule-time';
 import { BoardSearch, boardTournamentName, matchesBoardQuery, type BoardSuggestion, type Follow } from './BoardSearch';
 import { useAccountFollows } from './AccountFollows';
 
 import type { LiveBoard, LiveEvent, GameOdds } from '../lib/live-sports';
 import { SPORTS_CATALOGUE } from '../lib/sports-leagues';
+import { localeMetadata, resolveLocale, SUPPORTED_LOCALES, type CowboyLocale } from '../lib/locales';
 import { hasActiveScores, LIVE_SCORE_REFRESH_MS, SCHEDULE_REFRESH_MS } from '../lib/score-refresh';
 import type { PlayerProps } from '../lib/player-props';
 import { pickName, pickSides, postedPickLine, postedPrice, supportsDrawPick, type PickMarket, type PickSide } from '../lib/pick-outcomes';
 import { consensusKey, consensusPercent } from '../lib/pick-consensus';
 import { usePickConsensus } from './pick-consensus';
 import { americanOdds, lineValue } from '../lib/odds';
+import { eventKey as presentationEventKey, presentEvent } from '../lib/event-presentation';
 export type { LiveEvent } from '../lib/live-sports';
 // League panels fetch on mount and render nothing until data arrives, so they
 // are code-split to keep the initial board bundle small.
@@ -45,7 +49,7 @@ const spotlightOptions = [
   { id: 'following', label: 'Following' },
 ] as const;
 type SpotlightMode = typeof spotlightOptions[number]['id'];
-export type WorkspaceView = 'board' | 'live' | 'picks' | 'parlays' | 'contests' | 'rewards' | 'preferences' | 'help';
+export type WorkspaceView = 'board' | 'live' | 'picks' | 'parlays' | 'contests' | 'rewards' | 'mySports' | 'preferences' | 'help';
 const boardStatuses = ['all','live','upcoming','watchlist'] as const;
 type BoardStatus = typeof boardStatuses[number];
 type LiveScope = 'all' | 'following' | 'final';
@@ -59,7 +63,7 @@ const sportCategories = [
 ] as const;
 const sportFilter = (value: string) => sportCategories.find(([key])=>value === 'sport-'+key)?.[0];
 
-const workspacePaths: Record<WorkspaceView, string> = {board: '/', live: '/live', picks: '/picks', parlays: '/parlays', contests: '/contests', rewards: '/rewards', preferences: '/preferences', help: '/help'};
+const workspacePaths: Record<WorkspaceView, string> = {board: '/', live: '/live', picks: '/picks', parlays: '/parlays', contests: '/contests', rewards: '/rewards', mySports: '/my-sports', preferences: '/preferences', help: '/help'};
 
 function viewFromPath(pathname: string): WorkspaceView {
   if (pathname === workspacePaths.live) return 'live';
@@ -67,6 +71,7 @@ function viewFromPath(pathname: string): WorkspaceView {
   if (pathname === workspacePaths.parlays) return 'parlays';
   if (pathname === workspacePaths.contests) return 'contests';
   if (pathname === workspacePaths.rewards) return 'rewards';
+  if (pathname === workspacePaths.mySports) return 'mySports';
   if (pathname === workspacePaths.preferences) return 'preferences';
   if (pathname === workspacePaths.help) return 'help';
   return 'board';
@@ -116,7 +121,7 @@ function readGameLink(params: URLSearchParams) {
   return params.getAll('game').length === 1 && params.getAll('league').length === 1 && validGameLink(id,league)
     ? {id,league} : null;
 }
-function eventKey(event: Pick<LiveEvent,'league'|'id'>) { return event.league + ':' + event.id; }
+function eventKey(event: Pick<LiveEvent,'league'|'id'>) { return presentationEventKey(event); }
 function selectionKey(event: Pick<LiveEvent,'league'|'id'>, market: PickMarket = 'moneyline') { return `${eventKey(event)}:${market}`; }
 
 function BoardLoadingSkeleton() {
@@ -200,10 +205,17 @@ function useLiveBoard() {
     let disposed=false, running=false, requestTimedOut=false, timer:ReturnType<typeof setTimeout>|undefined, requestTimer:ReturnType<typeof setTimeout>|undefined, controller:AbortController|undefined;
     const CLIENT_REQUEST_TIMEOUT_MS = 15_000;
     let delay=LIVE_SCORE_REFRESH_MS;
+    const offlineMessage = 'You’re offline. Showing the last received games where available.';
     let lastFullRefresh = 0;
     let lastBoard: LiveBoard | undefined;
     const load=async(league?: string, interactive = false)=>{
       if(disposed||running)return;
+      if (!navigator.onLine) {
+        if (!lastBoard) openSavedBoardOnStandaloneStartup();
+        setError(offlineMessage);
+        setBusy(false);
+        return;
+      }
       const now = Date.now();
       const focused = !league && !interactive && lastBoard && hasActiveScores(lastBoard, now)
         && now - lastFullRefresh < SCHEDULE_REFRESH_MS;
@@ -213,10 +225,12 @@ function useLiveBoard() {
       controller=new AbortController();
       requestTimedOut=false;
       requestTimer=setTimeout(()=>{requestTimedOut=true;controller?.abort();}, CLIENT_REQUEST_TIMEOUT_MS);
+      let receivedResponse = false;
       try {
         const url = league ? `/api/sports?${new URLSearchParams({league})}` : '/api/sports';
         const res=await fetch(url,{signal:controller.signal,cache:'no-store',
           headers: focused ? {'X-Cowboy-Score-Refresh': 'live'} : undefined});
+        receivedResponse = true;
         if(!res.ok) throw new Error('Sports source is unavailable. Please try again.');
         const data:LiveBoard=await res.json();
         if(!Array.isArray(data.events)||!Array.isArray(data.leagues))throw new Error('Sports source returned an invalid response.');
@@ -230,14 +244,33 @@ function useLiveBoard() {
         }
       }catch(e){
         if(!disposed && ((e as Error).name!=='AbortError' || requestTimedOut)) {
+          if (!lastBoard && !receivedResponse && (e instanceof TypeError || requestTimedOut)) {
+            openSavedBoardOnStandaloneStartup();
+          }
           setError(requestTimedOut ? 'Score feed timed out. Showing the last received scores; retrying automatically.' : (e as Error).message);
         }
       }
-      finally {clearTimeout(requestTimer);requestTimer=undefined;running=false;if(!disposed){setBusy(false);if(!document.hidden)timer=setTimeout(() => void load(),delay);}}
+      finally {
+        clearTimeout(requestTimer);
+        requestTimer=undefined;
+        running=false;
+        if (!disposed) {
+          setBusy(false);
+          if (!document.hidden && navigator.onLine) timer=setTimeout(() => void load(),delay);
+        }
+      }
     };
     const visibility=()=>{clearTimeout(timer);if(document.hidden)controller?.abort();else void load(undefined,true);};
+    const offline=()=>{clearTimeout(timer);controller?.abort();setError(offlineMessage);};
+    window.addEventListener('online',visibility);
+    window.addEventListener('offline',offline);
     refresh.current=(league)=>void load(league,true);document.addEventListener('visibilitychange',visibility);void load(undefined,true);
-    return()=>{disposed=true;clearTimeout(timer);clearTimeout(requestTimer);controller?.abort();document.removeEventListener('visibilitychange',visibility);};
+    return()=>{
+      disposed=true;clearTimeout(timer);clearTimeout(requestTimer);controller?.abort();
+      document.removeEventListener('visibilitychange',visibility);
+      window.removeEventListener('online',visibility);
+      window.removeEventListener('offline',offline);
+    };
   },[]);
   return {board,error,busy,refresh:()=>refresh.current(),refreshLeague:(league:string)=>refresh.current(league)};
 }
@@ -248,26 +281,53 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
   const moments = useGameMoments(board, Boolean(error));
   const [spotlightMode, setSpotlightMode] = useState<SpotlightMode>('featured');
   const [highlightsExpanded, setHighlightsExpanded] = useState(false);
-  const [sourcesExpanded, setSourcesExpanded] = useState(false);
   const [boardOptionsExpanded, setBoardOptionsExpanded] = useState(false);
   const [now,setNow]=useState(0);
-  useEffect(()=>{setNow(Date.now());const timer=setInterval(()=>setNow(Date.now()),1000);return()=>clearInterval(timer);},[]);
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout>;
+    const update = () => {
+      clearTimeout(timer);
+      if (document.hidden) return;
+      const current = Date.now();
+      setNow(current);
+      // The source owns the game clock. Only update local schedule and freshness labels.
+      let next = current + 15_000;
+      for (const event of board?.events ?? []) {
+        if (event.status !== 'scheduled') continue;
+        const startsAt = Date.parse(event.startsAt);
+        if (startsAt > current && startsAt < next) next = startsAt;
+      }
+      timer = setTimeout(update, next - current);
+    };
+    update();
+    document.addEventListener('visibilitychange', update);
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener('visibilitychange', update);
+    };
+  }, [board]);
   const [boardLeague,setBoardLeague]=useState('all');
   const [filter,setFilter]=useState<BoardStatus>('all');
   const [dateFilter,setDateFilter]=useState('all');
   const [preferenceZone,setPreferenceZone] = useState<ScheduleZone>('local');
+  const [locale,setLocale] = useState<CowboyLocale>('en');
   const [sharedZone,setSharedZone] = useState<string|null>(null);
   useEffect(() => {
     try {
       const saved = localStorage.getItem('cowboy.scheduleZone');
-      const preference = scheduleZones.find(option => option.id === saved);
-      if (preference) setPreferenceZone(preference.id);
+      const preference = saved && parseSharedScheduleZone(new URLSearchParams({tz: saved}));
+      if (preference) setPreferenceZone(preference);
+      setLocale(resolveLocale(localStorage.getItem('cowboy.locale') ?? navigator.language));
     } catch {}
   }, []);
   const changeZone = (next: ScheduleZone) => {
     setPreferenceZone(next);
     if (dateFilter !== 'all') changeScheduleDate(dateFilter, next);
     try { localStorage.setItem('cowboy.scheduleZone',next); } catch {}
+  };
+  const changeLocale = (next: CowboyLocale) => {
+    setLocale(next);
+    try { localStorage.setItem('cowboy.locale', next); } catch {}
   };
   const [query,setQuery]=useState('');
   const [teamFilter,setTeamFilter]=useState<Follow|null>(null);
@@ -279,6 +339,7 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
   const league = liveView ? liveFilters.league : boardLeague;
   const account=useAccount();
   const [accountOpen,setAccountOpen]=useState(false);
+  const resumeReviewAfterSignIn = useRef(false);
   const [alertsOpen,setAlertsOpen]=useState(false);
   const [selections,setSelections]=useState<Selection[]>([]);
   const [draftReady,setDraftReady]=useState(false);
@@ -300,6 +361,14 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
   const [detail,setDetail]=useState<LiveEvent|null>(null);
   const [sharedGameState, setSharedGameState] = useState<'loading'|'unavailable'|null>(null);
   const sharedGameRequest = useRef<AbortController | null>(null);
+  const [interests,setInterests] = useState(emptyHomeInterests);
+  useEffect(()=>setInterests(readHomeInterests()),[]);
+  function updateInterests(change: (value: typeof interests) => typeof interests) {
+    const next = change(interests);
+    saveHomeInterests(next);
+    setInterests(next);
+  }
+  const gameReturn = useRef<{url: string; top: number; opener: HTMLElement | null; offset: number} | null>(null);
 
   const loadGame = useCallback((id: string, league: string) => {
     sharedGameRequest.current?.abort();
@@ -330,6 +399,31 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
       const workspace = viewFromPath(window.location.pathname);
       setView(workspace);
       const params = new URLSearchParams(window.location.search);
+      if (!params.has('game') && gameReturn.current?.url === window.location.href) {
+        const {top, opener, offset} = gameReturn.current;
+        const viewport = window.visualViewport;
+        const restore = () => {
+          if (params.toString() !== new URLSearchParams(window.location.search).toString() ||
+            gameReturn.current?.url !== window.location.href) return;
+          if (!opener?.isConnected) {
+            window.scrollTo({top,behavior:'instant'});
+            return;
+          }
+          const delta = opener.getBoundingClientRect().top - (viewport?.offsetTop ?? 0) - offset;
+          if (Math.abs(delta) > 1) window.scrollBy({top:delta,behavior:'instant'});
+        };
+        requestAnimationFrame(restore);
+        // Android Chrome can resize the visual viewport as its toolbar settles.
+        viewport?.addEventListener('resize',restore);
+        const cleanup = () => {
+          viewport?.removeEventListener('resize',restore);
+          window.removeEventListener('pointerdown',cleanup);
+          window.removeEventListener('wheel',cleanup);
+        };
+        window.addEventListener('pointerdown',cleanup,{once:true});
+        window.addEventListener('wheel',cleanup,{once:true});
+        window.setTimeout(cleanup,350);
+      }
       if (workspace === 'live') setLiveFilters(readLiveFilters(params));
       if (workspace === 'board') {
         const selectedLeague = readLeagueFilter(params);
@@ -368,7 +462,15 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
     }
     // Keep a single history entry for the open Game Center, even when switching fixtures.
     if (isSwitch) window.history.replaceState({cowboyGameEntry: window.history.state?.cowboyGameEntry === true}, '', url);
-    else window.history.pushState({cowboyGameEntry: true}, '', url);
+    else {
+      const active = document.activeElement;
+      const opener = active instanceof HTMLElement && active !== document.body ? active : null;
+      gameReturn.current = {
+        url: window.location.href, top: window.scrollY, opener,
+        offset: (opener?.getBoundingClientRect().top ?? 0) - (window.visualViewport?.offsetTop ?? 0),
+      };
+      window.history.pushState({cowboyGameEntry: true}, '', url);
+    }
   }
 
   function openGame(event: LiveEvent, preserveSection = false) {
@@ -376,6 +478,8 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
     setSharedGameState(null);
     if (validGameLink(event.id,event.league)) pushGameLocation(event.id,event.league,preserveSection);
     setDetail(event);
+    const key = eventKey(event);
+    updateInterests(value=>({...value,recent:[key,...value.recent.filter(item=>item!==key)].slice(0,20)}));
   }
 
   function openSavedGame(id: string, league: string) {
@@ -441,10 +545,11 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
   const todayDateStr = now ? new Date(now).toISOString().slice(0, 10) : '';
   const todaySubmittedCount = account.tickets.filter(t => t.createdAt && t.createdAt.slice(0, 10) === todayDateStr).length;
   const dailyLimitReached = responsibleLimits !== null && (responsibleLimits.dailyPicks === 0 || todaySubmittedCount >= responsibleLimits.dailyPicks);
-  const currentLeague = (id: string) => !error &&
-    board?.leagues.find(league => league.id === id)?.status === 'ok';
-  const eligiblePick = (event: LiveEvent | undefined) =>
-    !!event && canPick(event,now) && currentLeague(event.league) && !selfExcluded;
+  const presentationFor = (event: LiveEvent | undefined) => event && presentEvent(event, {
+    league: board?.leagues.find(league => league.id === event.league), now,
+    boardError: Boolean(error), selfExcluded, dailyLimitReached,
+  });
+  const eligiblePick = (event: LiveEvent | undefined) => Boolean(presentationFor(event)?.pickEligible);
   const draftEvents = new Map<string, LiveEvent>();
   for (const pick of selections) {
     const key = eventKey(pick.event);
@@ -577,13 +682,14 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
     onReview={()=>{setReview(true);setDrawer(false);}}
     draftEvents={draftEvents} onChoose={togglePick} onChangeMarket={changeDraftMarket} onClear={()=>setSelections([])}
     onRemove={pick=>setSelections(previous=>previous.filter(item=>item.requestId!==pick.requestId))}
-    onSignIn={()=>{setAccountOpen(true);setDrawer(false);}}/>;
+    onSignIn={()=>{resumeReviewAfterSignIn.current=true;setAccountOpen(true);setDrawer(false);}}/>;
   const todayKey = scheduleDay(now,zone);
   const tomorrowKey = nextScheduleDay(todayKey);
   const dateName = scheduleDateLabel(dateFilter,todayKey,tomorrowKey);
   const preferencesView = view === 'preferences';
+  const mySportsView = view === 'mySports';
   const helpView = view === 'help';
-  const informationView = preferencesView || helpView;
+  const informationView = preferencesView || mySportsView || helpView;
   const pageHeading = useRef<HTMLHeadingElement>(null);
   useEffect(() => {
     if (informationView && !window.location.hash) {
@@ -605,9 +711,6 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
   const openWatchlist = () => { openBoard(); replaceBoardStatus('watchlist'); };
   const openLive = () => { clearTransientFilters(); navigate('live'); replaceLiveFilters(defaultLiveFilters); };
   const openPicks = () => navigate('picks');
-  const openParlays = () => navigate('parlays');
-  const openContests = () => navigate('contests');
-  const openRewards = () => navigate('rewards');
   const [compared,setCompared] = useState<ComparedGame[]>([]);
   const restoredComparison = useRef(false);
   const allEvents = board?.events ?? [];
@@ -808,7 +911,16 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
   const upcomingOrder = (a: LiveEvent,b: LiveEvent) => Date.parse(a.startsAt) - Date.parse(b.startsAt);
   const followedGame = onHome ? followedLive[0] ?? scheduledFollows.slice().sort(upcomingOrder)[0] ??
     finalEvents.filter(isFollowed).sort((a,b)=>upcomingOrder(b,a))[0] : undefined;
-  const glanceGame = onHome ? followedGame ?? liveEvents[0] ?? allEvents.filter(event=>eligiblePick(event)).sort(upcomingOrder)[0] : undefined;
+  const preferredSports = new Set(interests.sports);
+  const recentRank = new Map(interests.recent.map((key,index)=>[key,index]));
+  const interestOrder = (a:LiveEvent,b:LiveEvent) =>
+    Number(preferredSports.has(b.sport))-Number(preferredSports.has(a.sport)) ||
+    (recentRank.get(eventKey(a)) ?? 20)-(recentRank.get(eventKey(b)) ?? 20) ||
+    upcomingOrder(a,b) || eventKey(a).localeCompare(eventKey(b));
+  const relevantGame = onHome ? [...liveEvents,...allEvents.filter(event=>eligiblePick(event))]
+    .filter(event=>preferredSports.has(event.sport)||recentRank.has(eventKey(event)))
+    .sort((a,b)=>Number(b.status==='live')-Number(a.status==='live')||interestOrder(a,b))[0] : undefined;
+  const glanceGame = onHome ? followedGame ?? relevantGame ?? liveEvents[0] ?? allEvents.filter(event=>eligiblePick(event)).sort(upcomingOrder)[0] : undefined;
   const communityPick = onHome ? (() => {
     let best: {event: LiveEvent; side: PickSide; pct: number; total: number} | null = null;
     for (const event of allEvents) {
@@ -833,7 +945,7 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
     if (spotlightMode==='following') return isFollowed(event);
     return !glanceGame || eventKey(event) !== eventKey(glanceGame);
   }).sort((a,b)=>Number(b.status==='live')-Number(a.status==='live') ||
-    Number(isFollowed(b))-Number(isFollowed(a)) || Date.parse(a.startsAt)-Date.parse(b.startsAt)).slice(0,6);
+    Number(isFollowed(b))-Number(isFollowed(a)) || interestOrder(a,b)).slice(0,6);
   const spotlightEmpty = {
     featured:'No featured games for these filters.',
     live:'No live games for these filters.',
@@ -848,7 +960,7 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
     if (!iso) return null;
     const seconds = Math.max(0, Math.round((now - Date.parse(iso)) / 1000));
     if (!Number.isFinite(seconds)) return null;
-    if (seconds < 60) return `${seconds}s`;
+    if (seconds < 60) return 'under 1m';
     if (seconds < 3600) return `${Math.floor(seconds / 60)}m`;
     return `${Math.floor(seconds / 3600)}h`;
   };
@@ -862,10 +974,15 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
     return `${state}${age ? ` · ${checked} ${age} ago` : ''}`;
   };
   const eventUpdated = (event: LiveEvent) => {
-    if (event.status !== 'live') return null;
-    const meta = leagueMeta.get(event.league);
-    const age = ageText(meta?.scoresUpdatedAt ?? meta?.lastSuccessAt);
-    return age ? `${meta?.backupSource ? 'backup checked' : 'updated'} ${age} ago` : null;
+    const presentation = presentationFor(event);
+    if (!presentation) return null;
+    // A live event whose confirming feed has gone quiet gets a per-event
+    // stale-clock note even while league-level freshness still reads current.
+    if (presentation.freshness === 'current' || presentation.freshness === 'backup-current') {
+      return presentation.clockStale ? 'Live feed may be delayed' : null;
+    }
+    const age = ageText(presentation.lastConfirmedAt);
+    return `${presentation.freshnessLabel}${age ? ` · last confirmed ${age} ago` : ''}`;
   };
   const deviceFollows = view === 'board' && filter === 'watchlist' ? subscriptions.importable(allEvents,availableLeagues) : [];
   const pickedLeague = availableLeagues.find(item=>item.id===league);
@@ -888,16 +1005,6 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
   }, [league, board !== null]);
   const boardFollow = teamFilter ?? (pickedLeague ? {id:pickedLeague.id,name:pickedLeague.name,league:pickedLeague.id} : null);
   const live = liveEvents.length;
-  const feedHealth = board ? board.leagues.reduce((stats, item) => {
-    if (item.status === 'ok') stats.healthy += 1;
-    else if (item.status === 'stale') stats.delayed += 1;
-    else stats.failed += 1;
-    if (item.backupSource) stats.fallbacks += 1;
-    return stats;
-  }, {healthy: 0, delayed: 0, failed: 0, fallbacks: 0}) : null;
-  const feedSummary = feedHealth
-    ? `${feedHealth.healthy}/${board?.leagues.length ?? 0} feeds healthy`
-    : 'Connecting to score feeds';
   const liveScopes = ([
     { key: 'all', label: 'In progress', events: liveEvents, golf: liveGolf },
     { key: 'following', label: 'Following', events: followedLive, golf: followedGolf },
@@ -933,7 +1040,10 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
     ? account.tickets.find(ticket => ticket.eventId === failedGame.id && ticket.league === failedGame.league)
     : undefined;
   const renderPickOptions = (e: LiveEvent) => {
+    const presentation = presentationFor(e);
     const key = eventKey(e);
+    const reason = e.status === 'scheduled' ? presentation?.pickReason : null;
+    const reasonId = reason ? `cw-pick-reason-${e.league}-${e.id}` : undefined;
     const currentMarket = marketByEvent.get(key) ?? 'moneyline';
     const posted = (market: PickMarket) => market === 'moneyline' || pickSides(e.league, market).some(side => postedPickLine(e.odds, side, market) !== null);
     const marketProps = propData.get(key);
@@ -975,29 +1085,26 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
             const line = currentMarket === 'prop' ? (item.prop?.line ?? null) : postedPickLine(e.odds, side as PickSide, currentMarket);
             const prop = currentMarket === 'prop' ? item.prop : null;
             return (
-              <button key={`${side}:${currentMarket}:${item.label}`} aria-label={`Pick ${item.label}`} aria-pressed={selected} onClick={() => togglePick(e, side as PickSide, currentMarket, prop)} disabled={pending || !eligiblePick(e) || !canAdd || (!selected && dailyLimitReached) || (currentMarket !== 'moneyline' && line === null)}>
+              <button key={`${side}:${currentMarket}:${item.label}`} aria-label={`Pick ${item.label}`} aria-describedby={reasonId} aria-pressed={selected} onClick={() => togglePick(e, side as PickSide, currentMarket, prop)} disabled={pending || !presentation?.pickEligible || !canAdd || (!selected && dailyLimitReached) || (currentMarket !== 'moneyline' && line === null)}>
                 <span>{item.label}</span>{item.price != null && <small>{americanOdds(item.price)}</small>}
-                <small>{selfExcluded ? 'Excluded' : dailyLimitReached && !selected ? 'Limit' : canPick(e, now) ? 'Pick' : 'Closed'}</small>
+                <small>{selfExcluded ? 'Excluded' : dailyLimitReached && !selected ? 'Limit' : presentation?.pickEligible ? 'Pick' : presentation?.freshness === 'delayed' ? 'Delayed' : presentation?.freshness === 'unavailable' ? 'Unavailable' : 'Closed'}</small>
                 {share !== null && <em className="cw-pick-share">{share}%</em>}
               </button>
             );
           })}
         </div>
+        {reason && <p id={reasonId} className="cw-pick-reason">{reason}</p>}
       </div>
     );
   };
-  return <ScheduleTimeZone.Provider value={zone}><div className={`cowboy-live ${liveView ? "cw-live-page" : informationView ? "cw-information-page" : view === "picks" ? "cw-picks-page" : "cw-home-page"}`}>
-    <header className="cw-header"><a className="cw-brand" href="/" aria-label="COWBOY home"><img src="/cowboy-mark.webp" alt=""/><span>COWBOY<small>SPORTS / FREE PICKS</small></span></a><nav aria-label="Main navigation"><button aria-pressed={view==='board'} onClick={openBoard}><SportIcon sport="all"/>Sports board</button><button aria-pressed={liveView} onClick={openLive}><StatusIcon status="live"/>Live</button><button aria-pressed={view==='picks'} onClick={openPicks}><ActionIcon action="picks"/>My picks</button><button aria-pressed={view==='parlays'} onClick={openParlays}><TabIcon tab="parlays"/>My parlays</button><button aria-pressed={view==='contests'} onClick={openContests}><TabIcon tab="contests"/>Contests</button><button aria-pressed={view==='rewards'} onClick={openRewards}><TabIcon tab="rewards"/>Rewards</button></nav><div className="cw-header-actions">
+  return <ScheduleTimeZone.Provider value={zone}><div lang={locale} dir={localeMetadata(locale).direction} className={`cowboy-live ${liveView ? "cw-live-page" : informationView ? "cw-information-page" : view === "picks" ? "cw-picks-page" : "cw-home-page"}`}>
+    <header className="cw-header"><a className="cw-brand" href="/" aria-label="COWBOY home"><img src="/cowboy-mark.webp" alt=""/><span>COWBOY<small>SPORTS / FREE PICKS</small></span></a><nav aria-label="Main navigation"><button aria-pressed={view==='board'&&filter!=='watchlist'} onClick={openBoard}><SportIcon sport="all"/>Sports board</button><button aria-pressed={liveView} onClick={openLive}><StatusIcon status="live"/>Live</button><button aria-pressed={view==='board'&&filter==='watchlist'} onClick={openWatchlist}><StarIcon/>Following</button><button aria-pressed={view==='picks'} onClick={openPicks}><ActionIcon action="picks"/>My picks</button></nav><div className="cw-header-actions">
       <button className="cw-updates-button" onClick={()=>setAlertsOpen(true)}
         aria-label={unreadAlerts ? `Game updates, ${unreadAlerts} unread` : 'Game updates'}>
         <ActionIcon action="alerts"/>Updates {unreadAlerts > 0 && <span aria-hidden="true">{unreadAlerts}</span>}
       </button><button className="cw-account" disabled={account.accountLoading} aria-label={account.user?`Account: ${account.user.username}`:undefined} onClick={()=>setAccountOpen(true)}><ActionIcon action="account"/>{account.accountLoading?'Checking session…':account.user?account.user.username:'Sign in'}</button></div></header>
-    <div className="cw-source"><span><i className={error||board?.stale?'warning-dot':'source-dot live-radar'}/><b>Scores</b> <span>{error?'Connection interrupted':board?.stale?'Delayed data':!board?'Syncing scores…':'Connected'}</span></span><span className="cw-source-right"><span>{board?`${error || board.stale ? 'Last received' : 'Updated'} ${new Date(board.fetchedAt).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'})}`:'Connecting…'}</span><button className="cw-source-refresh" disabled={busy} onClick={refresh} aria-label="Refresh sports"><RefreshIcon/></button><button className="cw-source-health-toggle" aria-expanded={sourcesExpanded} aria-controls="cw-source-health" onClick={()=>setSourcesExpanded(value=>!value)}>{feedSummary}<span aria-hidden="true">{sourcesExpanded?'−':'+'}</span></button></span></div>
-    {sourcesExpanded && <section className="cw-source-health" id="cw-source-health" aria-label="Score feed health">
-      <div className="cw-source-health-head"><div><strong>Feed health</strong><span>Live updates combine verified feeds and automatic backups. Delays are labeled.</span></div><span>{feedHealth ? `${feedHealth.failed ? `${feedHealth.failed} unavailable` : 'No failures'}${feedHealth.delayed ? ` · ${feedHealth.delayed} delayed` : ''}` : 'Waiting for first response'}</span></div>
-      <div className="cw-source-health-grid">{board?.leagues.map(item=><button key={item.id} className={`cw-source-health-item ${item.status}`} onClick={()=>{setSourcesExpanded(false);selectLeague(item.id)}}><span><SportIcon sport={item.sport}/>{item.name}</span><small>{item.status==='ok'?'Live updates':item.backupSource?'Backup updates':item.status==='stale'?'Delayed updates':'Unavailable'}</small></button>)}</div>
-    </section>}
-    <div className="cw-grid">
+    <div className="cw-source"><span><i className={error?'warning-dot':'source-dot'}/><b>Scores</b> <span>{error?'Connection interrupted':!board?'Syncing scores…':'Scoreboard'}</span></span><button className="cw-source-refresh" disabled={busy} onClick={refresh} aria-label="Refresh sports"><RefreshIcon/></button></div>
+    <div className={`cw-grid ${selections.length === 0 && parlaySelections.length === 0 ? 'cw-grid-empty-tray' : ''}`}>
     {!informationView && <aside className="cw-sports">
       <p className="cw-kicker">{liveView ? 'Live by league' : 'Browse by league'}</p>
       <nav aria-label="Leagues" ref={leagueRail}>
@@ -1020,9 +1127,13 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
       </nav>
     </aside>}
     <main className="cw-main">
+      {view==='picks' && <nav className="cw-picks-destinations" aria-label="Pick destinations">
+        <a href="/parlays">My Parlays</a><a href="/contests">Contests</a><a href="/rewards">Rewards</a>
+        <a href="/my-sports">My Sports</a>
+      </nav>}
       <div className="cw-title">
         <h1 ref={informationView ? pageHeading : undefined} tabIndex={informationView ? -1 : undefined}>
-          {liveView?'Live board':view==='board'?(filter === 'watchlist' ? 'Watchlist' : 'Sports board'):preferencesView?'Preferences':helpView?'Help & rules':'My picks'}
+          {liveView?'Live board':view==='board'?(filter === 'watchlist' ? 'Watchlist' : 'Sports board'):mySportsView?'My Sports':preferencesView?'Preferences':helpView?'Help & rules':'My picks'}
         </h1>
         {view==='board'&&(!onHome||!board)&&<button className="cw-live-count" onClick={openLive}>{live} live games <span aria-hidden="true">→</span></button>}
         {showHighlights&&<button className="cw-highlights-toggle" type="button" aria-expanded={highlightsExpanded}
@@ -1041,12 +1152,38 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
         )}
       </nav>}
       {account.accountError&&<p className="cw-alert" role="alert">{account.accountError}</p>}
-      {helpView ? <HelpCenter/> : preferencesView ? <div className="cw-preferences">
+      {helpView ? <HelpCenter/> : mySportsView ? <div className="cw-preferences cw-my-sports">
+        <p>Your saved teams, leagues and games follow you when you are signed in. Guest follows stay on this device until you sign in and import them.</p>
+        {!account.user && <section><h2>Save your sports</h2><p>Sign in to keep your favorite leagues and teams across devices.</p><button className="cw-primary" onClick={()=>setAccountOpen(true)}>Create free account</button></section>}
+        <section aria-labelledby="cw-my-sports-follows"><h2 id="cw-my-sports-follows">Following</h2>
+          {follows.length ? <div className="cw-follow-list" aria-label="My followed teams and leagues">{follows.map(item=><button key={item.id} onClick={()=>{navigate('board');selectLeague(item.league);}}><SportIcon sport={SPORTS_CATALOGUE.find(league=>league.id===item.league)?.sport ?? 'all'}/>{item.name}</button>)}</div> : <p>Follow a team or league from the sports board to personalize this area.</p>}
+          <button onClick={openWatchlist}>Open watchlist</button>
+        </section>
+        <section aria-labelledby="cw-my-sports-settings"><h2 id="cw-my-sports-settings">Personal settings</h2><p>Set your timezone, language, alerts and responsible-play limits.</p><button onClick={()=>navigate('preferences')}>Open preferences</button></section>
+        <section aria-labelledby="cw-home-interests"><h2 id="cw-home-interests">Home feed interests</h2>
+          <p>Favorite sports and recently opened games shape your home feed on this device.</p>
+          <div className="cw-interest-list" role="group" aria-label="Favorite sports">
+            {sportCategories.map(([sport,label])=><button key={sport} aria-pressed={preferredSports.has(sport)}
+              onClick={()=>updateInterests(value=>({...value,sports:value.sports.includes(sport)
+                ? value.sports.filter(item=>item!==sport) : [...value.sports,sport]}))}>{label}</button>)}
+          </div>
+          <button disabled={!interests.recent.length} onClick={()=>updateInterests(value=>({...value,recent:[]}))}>Clear recently viewed games</button>
+          <button onClick={openBoard}>Browse all sports</button>
+          <a className="cw-discover-link" href="/discover">Discover competitions</a>
+        </section>
+      </div> : preferencesView ? <div className="cw-preferences">
         <p>Schedule and update preferences apply to this browser.</p>
         <section aria-labelledby="cw-pref-schedule">
           <h2 id="cw-pref-schedule">Schedule</h2>
           <p>Display kickoff times and group games by date in this timezone.</p>
           <ScheduleZoneSelect value={preferenceZone} onChange={changeZone}/>
+        </section>
+        <section aria-labelledby="cw-pref-language">
+          <h2 id="cw-pref-language">Language</h2>
+          <p>English is the default. Choose a global language preference; untranslated provider content remains in its source language.</p>
+          <label><span className="sr-only">Interface language</span><select value={locale} onChange={event=>changeLocale(event.target.value as CowboyLocale)}>
+            {SUPPORTED_LOCALES.map(option=><option key={option.code} value={option.code}>{option.nativeLabel} · {option.label}</option>)}
+          </select></label>
         </section>
         <section aria-labelledby="cw-pref-updates">
           <h2 id="cw-pref-updates">Followed game updates</h2>
@@ -1083,7 +1220,7 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
             const league = board?.leagues.find(item=>item.id===event.league);
             const delayed = !!error || !current || league?.status !== 'ok';
             return <article key={key} className="cw-comparison-card" aria-label={event.name}>
-              <MatchCard event={event} onOpen={openGame} label={`Open compared game: ${event.name}`}/>
+              <MatchCard event={event} onOpen={openGame} clockStale={presentationFor(event)?.clockStale} label={`Open compared game: ${event.name}`}/>
               <div className="cw-comparison-meta">
                 <span>{delayed ? event.scoreSource ? 'Backup score' : 'Last reported' : 'Updated'}
                   {reportedAt && <> <time dateTime={reportedAt}>{time(reportedAt)}</time></>}</span>
@@ -1102,10 +1239,11 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
           <span>{error || board?.stale ? 'Last received' : 'Updated'} <time dateTime={board?.fetchedAt}>{board && time(board.fetchedAt)}</time></span>
         </div>
         <div className="cw-match-shelf">
-          {liveScorecards.map(event => <MatchCard key={eventKey(event)} event={event} onOpen={openGame}/>)}
+          {liveScorecards.map(event => <MatchCard key={eventKey(event)} event={event} onOpen={openGame} clockStale={presentationFor(event)?.clockStale}/>)}
         </div>
       </section>}
       {showHighlights && <div id="cw-board-highlights" data-expanded={highlightsExpanded}>
+          {onHome && <a className="cw-discover-link" href="/discover">Discover competitions</a>}
           {onHome && board && <SportsGlance event={glanceGame} personalized={!!followedGame} liveCount={live}
             followedLiveCount={followedLive.length} fetchedAt={board.fetchedAt} delayed={!!error||board.stale}
             community={communityPick ? {label: pickName(communityPick.event, communityPick.side, 'shortName', 'moneyline'), pct: communityPick.pct, event: communityPick.event} : null}
@@ -1126,7 +1264,7 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
               {!spotlight.length && <p className="cw-spotlight-empty">{spotlightEmpty}</p>}
               <div className="cw-match-shelf">
                 {spotlight.map(e => (
-                  <MatchCard key={eventKey(e)} event={e} onOpen={openGame}/>
+                  <MatchCard key={eventKey(e)} event={e} onOpen={openGame} clockStale={presentationFor(e)?.clockStale}/>
                 ))}
               </div>
             </section>
@@ -1157,8 +1295,12 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
           <StarIcon filled/>{item.name}<CloseIcon/>
         </button>)}
       </div>}
-      {error&&<div className="cw-alert" role="alert">Could not refresh scores. {board&&'Last received games are shown; new picks are paused.'}<button disabled={busy} onClick={refresh}>Try again</button></div>}
-      {board?.stale&&<div className="cw-alert" role="status">Score updates are delayed. Affected leagues show backup or last received scores, and new picks are paused.</div>}
+      {error&&<div className="cw-alert" role="alert">
+        Could not refresh scores. {board&&'Last received games are shown.'}
+        <button disabled={busy} onClick={refresh}>Try again</button>
+        <a className="cw-discover-link" href="/offline.html">Open saved scoreboard</a>
+      </div>}
+      {board?.stale&&<div className="cw-alert" role="status">Some score updates are delayed. Each affected game shows its own update status and pick availability.</div>}
       {board?.leagues.filter(l=>l.status!=='ok').map(l=><div className="cw-league-error cw-league-health" key={l.id}>
         <div>
           <span>{l.name}: {l.backupSource?'backup scores':l.status==='error'?'scores unavailable':'delayed'}</span>
@@ -1197,10 +1339,13 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
           {(query||(!liveView&&filter!=='all')||league!=='all'||dateFilter!=='all')&&<button onClick={resetFilters}>Clear filters</button>}
         </div>
       </div>
+      {view==='board' && teamFilter && <TeamSchedulePreview key={teamFilter.id}
+        league={teamFilter.league} teamId={teamFilter.id.slice(teamFilter.league.length+1)} name={teamFilter.name}
+        games={allEvents} onGame={openGame}/>}
       {view==='board' && !liveView && pickedLeague && <><LeagueNews league={pickedLeague.id} name={pickedLeague.name}/><LeagueFutures league={pickedLeague.id} name={pickedLeague.name}/></>}
       {golfView ? <GolfLeaderboard events={golfEvents}/> : !board&&busy?<BoardLoadingSkeleton/>:events.length===0?<div className="cw-empty"><h3>{error?'No games available':catalogueLeague && !catalogueLeague.sourceEnabled?'Live data is coming soon':liveView?liveEmpty[0]:'No games in this view'}</h3><p>{error?'Refresh the sports feed to try again.':catalogueLeague && !catalogueLeague.sourceEnabled?`${catalogueLeague.name} is in the global catalogue. Live scores, token picks, and markets remain disabled until its approved data source is connected and verified.`:liveView?liveEmpty[1]:filter==='watchlist'?'Follow a team or league, or star a game to add it here.':dateFilter!=='all'?'Choose another schedule date or clear the filters.':'Try another league, status, or search.'}</p></div>:<section className="cw-events" aria-label="Games"><div className="cw-event-head"><span>EVENT / SCORE</span>{!liveView&&<span>FREE WINNER PICK</span>}</div>{displayedGroups.map(group=><section className="cw-league-group" key={group.id} aria-label={`${group.name} ${group.sport==='mma'?'bouts':'games'}`}><button className="cw-league-toggle" aria-expanded={!collapsed.includes(group.id)} aria-label={`${collapsed.includes(group.id)?'Expand':'Collapse'} ${group.name}`} onClick={()=>setCollapsed(old=>old.includes(group.id)?old.filter(id=>id!==group.id):[...old,group.id])}><SportIcon sport={group.sport}/><strong>{group.name}</strong><small>{group.events.length} {group.sport==='mma'?'bouts':'games'}</small>{leagueFreshness(group.leagueId) && <small className="cw-league-fresh">{leagueFreshness(group.leagueId)}</small>}<span aria-hidden="true">{collapsed.includes(group.id)?'+':'−'}</span></button>{!collapsed.includes(group.id)&&group.events.slice(0,showAllGroups.includes(group.id) || (league==='ufc' && group.sport==='mma') ? undefined : homeGroupLimit).map(e=><article key={e.league+e.id} className="cw-event" data-event-status={e.status}>
         <div className="cw-event-info">
-          <div className="cw-event-meta"><SportIcon sport={e.sport}/><b>{e.leagueName}</b>{e.fight?.weightClass && <span>{e.fight.weightClass}</span>}<GameStatus status={e.status}>{e.status==='live'?'LIVE · ':''}{e.statusText}{e.shootoutScores&&` · Penalties ${e.shootoutScores.away}–${e.shootoutScores.home}`}{e.status==='live'&&e.clock&&!e.statusText.includes(e.clock)?` · ${e.clock}`:''}</GameStatus>{eventUpdated(e) && <small className="cw-event-updated">{eventUpdated(e)}</small>}<button className="cw-watch" disabled={subscriptions.disabled} aria-label={`${watched.includes(e.league+':'+e.id)?'Unwatch':'Watch'} ${e.name}`} aria-pressed={watched.includes(e.league+':'+e.id)} onClick={()=>toggleWatch(e)}><StarIcon filled={watched.includes(e.league+':'+e.id)}/></button></div>
+          <div className="cw-event-meta"><SportIcon sport={e.sport}/><b>{e.leagueName}</b>{e.fight?.weightClass && <span>{e.fight.weightClass}</span>}<MatchStatus event={e}/>{eventUpdated(e) && <small className="cw-event-updated" role="status">{eventUpdated(e)}</small>}<button className="cw-watch" disabled={subscriptions.disabled} aria-label={`${watched.includes(e.league+':'+e.id)?'Unwatch':'Watch'} ${e.name}`} aria-pressed={watched.includes(e.league+':'+e.id)} onClick={()=>toggleWatch(e)}><StarIcon filled={watched.includes(e.league+':'+e.id)}/></button></div>
           <button className="cw-event-detail" aria-label={`Details: ${e.name}`} onClick={()=>openGame(e)}><div className="cw-team"><span className="cw-team-identity"><TeamMark team={e.away}/><RankedTeamName team={e.away}/></span><BoardScore event={e} side="away"/></div><div className="cw-team"><span className="cw-team-identity"><TeamMark team={e.home}/><RankedTeamName team={e.home}/></span><BoardScore event={e} side="home"/></div></button>
           {e.odds && e.status !== 'final' && <div className="cw-event-odds" aria-label={`Reference odds from ${e.odds.provider}`}>
             <span><small>Spread</small><b>{lineValue(e.odds.spread,true)}</b></span>
@@ -1229,7 +1374,7 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
       </>:<PicksHistory key={account.user?.id ?? 'guest'} tickets={account.tickets} onUpdate={account.updateTicket} busy={account.ticketsBusy} error={account.ticketsError} onRefresh={()=>void account.loadTickets(true)} user={account.user} onSignIn={()=>setAccountOpen(true)} events={board?.events??[]} onGame={(ticket,event)=>event ? openGame(event) : openSavedGame(ticket.eventId,ticket.league)} onRebet={rebet} onBrowse={openBoard} feedCurrent={!!board&&!board.stale&&!error}/>}
       <footer className="cw-footer"><b>ALL GAME. NO GAMBLING.</b><p>Free-to-play predictions only. No money, purchase, cash prizes or wagering. Availability and score coverage depend on your location, device, and data sources. Picks close at scheduled start or when the source marks an event live. Results depend on source confirmation.</p><div className="cw-footer-actions"><button className="cw-terms" aria-current={helpView ? "page" : undefined} onClick={()=>navigate('help')}>Help &amp; rules</button><button className="cw-terms" aria-current={preferencesView ? "page" : undefined} onClick={()=>navigate('preferences')}>Preferences</button><PwaControls/></div></footer>
     </main>{view==='board'&&<aside className="cw-picks-rail">{pickPanel}{parlaySelections.length>0&&<ParlayBuilder selections={parlaySelections} user={account.user} disabled={selectionDisabled} pending={parlayPending} draftEvents={draftEvents as unknown as ReadonlyMap<string, { odds?: GameOdds }>} onReview={()=>{setParlayReview(true);}} onChoose={chooseParlayLeg} onChangeMarket={changeParlayMarket} onClear={()=>setParlaySelections([])} onRemove={pick=>setParlaySelections(previous=>previous.filter(item=>item.requestId!==pick.requestId))} onSignIn={()=>{setAccountOpen(true);}} onClose={()=>{}}/>}<PickLeaderboard user={account.user} onAccount={()=>setAccountOpen(true)}/></aside>}</div>
-    <nav className="cw-mobile-nav" aria-label="Mobile navigation"><button aria-pressed={view==='board'&&filter!=='watchlist'} onClick={openBoard}><SportIcon sport="all"/>Sports</button><button aria-pressed={liveView} onClick={openLive}><StatusIcon status="live"/>Live</button><button aria-pressed={view==='board'&&filter==='watchlist'} onClick={openWatchlist}><StarIcon/>Watchlist</button><button aria-pressed={view==='picks'} onClick={openPicks}><ActionIcon action="picks"/>My picks</button><button aria-pressed={view==='parlays'} onClick={openParlays}><TabIcon tab="parlays"/>My parlays</button></nav>
+    <nav className="cw-mobile-nav" aria-label="Mobile navigation"><button aria-pressed={view==='board'&&filter!=='watchlist'} onClick={openBoard}><SportIcon sport="all"/>Sports</button><button aria-pressed={liveView} onClick={openLive}><StatusIcon status="live"/>Live</button><button aria-pressed={view==='board'&&filter==='watchlist'} onClick={openWatchlist}><StarIcon/>Following</button><button aria-pressed={view==='picks'} onClick={openPicks}><ActionIcon action="picks"/>My picks</button></nav>
     {selections.length>0 && <button className="cw-mobile-pick" onClick={()=>setDrawer(true)}>
       {selections.length===1 ? `Your pick: ${pickName(selections[0].event,selections[0].side,'shortName')}` : `Your picks: ${selections.length}`} <span>Review →</span>
     </button>}
@@ -1240,8 +1385,19 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
       onGame={event=>{setAlertsOpen(false);openMoment(event);}}
       onWatchlist={()=>{setAlertsOpen(false);openWatchlist();}}
       onPreferences={()=>{setAlertsOpen(false);navigate('preferences');}}/>}
-    {drawer&&<Modal title="Your selection" onClose={()=>setDrawer(false)}>{pickPanel}</Modal>}
-    {accountOpen&&<AccountDialog user={account.user} onUser={u=>{account.setUser(u);if(!u){setSelections([]);setReview(false);}}} onClose={()=>setAccountOpen(false)}/>}
+    {drawer&&<Modal title="Your selection" className="cw-pick-sheet" onClose={()=>setDrawer(false)}>{pickPanel}</Modal>}
+    {accountOpen&&<AccountDialog user={account.user} onUser={user=>{
+      account.setUser(user);
+      if(!user){
+        setSelections([]);
+        setReview(false);
+      } else if (resumeReviewAfterSignIn.current && selections.length) {
+        setReview(true);
+      }
+    }} onClose={()=>{
+      resumeReviewAfterSignIn.current=false;
+      setAccountOpen(false);
+    }}/>}
     {sharedGameState==='loading'&&<p className="cw-game-link-status" role="status">Opening shared game…</p>}
     {sharedGameState==='unavailable'&&<Modal title="Game unavailable" onClose={closeGame}>
       {savedPick && <div className="cw-dialog-copy">
@@ -1258,7 +1414,7 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
       ticket={detailTicket || undefined}
       ticketsLoading={account.ticketsBusy}
       ticketsError={account.ticketsError}
-      boardDelayed={!currentLeague(detail.league)}
+      presentation={presentationFor(detailBoardEvent ?? detail)}
       watching={watched.includes(detail.league+':'+detail.id)}
       onWatch={()=>toggleWatch(detail)} watchDisabled={subscriptions.disabled}
       onClose={closeGame} onPick={view==='picks'?undefined:(side,market)=>{togglePick(detail,side,market ?? 'moneyline');closeGame();if(window.innerWidth<=700)setDrawer(true);}} picksAvailable={!pending&&eligiblePick(board?.events.find(event=>eventKey(event)===eventKey(detail)))&&(selections.length<5||selections.some(item=>eventKey(item.event)===eventKey(detail)))} pickConsensus={pickConsensus}/>}

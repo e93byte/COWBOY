@@ -1,6 +1,8 @@
 import { test, expect, type Page } from '@playwright/test';
 
 import type { LiveBoard, LiveEvent } from '../../app/lib/live-sports';
+import { normalizeScoreboard } from '../../app/lib/live-sports';
+import sourceScoreboards from '../fixtures/live-sports/scoreboards.json';
 
 const future = new Date(Date.now() + 86400000).toISOString();
 export const event: LiveEvent = { id: '401-test', league: 'nba', sport: 'basketball', leagueName: 'NBA', name: 'Boston Celtics at New York Knicks', startsAt: future, status: 'scheduled', statusText: 'Tomorrow', clock: null, period: null, home: {id:'ny',name:'New York Knicks',shortName:'NYK',score:null}, away:{id:'bos',name:'Boston Celtics',shortName:'BOS',score:null}, winner:null, completed:false };
@@ -9,6 +11,30 @@ async function setup(page: Page) {
   await page.route('**/api/sports', route => route.fulfill({json:board}));
   await page.route('**/api/account', route => route.fulfill({json:{user:null}}));
 }
+
+test.describe('provider fixture views', () => {
+test.use({serviceWorkers:'block'});
+
+test('seven sport score views open using normalized provider fixtures and suppress unsupported tabs', async ({page}) => {
+  await setup(page);
+  await page.setViewportSize({width:390,height:844});
+  for (const league of ['nfl','nba','mlb','nhl','epl','atp','ufc'] as const) {
+    const [fixture] = normalizeScoreboard(league, sourceScoreboards[league]);
+    await page.unroute('**/api/sports/event?**');
+    await page.route('**/api/sports/event?**', route=>route.fulfill({
+      json:league==='epl' ? {...fixture,status:'scheduled',statusText:'Provider time 7:30 AM EST',completed:false} : fixture,
+    }));
+    await page.goto(`/?game=${fixture.id}&league=${league}&section=score`);
+    const dialog = page.getByRole('dialog',{name:'Game details'});
+    await expect(dialog.locator('[data-sport-template]')).toHaveAttribute('data-sport-template',fixture.sport);
+    await expect(dialog.getByRole('button',{name:league==='ufc'?'Result':'Score',exact:true})).toHaveAttribute('aria-pressed','true');
+    await expect(dialog.getByRole('button',{name:'Timeline',exact:true})).toHaveCount(0);
+    if (league==='epl') await expect(dialog.getByText('Provider time 7:30 AM EST')).toHaveCount(0);
+  }
+  await page.goto('/?game='+normalizeScoreboard('ufc',sourceScoreboards.ufc)[0].id+'&league=ufc&section=lineups');
+  await expect(page.getByRole('region',{name:'Coverage unavailable'})).toBeVisible();
+});
+});
 test('real board shows source, real teams, locks live entry and filters leagues', async ({page}) => {
   await setup(page); await page.goto('/');
   await expect(page.getByRole('heading',{name:'Sports board'})).toBeVisible();
@@ -21,6 +47,24 @@ test('real board shows source, real teams, locks live entry and filters leagues'
   await expect(page.getByText('Baltimore Ravens',{exact:true})).toHaveCount(0);
   await expect(page.getByText('Boston Celtics',{exact:true}).first()).toBeVisible();
   await expect(page.getByText(/wallet|cashout|virtual funds/i)).toHaveCount(0);
+});
+
+test('mobile event cards keep market and pick controls inside their visible edges', async ({page}) => {
+  await setup(page);
+  const card=page.locator('.cw-event').filter({has:page.getByRole('button',{name:'Pick Boston Celtics',exact:true})});
+  for (const width of [320,360,384,390,430,768]) {
+    await page.setViewportSize({width,height:844});
+    if (width===320) await page.goto('/?filterLeague=nba');
+    await expect(card).toBeVisible();
+    const clipped = await card.evaluate(element=>{
+      const bounds=element.getBoundingClientRect();
+      return [...element.querySelectorAll('.cw-pick-options button')].some(button=>{
+        const target=button.getBoundingClientRect();
+        return target.left < bounds.left - 1 || target.right > bounds.right + 1;
+      });
+    });
+    expect(clipped,`Clipped free-pick controls at ${width}px`).toBe(false);
+  }
 });
 
 test('one free-pick entry can contain distinct markets for the same verified game', async ({page}) => {
@@ -273,7 +317,9 @@ test('Live links preserve league and finals through reload, Game Center and brow
 });
 
 test('Game Center copies the selected public section and keeps one browser history entry', async ({page}) => {
-  const game = {...board.events[1], id: '402102'};
+  const game = {...board.events[1], id: '402102', timeline:[
+    {id:'play-1',description:'Completed pass',side:'away' as const,period:2,clock:'08:42',awayScore:7,homeScore:14},
+  ]};
   await setup(page);
   await page.addInitScript(() => {
     Object.defineProperty(navigator, 'clipboard', {value: {
@@ -399,11 +445,11 @@ test('Live separates followed games from finals and Game Center renders provider
   await page.route('**/api/sports/event?**', route => route.fulfill({json: {...final, venue: 'Test arena'}}));
   await page.goto('/');
   await page.getByRole('button', {name: 'Live', exact: true}).click();
-  await page.getByRole('button', {name: /^Following/}).click();
+  await page.getByRole('group', {name: 'Live board views'}).getByRole('button', {name: /^Following/}).click();
   await expect(page.getByText('No followed games are live')).toBeVisible();
   await page.getByRole('button', {name: /^In progress/}).click();
   await page.getByRole('button', {name: `Watch ${live.name}`}).click();
-  await page.getByRole('button', {name: /^Following/}).click();
+  await page.getByRole('group', {name: 'Live board views'}).getByRole('button', {name: /^Following/}).click();
   await expect(page.locator('.cw-event')).toHaveCount(1);
   await page.getByRole('button', {name: /^Recent finals/}).click();
   await expect(page.locator('.cw-event')).toContainText(final.away.name);
@@ -622,6 +668,55 @@ test('feed outages lock affected picks while healthy leagues stay available', as
   await expect(page.getByRole('button',{name:'Pick Boston Celtics'})).toBeDisabled();
 });
 
+test('a score-only backup does not unlock picks while healthy games stay actionable', async ({page}) => {
+  const nflScheduled = {...board.events[1], status:'scheduled' as const, statusText:'Tomorrow', clock:null, period:null};
+  const checkedAt = new Date().toISOString();
+  await setup(page);
+  await page.route('**/api/sports', route => route.fulfill({json:{
+    ...board, stale:true, events:[event,nflScheduled],
+    leagues:[
+      board.leagues[0],
+      {...board.leagues[1],status:'stale',backupSource:'ESPN summary',scoresUpdatedAt:checkedAt},
+    ],
+  }}));
+  await page.goto('/');
+  await expect(page.getByRole('button',{name:'Pick Boston Celtics'})).toBeEnabled();
+  await expect(page.getByRole('button',{name:'Pick Buffalo Bills'})).toBeDisabled();
+  await expect(page.getByText('Updates delayed',{exact:true})).toBeVisible();
+});
+
+test('signing in from a draft resumes review and still requires an explicit save', async ({page}) => {
+  await setup(page);
+  const user = {id:'review-rider',username:'reviewrider',tokens:5000};
+  let signedIn = false;
+  let saves = 0;
+  await page.route('**/api/account',route=>{
+    if (route.request().method()==='POST') signedIn=true;
+    return route.fulfill({json:{user:signedIn?user:null}});
+  });
+  await page.route('**/api/picks',route=>{
+    if (route.request().method()==='POST') {
+      saves++;
+      return route.fulfill({status:409,json:{message:'The selected game could not be verified.'}});
+    }
+    return route.fulfill({json:{tickets:[]}});
+  });
+  await page.goto('/');
+  await page.getByRole('button',{name:'Pick Boston Celtics',exact:true}).click();
+  await page.getByRole('button',{name:'Sign in to save pick',exact:true}).click();
+  const account = page.getByRole('dialog',{name:'Welcome to COWBOY'});
+  await account.getByLabel('Username').fill('reviewrider');
+  await account.getByLabel('Password').fill('local-test-password');
+  await account.getByRole('button',{name:'Sign in to COWBOY'}).click();
+  const review = page.getByRole('dialog',{name:'Review your free pick'});
+  await expect(review.getByText('Boston Celtics',{exact:true})).toBeVisible();
+  expect(saves).toBe(0);
+  await review.getByRole('button',{name:'Confirm free pick',exact:true}).click();
+  await expect(review.getByRole('alert')).toContainText('could not be verified');
+  await expect(review.getByText('Boston Celtics',{exact:true})).toBeVisible();
+  expect(saves).toBe(1);
+});
+
 test('watchlist is reversible and persistent; detail uses source data; search and Escape work',async({page})=>{
   await setup(page);
   await page.route('**/api/sports/event?**',route=>route.fulfill({json:{event}}));
@@ -668,7 +763,7 @@ test('keyboard team discovery and league follows persist into Watchlist and live
   await page.getByRole('button',{name:'Watchlist',exact:true}).first().click();
   await expect(page.locator('.cw-event')).toHaveCount(2);
   await page.getByRole('button',{name:'Live',exact:true}).click();
-  await page.getByRole('button',{name:/^Following/}).click();
+  await page.getByRole('group',{name:'Live board views'}).getByRole('button',{name:/^Following/}).click();
   await expect(page.locator('.cw-event')).toHaveCount(1);
   await expect(page.locator('.cw-event')).toContainText('Buffalo Bills');
   await page.getByRole('button',{name:'Sports board',exact:true}).click();
@@ -1036,6 +1131,8 @@ test('Game Center switches league matchups in place and restores board focus on 
   await opener.click();
   const dialog = page.getByRole('dialog', {name:'Game details'});
   const matchups = dialog.getByRole('navigation', {name:'NBA matchups'});
+  const box = await dialog.boundingBox();
+  expect(box).toMatchObject({x:0,y:0,width:390,height:844});
   await expect(matchups.getByRole('button')).toHaveCount(2);
   await expect(matchups.getByRole('button', {name:first.name})).toHaveAttribute('aria-current', 'true');
   await dialog.getByRole('button', {name:'Score',exact:true}).click();
@@ -1275,8 +1372,24 @@ test.describe('pregame reminders', () => {
   });
 });
 
+async function installOfflineBoardFixture(page: Page, initial = board) {
+  // WebKit can send controlled-page requests outside Playwright's route hook.
+  // Keep navigation and Cache Storage on the real service worker.
+  await page.addInitScript(({initial, recovered}) => {
+    const browserFetch = window.fetch.bind(window);
+    window.fetch = (input, init) => {
+      const url = new URL(input instanceof Request ? input.url : input, location.href);
+      if (url.origin !== location.origin || url.pathname !== '/api/sports') return browserFetch(input, init);
+      const mode = sessionStorage.getItem('qa.board.fixture');
+      if (mode === 'connection-error') return Promise.reject(new TypeError('Connection refused'));
+      if (mode === 'service-error') return Promise.resolve(new Response(null, {status:503}));
+      return Promise.resolve(Response.json(mode === 'recovered' ? recovered : initial));
+    };
+  }, {initial, recovered:board});
+}
+
 test('offline reload shows the last saved slate and skips account and pick caches', async ({page,context}) => {
-  await setup(page);
+  await installOfflineBoardFixture(page);
   await page.goto('/');
   await expect(page.getByRole('button',{name:'Install COWBOY app'})).toBeVisible();
   await page.waitForFunction(()=>navigator.serviceWorker.controller!==null && !!localStorage.getItem('cowboy.offlineBoard.v1'));
@@ -1301,6 +1414,147 @@ test('offline reload shows the last saved slate and skips account and pick cache
   }
   await page.getByRole('link',{name:'Try connecting again'}).click();
   await expect(page.getByRole('heading',{name:'Sports board',exact:true})).toBeVisible();
+});
+
+test('a partial feed still saves confirmed games and reconnects with a fresh board', async ({page,context}) => {
+  await installOfflineBoardFixture(page, {...board,stale:true,leagues:[board.leagues[0],{...board.leagues[1],status:'stale'}]});
+  await page.goto('/');
+  const pick = page.getByRole('button',{name:'Pick Boston Celtics'});
+  await expect(pick).toBeEnabled();
+  await page.waitForFunction(()=>navigator.serviceWorker.controller!==null && !!localStorage.getItem('cowboy.offlineBoard.v1'));
+  await context.setOffline(true);
+  try {
+    await expect(pick).toBeDisabled();
+    await page.getByRole('link',{name:'Open saved scoreboard'}).click();
+    await expect(page.getByText(/Only leagues confirmed/)).toBeVisible();
+    await expect(page.getByText('Boston Celtics',{exact:true})).toBeVisible();
+    await expect(page.getByText('Baltimore Ravens',{exact:true})).toHaveCount(0);
+    await expect(page.getByText(/Last confirmed/)).toBeVisible();
+  } finally {
+    await context.setOffline(false);
+  }
+  await page.evaluate(()=>sessionStorage.setItem('qa.board.fixture','recovered'));
+  await page.getByRole('link',{name:'Try connecting again'}).click();
+  await expect(pick).toBeEnabled();
+});
+
+test('installed startup recovers a saved slate when the shell loads but the connection fails', async ({page}) => {
+  await installOfflineBoardFixture(page);
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, 'standalone', {value: true});
+  });
+  const entry='/live?filterLeague=nfl';
+  await page.goto(entry);
+  await page.waitForFunction(()=>navigator.serviceWorker.controller!==null && !!localStorage.getItem('cowboy.offlineBoard.v1'));
+  await page.evaluate(()=>sessionStorage.setItem('qa.board.fixture','service-error'));
+  await page.reload();
+  await expect(page.getByText('Could not refresh scores.',{exact:false})).toBeVisible();
+  await expect(page).toHaveURL(new RegExp('/live'));
+  await page.evaluate(()=>sessionStorage.setItem('qa.board.fixture','connection-error'));
+  await page.reload();
+  await expect(page.getByRole('heading',{name:'Last saved scoreboard'})).toBeVisible();
+  await expect(page.getByText('Baltimore Ravens',{exact:true})).toBeVisible();
+  await expect(page.getByRole('button',{name:/^Pick /})).toHaveCount(0);
+  await page.evaluate(()=>sessionStorage.removeItem('qa.board.fixture'));
+  await page.getByRole('link',{name:'Try connecting again'}).click();
+  await expect(page).toHaveURL(new RegExp('/live\\?filterLeague=nfl$'));
+});
+
+test('the board locks an unchanged scheduled game at kickoff', async ({page}) => {
+  const now = Date.now();
+  await page.clock.install({time:now});
+  await setup(page);
+  await page.route('**/api/sports', route => route.fulfill({json:{
+    ...board, refreshAfterMs:60_000,
+    events:[{...event,startsAt:new Date(now + 9000).toISOString()}],
+  }}));
+  await page.goto('/');
+  const pick=page.getByRole('button',{name:'Pick Boston Celtics'});
+  await expect(pick).toBeEnabled();
+  await page.clock.fastForward(9100);
+  await expect(pick).toBeDisabled();
+  await expect(page.getByText('Picks are closed for this game.',{exact:true})).toBeVisible();
+});
+
+test('team search opens a provider schedule game and restores focus on return', async ({page}) => {
+  await setup(page);
+  const team = {...event.away,id:'2'};
+  const listed = {...event,away:team};
+  const prior = {...listed,id:'401909985',name:'Boston Celtics at Chicago Bulls',
+    home:{id:'4',name:'Chicago Bulls',shortName:'CHI',score:102},away:{...team,score:108},
+    status:'final' as const,statusText:'Final',completed:true,winner:'away' as const};
+  await page.route('**/api/sports',route=>route.fulfill({json:{...board,events:[listed]}}));
+  await page.route('**/api/sports/event?**',route=>route.fulfill({json:prior}));
+  let scheduleRequests=0;
+  await page.route('**/api/sports/team-schedule?**',route=>{
+    expect(new URL(route.request().url()).searchParams.get('team')).toBe(team.id);
+    scheduleRequests++;
+    return route.fulfill({json:{events:[prior]}});
+  });
+  await page.goto('/');
+  await page.getByRole('searchbox',{name:'Search teams, leagues or games'}).fill(team.name);
+  await page.getByRole('button',{name:'Boston Celtics NBA team'}).click();
+  expect(scheduleRequests).toBe(0);
+  await page.getByText('Boston Celtics schedule and results',{exact:true}).click();
+  const opener=page.getByRole('button',{name:`Open ${prior.name}`});
+  await opener.click();
+  await expect(page.getByRole('dialog',{name:'Game details'})).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(opener).toBeFocused();
+});
+
+test('favorite sports personalize home and recently viewed history can be cleared', async ({page}) => {
+  await setup(page);
+  const basketball={...event,id:'401701'};
+  await page.route('**/api/sports',route=>route.fulfill({json:{...board,events:[basketball,board.events[1]]}}));
+  await page.route('**/api/sports/event?**',route=>route.fulfill({json:basketball}));
+  await page.goto('/my-sports');
+  const basketballInterest = page.getByRole('group',{name:'Favorite sports'}).getByRole('button',{name:'Basketball'});
+  await basketballInterest.click();
+  await page.reload();
+  await expect(basketballInterest).toHaveAttribute('aria-pressed','true');
+  await page.getByRole('button',{name:'Browse all sports'}).click();
+  const game=page.getByRole('button',{name:`Glance game: ${basketball.name}`});
+  await game.click();
+  await expect(page.getByRole('dialog',{name:'Game details'})).toBeVisible();
+  await page.keyboard.press('Escape');
+  await page.goto('/my-sports');
+  const clear = page.getByRole('button',{name:'Clear recently viewed games'});
+  await expect(clear).toBeEnabled();
+  await clear.click();
+  await expect(clear).toBeDisabled();
+  await expect(basketballInterest).toHaveAttribute('aria-pressed','true');
+});
+
+test('install instructions support Escape and return focus to the install control', async ({page}) => {
+  await setup(page);
+  await page.goto('/');
+  const install = page.getByRole('button',{name:'Install COWBOY app'});
+  await install.click();
+  const instructions = page.getByRole('dialog',{name:'Add COWBOY to your home screen'});
+  await expect(instructions).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(instructions).toHaveCount(0);
+  await expect(install).toBeFocused();
+});
+
+test('Discover filters the full catalogue and links to truthful league availability', async ({page}) => {
+  await setup(page);
+  await page.setViewportSize({width:360,height:800});
+  await page.goto('/discover');
+  await expect(page.getByRole('heading',{name:'Discover competitions'})).toBeVisible();
+  expect((await page.getByLabel('Sport',{exact:true}).boundingBox())?.height).toBeGreaterThanOrEqual(44);
+  expect((await page.getByLabel('Region',{exact:true}).boundingBox())?.height).toBeGreaterThanOrEqual(44);
+  await page.getByLabel('Sport',{exact:true}).selectOption('motorsport');
+  await page.getByLabel('Region',{exact:true}).selectOption('Global');
+  await page.getByRole('searchbox',{name:'Search competitions'}).fill('Formula 1');
+  const result=page.getByRole('link',{name:/Formula 1/});
+  await expect(result).toContainText('Catalogue only');
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+  await result.click();
+  await expect(page).toHaveURL(/filterLeague=f1/);
+  await expect(page.getByText('Live data is coming soon')).toBeVisible();
+  await expect(page.getByRole('button',{name:/^Pick /})).toHaveCount(0);
 });
 
 test('Home glance prioritizes a followed matchup and opens the exact Game Center', async ({page}) => {

@@ -43,6 +43,17 @@ export function GameStatus({status,children}:{status:LiveEvent['status'];childre
   </span>;
 }
 
+export function MatchStatus({event, scheduledLabel, clockStale}: {event: LiveEvent; scheduledLabel?: string; clockStale?: boolean}) {
+  const {status, statusText, clock, shootoutScores} = event;
+  return <GameStatus status={status}>
+    {status === 'live' && 'Live · '}
+    {status === 'scheduled' ? scheduledLabel ?? 'Upcoming' : statusText}
+    {status === 'live' && clock && !statusText.includes(clock) && ` · ${clock}`}
+    {status === 'live' && clockStale && ' · feed delayed'}
+    {shootoutScores && ` · Penalties ${shootoutScores.away}–${shootoutScores.home}`}
+  </GameStatus>;
+}
+
 export function BoardScore({event, side}: {event: LiveEvent; side: 'home' | 'away'}) {
   const team = event[side];
   if (event.fight) return event.completed && event.winner === side ? <b className="cw-result-winner">Won</b> : null;
@@ -56,11 +67,12 @@ export function BoardScore({event, side}: {event: LiveEvent; side: 'home' | 'awa
   return <SourceScore score={event.status === 'scheduled' ? null : team.score}/>;
 }
 
-export function MatchCard({event, onOpen, label, showBroadcasts = false}: {
+export function MatchCard({event, onOpen, label, showBroadcasts = false, clockStale}: {
   event: LiveEvent;
   onOpen: (event: LiveEvent) => void;
   label?: string;
   showBroadcasts?: boolean;
+  clockStale?: boolean;
 }) {
   const zone = useContext(ScheduleTimeZone);
   const broadcasts = showBroadcasts && (event.status === 'scheduled' || event.status === 'live') && event.broadcasts?.length
@@ -69,9 +81,7 @@ export function MatchCard({event, onOpen, label, showBroadcasts = false}: {
   return <button className="cw-match-card" aria-label={label ?? `Explore ${event.name}`} onClick={() => onOpen(event)}>
     <span className="cw-match-meta">
       <span><SportIcon sport={event.sport}/>{event.leagueName}</span>
-      <GameStatus status={event.status}>
-        {event.status === 'scheduled' ? scheduleTime(event.startsAt,zone) : event.status === 'live' ? `Live · ${event.clock || event.statusText}` : event.statusText}
-      </GameStatus>
+      <MatchStatus event={event} clockStale={clockStale} scheduledLabel={event.status === 'scheduled' ? scheduleTime(event.startsAt,zone) : undefined}/>
     </span>
     <span className="cw-match-lines">
       {(['away','home'] as const).map(side => (

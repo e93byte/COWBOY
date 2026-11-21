@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#111113" />
-    <title>COWBOY · Offline</title>
+    <title>COWBOY · Saved scoreboard</title>
     <script src="/offline-board.js" defer></script>
     <style>
       :root{color-scheme:dark}[hidden]{display:none!important}
@@ -28,9 +28,9 @@
   <body>
     <main>
       <header class="masthead"><img class="mark" src="/icon-192.png" alt=""/><b>COWBOY</b></header>
-      <h1>You’re offline</h1>
+      <h1>Saved scoreboard</h1>
       <p>No free pick can be submitted offline.</p>
-      <p><a href="/">Try connecting again</a></p>
+      <p><a id="reconnect" href="/">Try connecting again</a></p>
       <section class="scoreboard" aria-labelledby="board-title">
         <h2 id="board-title">Last saved scoreboard</h2>
         <p id="source">Open COWBOY while connected to save a scoreboard for offline use.</p>

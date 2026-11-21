@@ -65,7 +65,9 @@ export class ParlayService {
     const events = await Promise.all(legs.map((l) => this.getEvent(l.league, l.eventId)));
     const legsWithDetails: ParlayLeg[] = legs.map((leg, i) => {
       const event = events[i];
-      if (!event) throw new AccountError("event_unavailable", `Event ${leg.eventId} not found.`);
+      if (!event || event.scoreSource || event.id !== leg.eventId || event.league !== leg.league) {
+        throw new AccountError("event_unavailable", "A selected game cannot be verified for entry.", 409);
+      }
       if (event.status !== "scheduled" || Date.parse(event.startsAt) <= this.now()) throw new AccountError("event_locked", `Event ${event.name} has started.`);
       const odds = event.odds ? postedPrice(event.odds, leg.side, leg.market) : null;
       return {
@@ -143,7 +145,8 @@ export class ParlayService {
 
     for (const key of legKeys) {
       const [league, eventId] = key.split(":");
-      results.set(key, await this.getEvent(league, eventId));
+      const event = await this.getEvent(league, eventId);
+      results.set(key, event && !event.scoreSource && event.id === eventId && event.league === league ? event : null);
     }
 
     const settledAt = new Date(this.now()).toISOString();

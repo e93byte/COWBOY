@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useAccount } from '../components/AccountPicks';
 import { api } from '../components/AccountPicks';
 import { Modal } from '../components/AccountPicks';
@@ -9,28 +9,33 @@ import { americanOdds } from '../lib/odds';
 import { americanToDecimal } from '../lib/parlay';
 
 export default function ParlaysPage() {
-  const { user } = useAccount();
+  const { user, accountLoading } = useAccount();
+  const userId = user?.id;
   const [parlays, setParlays] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [refreshing, setRefreshing] = useState(false);
   const [refreshDialog, setRefreshDialog] = useState(false);
 
-  useEffect(() => {
-    loadParlays();
-  }, []);
-
-  async function loadParlays() {
-    if (!user) { setLoading(false); return; }
+  const loadParlays = useCallback(async (signal?: AbortSignal) => {
+    if (!userId) return;
+    setLoading(true);
+    setError('');
     try {
-      const res = await api<{ parlays: any[] }>('/api/parlay');
-      setParlays(res.parlays ?? []);
+      const res = await api<{ parlays: any[] }>('/api/parlay', {signal});
+      if (!signal?.aborted) setParlays(res.parlays ?? []);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to load parlays.');
+      if (!signal?.aborted) setError(e instanceof Error ? e.message : 'Failed to load parlays.');
     } finally {
-      setLoading(false);
+      if (!signal?.aborted) setLoading(false);
     }
-  }
+  }, [userId]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    void loadParlays(controller.signal);
+    return () => controller.abort();
+  }, [loadParlays]);
 
   async function refreshParlays() {
     if (!user) return;
@@ -50,7 +55,8 @@ export default function ParlaysPage() {
     return (
       <div className="cw-page">
         <h1>My Parlays</h1>
-        <p>Sign in to view your parlays.</p>
+        <p>{accountLoading ? 'Checking your session…' : 'Sign in to view your parlays.'}</p>
+        {!accountLoading && <a href="/picks">Back to My picks</a>}
       </div>
     );
   }

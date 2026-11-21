@@ -16,9 +16,11 @@ import { ScheduleTimeZone } from './ScheduleTimeZone';
 import { ScoreProgression } from './ScoreProgression';
 import { SoccerLineups } from './SoccerLineups';
 import { scheduleTime } from '../lib/schedule-time';
-import { BoardScore, GameStatus, MatchCard } from './MatchCard';
+import { BoardScore, GameStatus } from './MatchCard';
 import { hasRecordStandings } from '../lib/sports-leagues';
 import { LIVE_SCORE_REFRESH_MS } from '../lib/score-refresh';
+import {TeamScheduleGames} from './TeamScheduleGames';
+import { eventCapabilities, presentEvent, sportTemplate, type EventPresentation, type SportTemplate } from '../lib/event-presentation';
 
 function FootballField({event, position}: {event: LiveEvent; position: NonNullable<LiveEvent['footballPosition']>}) {
   return <section className="cw-football-field" aria-label="Football field position">
@@ -135,6 +137,7 @@ type Props = {
   boardEvent?: LiveEvent;
   boardFetchedAt?: string;
   boardDelayed?: boolean;
+  presentation?: EventPresentation;
   ticket?: Ticket;
   ticketsLoading: boolean;
   ticketsError: string;
@@ -691,34 +694,6 @@ function TeamSchedule({event, games, onGame}: {
   onGame: (event: LiveEvent) => void;
 }) {
   const [side, setSide] = useState<'away'|'home'>('away');
-  const team = event[side];
-  const [schedule, setSchedule] = useState<{teamId:string; events?:LiveEvent[]; failed?:boolean}>();
-  const remoteSupported = /^[0-9]{1,10}$/.test(team.id);
-  useEffect(() => {
-    if (!remoteSupported) return;
-    const controller = new AbortController();
-    const params = new URLSearchParams({league:event.league,team:team.id});
-    void api<{events:LiveEvent[]}>(`/api/sports/team-schedule?${params}`,{signal:controller.signal})
-      .then(({events})=>{
-        if (!controller.signal.aborted) setSchedule({teamId:team.id,events});
-      })
-      .catch(()=>{
-        if (!controller.signal.aborted) setSchedule({teamId:team.id,failed:true});
-      });
-    return () => controller.abort();
-  },[event.league,team.id,remoteSupported]);
-  const teamSchedule = schedule?.teamId === team.id ? schedule : undefined;
-  const visible = new Map((teamSchedule?.events ?? []).map(game=>[game.id,game]));
-  for (const game of games) {
-    const coverage = visible.get(game.id)?.broadcasts;
-    visible.set(game.id,game.broadcasts || !coverage ? game : {...game,broadcasts:coverage});
-  }
-  const teamGames = [...visible.values()].filter(game => game.id !== event.id &&
-    (game.away.id === team.id || game.home.id === team.id))
-    .sort((a,b)=>Date.parse(a.startsAt)-Date.parse(b.startsAt));
-  const upcoming = teamGames.filter(game => game.status === 'scheduled' || game.status === 'live').slice(0, 4);
-  const finals = teamGames.filter(game => game.status === 'final').slice(-4).reverse();
-
   return <section className="cw-game-section cw-team-schedule" aria-label="Team schedules">
     <h3>Team schedules</h3>
     <div className="cw-team-schedule-options" role="group" aria-label="Select team">
@@ -728,18 +703,7 @@ function TeamSchedule({event, games, onGame}: {
         </button>
       ))}
     </div>
-    {!teamSchedule?.events && <p className="cw-game-section-note" role="status">
-      {remoteSupported && !teamSchedule ? 'Loading team schedule…' : 'Showing games available on the current scoreboard.'}
-    </p>}
-    {[
-      {label:'Live and upcoming', games:upcoming, empty:'No live or upcoming games are available.'},
-      {label:'Recent finals', games:finals, empty:'No recent finals are available.'},
-    ].map(group => <section key={group.label} aria-label={group.label}>
-      <h4>{group.label}</h4>
-      {group.games.length ? <div className="cw-team-schedule-games">
-        {group.games.map(game => <MatchCard key={game.id} event={game} label={`Open ${game.name}`} onOpen={onGame} showBroadcasts/>)}
-      </div> : <p className="cw-game-section-note">{group.empty}</p>}
-    </section>)}
+    <TeamScheduleGames league={event.league} teamId={event[side].id} games={games} onGame={onGame} excludeId={event.id}/>
   </section>;
 }
 
@@ -818,6 +782,17 @@ const gameSections = [
 ] as const;
 type GameSection = (typeof gameSections)[number]['id'];
 
+const primarySections: Record<SportTemplate, readonly GameSection[]> = {
+  football: ['score', 'drives', 'timeline', 'stats', 'players'],
+  basketball: ['score', 'players', 'stats', 'timeline'],
+  baseball: ['score', 'players', 'timeline', 'matchup'],
+  hockey: ['score', 'timeline', 'stats', 'players'],
+  soccer: ['score', 'lineups', 'timeline', 'stats', 'standings'],
+  tennis: ['score', 'stats', 'timeline'],
+  mma: ['score', 'stats', 'timeline'],
+  standard: ['score', 'stats', 'timeline'],
+};
+
 function sectionAvailable(section: GameSection, event: LiveEvent) {
   if (section === 'odds') return Boolean(event.odds || event.oddsBooks?.length);
   if (section === 'drives') return event.sport === 'football';
@@ -828,16 +803,29 @@ function sectionAvailable(section: GameSection, event: LiveEvent) {
   return true;
 }
 
-function readGameSection(event: LiveEvent): GameSection {
+function hasSectionData(section: GameSection, event: LiveEvent, capabilities: ReadonlySet<string>) {
+  switch (section) {
+    case 'timeline': return capabilities.has('timeline');
+    case 'drives': return capabilities.has('drives');
+    case 'lineups': return capabilities.has('lineups');
+    case 'stats': return capabilities.has('team-stats') || Boolean(event.scoringPlays?.length || event.leaders?.length);
+    case 'players': return capabilities.has('player-stats') || Boolean(event.pregameLeaders?.length || event.probablePitchers);
+    case 'standings': return Boolean(event.soccerStandings?.length || event.nbaStandings?.length || event.recordStandings?.length);
+    case 'matchup': return Boolean(event.matchup || event.probablePitchers);
+    default: return true;
+  }
+}
+
+function readGameSection(): GameSection {
   const params = new URLSearchParams(window.location.search);
   const sections = params.getAll('section');
   return sections.length === 1
-    ? gameSections.find(({id}) => id === sections[0] && sectionAvailable(id,event))?.id ?? 'overview'
+    ? gameSections.find(({id}) => id === sections[0])?.id ?? 'overview'
     : 'overview';
 }
 
 function EventDetailContent({
-  event, boardEvent, boardFetchedAt, boardDelayed, ticket, ticketsLoading, ticketsError,
+  event, boardEvent, boardFetchedAt, boardDelayed, presentation, ticket, ticketsLoading, ticketsError,
   watching, onWatch, watchDisabled, onPick, picksAvailable = false, pickConsensus, games, onGame,
 }: Props & {games: LiveEvent[]; onGame: (event: LiveEvent) => void}) {
   const zone = useContext(ScheduleTimeZone);
@@ -855,12 +843,15 @@ function EventDetailContent({
   const [shareLink, setShareLink] = useState('');
   const shareField = useRef<HTMLInputElement>(null);
   const shareable = /^[0-9]{1,16}(?:-[0-9]{1,16})?$/.test(event.id);
-  const [section, setSection] = useState<GameSection>(()=>readGameSection(event));
+  const [section, setSection] = useState<GameSection>(readGameSection);
   const [pickMarket, setPickMarket] = useState<PickMarket>('moneyline');
   const [refresh, setRefresh] = useState(0);
   const loadedEffectKey = useRef('');
   const cleanupAbortTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  const boardStatus = boardDelayed && !boardEvent?.scoreSource ? undefined : boardEvent?.status;
+  const boardCurrent = presentation
+    ? presentation.freshness === 'current' || presentation.freshness === 'backup-current'
+    : !boardDelayed;
+  const boardStatus = boardCurrent ? boardEvent?.status : undefined;
 
   function selectSection(next: GameSection) {
     setSection(next);
@@ -973,16 +964,17 @@ function EventDetailContent({
     };
   }, [event.id, event.league, event.status, boardStatus, refresh]);
 
-  const newerBoard = (!boardDelayed || boardEvent?.scoreSource) && boardFetchedAt &&
+  const newerBoard = boardCurrent && boardFetchedAt &&
     Date.parse(boardFetchedAt) > requestedAt ? boardEvent : undefined;
   const usesSummary = section === 'timeline' || section === 'drives' || section === 'players' || section === 'stats' ||
     section === 'score' || section === 'lineups' || section === 'standings';
   const detail = usesSummary && snapshot ? snapshot : newerBoard ?? snapshot ?? event;
   const venue = snapshot?.venue ?? event.venue;
   const leaders = (snapshot ?? event).leaders ?? [];
-  const delayed = snapshot && (usesSummary || !newerBoard) ? stale : boardDelayed;
-  const entryPaused = boardDelayed || delayed;
-  const boardPosition = !boardDelayed && boardEvent?.status === 'live' &&
+  const delayed = snapshot && !newerBoard ? stale : !boardCurrent;
+  const resolvedPresentation = presentation ?? presentEvent(event, {now: Date.now(), boardError: Boolean(boardDelayed)});
+  const entryPaused = !resolvedPresentation.pickEligible || delayed;
+  const boardPosition = boardCurrent && boardEvent?.status === 'live' &&
     boardEvent.period === detail.period && boardEvent.clock === detail.clock ? boardEvent.footballPosition : undefined;
   const fieldPosition = detail.status === 'live' && !delayed && !error ? boardPosition ?? detail.footballPosition : undefined;
   const scoreboard = newerBoard ?? snapshot ?? event;
@@ -994,16 +986,25 @@ function EventDetailContent({
   const hasBaseballTotals = detail.status !== 'scheduled' && Boolean(detail.away.baseballTotals || detail.home.baseballTotals);
   const showTennisScores = detail.sport === 'tennis' && hasPeriodScores && (detail.status === 'live' || detail.completed);
   const entryOpen = detail.status === 'scheduled' && Date.parse(detail.startsAt) > Date.now();
+  const template = sportTemplate(detail.sport);
+  const detailCoverage = snapshot ?? detail;
+  const capabilities = eventCapabilities(detailCoverage);
+  const orderedSections = ['overview' as const, ...primarySections[template],
+    ...gameSections.map(item=>item.id).filter(id=>id !== 'overview' && !primarySections[template].includes(id))];
+  const sectionApplies = sectionAvailable(section, detailCoverage);
+  const tabs = orderedSections.filter(id => id === section || (sectionAvailable(id, detailCoverage) &&
+    hasSectionData(id, detailCoverage, capabilities)));
 
+  const canOfferPick = Boolean(onPick);
   useEffect(() => {
-    if (section !== 'overview' || detail.status !== 'scheduled' || !onPick) { setMarket(null); return; }
+    if (section !== 'overview' || detail.status !== 'scheduled' || !canOfferPick) { setMarket(null); return; }
     const controller = new AbortController();
     const params = new URLSearchParams({ league: detail.league, id: detail.id });
     api<{ market?: MarketReference | null }>(`/api/sports/market?${params}`, { signal: controller.signal })
       .then(data => { if (!controller.signal.aborted) setMarket(data?.market ?? null); })
       .catch(() => { if (!controller.signal.aborted) setMarket(null); });
     return () => controller.abort();
-  }, [section, detail.league, detail.id, detail.status, onPick, refresh]);
+  }, [section, detail.league, detail.id, detail.status, canOfferPick, refresh]);
 
   useEffect(() => {
     if (section !== 'props') { setProps(null); setPropsLoaded(false); return; }
@@ -1018,7 +1019,7 @@ function EventDetailContent({
   }, [section, detail.league, detail.id, refresh]);
 
 
-  return <div className="cw-game-layout">
+  return <div className="cw-game-layout" data-sport-template={template}>
     <div className="cw-game-header">
       <div className="cw-game-meta">
         <span><SportIcon sport={detail.sport}/>{detail.leagueName}</span>
@@ -1049,12 +1050,11 @@ function EventDetailContent({
           <span>{scoreboard.status === 'scheduled'
             ? scheduleTime(scoreboard.startsAt,zone)
             : scoreboard.clock}</span>
-          {scoreboard.scoreSource && <span>Backup score</span>}
           {scoreboard.shootoutScores && <span>Penalties {scoreboard.shootoutScores.away}–{scoreboard.shootoutScores.home}</span>}
           {scoreboard.soccerAggregate && <span>Aggregate {scoreboard.soccerAggregate.away}–{scoreboard.soccerAggregate.home} · Leg {scoreboard.soccerAggregate.leg} of {scoreboard.soccerAggregate.totalLegs}</span>}
         </div>
       </div>
-      {detail.fight && <div className="cw-fight-summary">
+      {template === 'mma' && detail.fight && <div className="cw-fight-summary">
         <strong>{detail.fight.cardName}</strong>
         <span>{[detail.fight.weightClass,detail.fight.rounds && `${detail.fight.rounds} scheduled rounds`,detail.fight.location].filter(Boolean).join(' · ')}</span>
       </div>}
@@ -1069,18 +1069,35 @@ function EventDetailContent({
     </label>}
     {busy && <p className="cw-field-hint" role="status">Refreshing game…</p>}
     {error && <p className="cw-form-error" role="alert">{error}</p>}
-    {delayed && <p className="cw-form-error" role="status">Game data is delayed. Scores may be out of date.</p>}
+    {delayed && <p className="cw-form-error" role="status">Updates delayed{resolvedPresentation.lastConfirmedAt ? ` · last confirmed ${new Date(resolvedPresentation.lastConfirmedAt).toLocaleTimeString([], {hour:'numeric',minute:'2-digit'})}` : ''}.</p>}
     <nav className="cw-game-tabs" aria-label="Game center sections">
-      {gameSections.filter(({id})=>sectionAvailable(id,detail)).map(({id, label}) =>
-        <button key={id} aria-pressed={section===id} onClick={()=>selectSection(id)}><TabIcon tab={id}/>{detail.fight && id==='score' ? 'Result' : label}</button>
-      )}
+      {tabs.map(id => {
+        const label = gameSections.find(item=>item.id === id)?.label;
+        return <button key={id} aria-pressed={section===id} onClick={()=>selectSection(id)}><TabIcon tab={id}/>{template==='mma' && id==='score' ? 'Result' : label}</button>;
+      })}
     </nav>
+    {(section === 'overview' || section === 'score') && template === 'baseball' &&
+      scoreboard.status === 'live' && !delayed && scoreboard.baseballSituation && (() => {
+        const {balls, strikes, outs, runners, batter, pitcher} = scoreboard.baseballSituation;
+        return <section className="cw-game-section" aria-label="Baseball situation">
+          <h3>{scoreboard.statusText}</h3>
+          <p>{balls} balls · {strikes} strikes · {outs} outs</p>
+          {batter && <p>At bat · {batter}</p>}
+          {pitcher && <p>Pitching · {pitcher}</p>}
+          {runners.length > 0 && <ul>{runners.map(runner=><li key={runner.base}>{runner.base} base · {runner.name}</li>)}</ul>}
+        </section>;
+      })()}
+    {!sectionApplies ? <section className="cw-game-section" aria-label="Coverage unavailable">
+      <h3>Coverage unavailable</h3>
+      <p>This section is unavailable for this matchup.</p>
+      <button onClick={()=>selectSection('overview')}>Back to overview</button>
+    </section> : <>
     {section === 'overview' && hasPeriodScores && !showTennisScores && <PeriodScores event={detail}/>}
     {section === 'overview' && leaders.length > 0 && <GameLeaders event={detail} leaders={leaders} summaryOnly/>}
     {section === 'odds' && <GameOddsPanel event={detail}/>}
     {section==='overview' && onPick && !ticket && <section className="cw-detail-pick" aria-label="Free pick">
       <h3>{pickMarket==='moneyline'?(supportsDrawPick(detail.league)?'Predict the full-time result':'Call the winner'):pickMarket==='spread'?'Pick the spread':'Pick the total'}</h3>
-      <p className="cw-field-hint">{!entryOpen ? 'Picks are closed for this game' : entryPaused || error ? 'Picks are paused while game data is unavailable' : 'Free pick · Entry closes at game start'}</p>
+      <p className="cw-field-hint">{!entryOpen ? 'Picks are closed for this game' : resolvedPresentation.pickReason ?? (error ? 'Picks are paused while game data is unavailable.' : 'Free pick · Entry closes at game start')}</p>
       <div className="cw-market-tabs" role="group" aria-label="Pick market">
         {(['moneyline','spread','total'] as const).map(option => {
           const posted = option === 'moneyline' || pickSides(detail.league, option).some(side => postedPickLine(detail.odds, side, option) !== null);
@@ -1129,7 +1146,7 @@ function EventDetailContent({
       Game information <span aria-hidden="true">{showInfo ? '−' : '+'}</span>
     </button>}
     {section==='overview' && <dl id="cw-game-info" className="cw-detail-facts" hidden={!showInfo}>
-      <div><dt>Status</dt><dd>{detail.statusText}</dd></div>
+      <div><dt>Status</dt><dd>{detail.status==='scheduled' ? 'Upcoming' : detail.statusText}</dd></div>
       {detail.clock && <div><dt>Source clock</dt><dd>{detail.clock}</dd></div>}
       {detail.period !== null && detail.period > 0 && <div><dt>{detail.fight ? 'Round' : 'Period'}</dt><dd>{detail.period}</dd></div>}
       <div><dt>Scheduled start</dt><dd><time dateTime={detail.startsAt}>{scheduleTime(detail.startsAt,zone)}</time></dd></div>
@@ -1139,9 +1156,9 @@ function EventDetailContent({
       {detail.completed && (detail.winner==='away' || detail.winner==='home')
         ? <p><strong>{detail[detail.winner].name}</strong> won.</p>
         : <p>{detail.status==='scheduled' ? 'This bout has not started.' : 'No winner has been confirmed.'}</p>}
-      <p className="cw-game-section-note">
-        {detail.statusText}{detail.period ? ` · Round ${detail.period}` : ''}{detail.clock ? ` · ${detail.clock}` : ''}
-      </p>
+      {detail.status!=='scheduled' && <p className="cw-game-section-note">
+        {detail.statusText}{detail.period ? ` · Round ${detail.period}` : ''}{detail.clock && !detail.statusText.includes(detail.clock) ? ` · ${detail.clock}` : ''}
+      </p>}
       {detail.completed && detail.fight.scorecards && <section className="cw-fight-scorecards" aria-label="Judges’ scores">
         <h4>Judges’ scores</h4>
         <dl className="cw-game-score-list">
@@ -1155,7 +1172,7 @@ function EventDetailContent({
         <div><dt>{detail.away.name}</dt><dd>{detail.away.score ?? '—'}</dd></div>
         <div><dt>{detail.home.name}</dt><dd>{detail.home.score ?? '—'}</dd></div>
       </dl> : <p>{detail.status==='scheduled' ? 'The game has not started.' : 'The source has not provided a score.'}</p>}
-      <p className="cw-game-section-note">{detail.statusText}{detail.clock ? ` · ${detail.clock}` : ''}</p>
+      {detail.status!=='scheduled' && <p className="cw-game-section-note">{detail.statusText}{detail.clock && !detail.statusText.includes(detail.clock) ? ` · ${detail.clock}` : ''}</p>}
       {!!detail.pitchingDecisions?.length && <section className="cw-pitching-preview" aria-label="Pitching decisions">
         <h4>Pitching decisions</h4>
         <dl className="cw-game-score-list">
@@ -1199,6 +1216,7 @@ function EventDetailContent({
         : ticketsError ? <p role="alert">Could not load your picks.</p>
         : <p>No saved pick for this game.</p>}
     </section>}
+    </>}
     </div>
   </div>;
 }

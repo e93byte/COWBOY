@@ -150,7 +150,11 @@ export class PickService {
   }
 
   private async fetchEvent(league: string, id: string) {
-    try { return await this.getEvent(league, id); }
+    try {
+      const event = await this.getEvent(league, id);
+      if (event?.scoreSource) throw new Error('Display-only score');
+      return event;
+    }
     catch { throw new AccountError("feed_unavailable", "The real event provider is unavailable. No pick changes were made.", 409); }
   }
 

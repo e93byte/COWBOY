@@ -61,7 +61,7 @@ export async function api<T>(url:string, options?:RequestInit, timeoutMs = CLIEN
 }
 export function Modal({title,onClose,children,locked=false,className}:{title:string;onClose:()=>void;children:ReactNode;locked?:boolean;className?:string}){
   const ref=useRef<HTMLDialogElement>(null);
-  useEffect(()=>{const dialog=ref.current;const focus=document.activeElement as HTMLElement;dialog?.showModal();return()=>{dialog?.close();focus?.focus();};},[]);
+  useEffect(()=>{const dialog=ref.current;const focus=document.activeElement as HTMLElement;dialog?.showModal();return()=>{dialog?.close();focus?.focus({preventScroll:true});};},[]);
   return <dialog ref={ref} className={className ? `cw-dialog ${className}` : 'cw-dialog'} aria-label={title} onCancel={e=>{e.preventDefault();if(!locked)onClose();}}><div className="cw-dialog-head"><h2>{title}</h2><button aria-label={`Close ${title}`} disabled={locked} onClick={onClose}><CloseIcon/></button></div>{children}</dialog>;
 }
 export function useAccount(){
