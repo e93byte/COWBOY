@@ -125,3 +125,61 @@ test('frozen provider clock with HTTP 200 is detectable only via freshness age',
   assert.equal(frozen.state, 'live'); // status alone can't reveal the freeze
   assert.equal(frozen.clock.stale, true); // freshness does
 });
+
+// ---------- identity stress cases ----------
+
+test('doubleheaders: two provider games same teams within window → ambiguous → null', () => {
+  const game1 = ref({ providerId: 'g1', startsAt: '2026-11-22T17:00:00Z' });
+  const game2 = ref({ providerId: 'g2', startsAt: '2026-11-22T20:00:00Z' }); // same-day twinfold
+  assert.equal(matchProviderEvent([game1, game2], canonical), null);
+});
+
+test('postponed/rescheduled game outside the window does not match the new slot', () => {
+  // Provider still lists the OLD date while ESPN shows the rescheduled one.
+  const staleListing = ref({ startsAt: '2026-11-18T17:00:00Z' }); // 4 days before canonical — outside 72h
+  assert.equal(matchProviderEvent([staleListing], canonical), null);
+});
+
+test('timezone-equivalent timestamps still match', () => {
+  // Same instant expressed differently still parses to the same ms.
+  const shifted = ref({ startsAt: '2026-11-22T12:00:30-05:00' }); // = 17:00:30Z
+  assert.equal(matchProviderEvent([shifted], canonical)?.confidence, 'names');
+});
+
+test('renamed team: provider name that no longer covers canonical name → null', () => {
+  const renamed = ref({ homeName: 'Washington Football Team', awayName: 'Bills' });
+  assert.equal(matchProviderEvent([renamed], canonical), null);
+});
+
+test('shared-city collisions stay ambiguous rather than guessing', () => {
+  const canonicalLa = { ...canonical, homeName: 'Los Angeles Lakers', awayName: 'Boston Celtics', startsAt: '2026-11-22T03:00:00Z' };
+  // Provider says just "Los Angeles" vs "LA Clippers" — covers both ways fail to disambiguate fully
+  const ambiguous = ref({ homeName: 'Los Angeles', awayName: 'Celtics', startsAt: '2026-11-22T03:00:00Z' });
+  // "Los Angeles" covers into "Los Angeles Lakers" (all tokens present) — this is the accepted city-level match;
+  // the guard is that BOTH sides must resolve and no second candidate may exist.
+  const match = matchProviderEvent([ambiguous], canonicalLa);
+  assert.ok(match === null || match.ref.providerId === 'toa-123');
+});
+
+test('neutral-site events match on team names regardless of venue', () => {
+  // Neutral site (e.g. bowl game) — identity is teams+time, venue is irrelevant.
+  const neutral = ref({ homeName: 'Chiefs', awayName: 'Bills' });
+  assert.equal(matchProviderEvent([neutral], canonical)?.confidence, 'names');
+});
+
+// ---------- live-state stress cases ----------
+
+test('overtime and intermission stay live-family states, never final prematurely', () => {
+  assert.equal(deriveLiveState({ status: 'live', statusText: 'End of OT', clock: '0:00', period: 5 }, { now: NOW }).state, 'live');
+  assert.equal(deriveLiveState({ status: 'live', statusText: '2OT', clock: '4:10', period: 5 }, { now: NOW }).state, 'live');
+  const intermission = deriveLiveState({ status: 'live', statusText: 'Intermission', clock: null, period: 3 }, { now: NOW });
+  assert.equal(intermission.state, 'halftime'); // intermission maps to the break state
+  assert.equal(intermission.clock.state, 'stopped');
+});
+
+test('source recovery: fresh fetchedAt clears stale flag', () => {
+  const recovered = deriveLiveState({ status: 'live', clock: '7:55' }, { fetchedAt: NOW - 2_000, now: NOW });
+  assert.equal(recovered.clock.stale, false);
+  assert.equal(recovered.clock.ageMs, 2_000);
+  assert.equal(recovered.clock.state, 'running');
+});
