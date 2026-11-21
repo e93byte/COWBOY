@@ -152,6 +152,42 @@ Authorized disposable-account test on production, fully cleaned up:
 
 No wagers, picks, or paid entries created. No infrastructure or env changes made.
 
+---
+
+## Release guardian checkpoint — 2026-11-21 ~09:10 UTC
+
+### Live-game stale-clock verification — PASS (runtime)
+
+Live game observed on production: **A-League — Sydney FC at Brisbane Roar FC** (`aleague`, event `401892135`), read-only polling only:
+
+- Board → event detail → 3 refresh cycles over ~6 min: provider clock advanced **17' → 21' → 22' → 23'**, period 1, score 0-0 — genuine provider-driven progression, no fabrication.
+- Canonical state `live`, `statusText` mirrors clock, `completed:false`, `winner:null`.
+- Layered freshness confirmed working as designed: board snapshot lagged (~`stale:true`, `fetchedAt` ~6 min old) while `/api/sports/event` returned fresh clock — the exact condition the stale-clock contract exists for. UI marks board-level stale honestly; event-level fetches stay current.
+- Frozen-clock → `clockStale` presentation path: unit-tested (285/285); runtime trigger requires a real provider stall — not forced against production per policy.
+
+### Migration readiness — GO (ordered)
+
+`20261121030000_parlay_request_id.sql` + `scripts/rollback-parlay-request-id.sql` + `scripts/verify-parlay-request-id.sql` reviewed:
+
+- Additive nullable `request_id` column; partial unique index `(user_id, request_id) WHERE request_id IS NOT NULL` — existing rows untouched.
+- 10-arg `cowboy_save_parlay` with `p_request_id DEFAULT NULL` — old 9-arg callers still resolve; replay → stored parlay, race-loser → unique_violation → re-select winner. Race-safe.
+- Grants re-asserted: service_role only, anon/authenticated revoked — consistent with RLS model.
+- Rollback restores prior function definitions, drops index, keeps column (documented: avoids table rewrite).
+- **Required order: apply migration BEFORE deploying code that sends `p_request_id`** (`supabase-store.ts` now always sends it — deploying code first would break parlay saves). Migration-first is safe: old code works against the new function via the default.
+- Note: identical leg-set+stake retries dedupe to one parlay by design; users cannot intentionally place byte-identical parlays twice.
+
+### Preview vs production drift
+
+- No separate preview deployment was ever produced (branch push did not trigger a Vercel preview — project appears production-branch-only). **Production `betcowboy.vercel.app` is the validation target**, serving `main` @ `7e8d296` — app code identical to RC `4042592` (subsequent commits are docs-only).
+- Uncommitted working-tree changes (token-economy: `chip-settlement.ts`, `public-rate-limit.ts`, parlay/pick service changes, migration) are **NOT deployed** — production runs committed code only.
+
+### Blocker list
+
+- **P0:** none.
+- **P1:** none.
+- **P2:** `ODDS_API_KEY` absent from Vercel env (ESPN fallback serving, honestly labeled); board snapshot can lag minutes under SWR (honestly flagged `stale`); per-instance limiter/odds cache.
+- **P3:** `/api/sports/odds` dormant (no UI caller); corrected-result regrading (designed, disabled).
+
 ### Provider traffic / polling
 
 - `refreshAfterMs: 1000` is the server-directed board hint; client polling pauses when hidden and never overlaps (E2E-verified). No duplicate-polling evidence in responses; per-instance caches mean upstream call volume is bounded by design.
