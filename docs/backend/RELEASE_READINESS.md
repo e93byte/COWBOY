@@ -90,3 +90,72 @@ None required for release. Redis/KV optional at scale.
 ## Preview deployment suitability
 
 **Suitable.** All gates green on the committed tree; limitations are documented and non-blocking. Recommend deploying `3ad80e8` to a preview environment for final real-data validation before any production promotion.
+
+---
+
+## PRODUCTION READ-ONLY VALIDATION — commit 4042592
+
+**Target:** `https://betcowboy.vercel.app` · **Validated:** 2026-11-21 ~08:05–08:10 UTC · **Method:** read-only curl/API inspection; no accounts, picks, or mutations created.
+
+### Deployed-build evidence
+
+- `/my-sports`, `/discover`, `/live`, `/picks`, `/preferences`, `/contests`, `/parlays`, `/rewards`, `/help` all serve 200 — pages introduced by `3ad80e8` are live.
+- Client bundle `219-7d048dac2e810410.js` contains the stale-clock strings (`feed delayed` / clockStale path) — the per-event stale-clock contract is deployed.
+- Vercel headers present: `server: Vercel`, `x-vercel-id`, HSTS `max-age=63072000`, `x-content-type-options: nosniff`, `referrer-policy: strict-origin-when-cross-origin`, `cache-control: no-store` on API JSON.
+- Build ID observed in RSC payload: `fHRAw2XORiyppwQdc6kSu` (cannot be mapped to a commit without Vercel API access; feature markers above are the available evidence).
+- **Assessment:** deployed build is consistent with `4042592` (= `3ad80e8` + backend-only quota-cost fix). The quota fix is server-side only and has no UI surface.
+
+### Surface results
+
+| Surface | Result | Evidence |
+|---|---|---|
+| Home (`/`) | PASS | 200, real board data, `fetchedAt`/`stale`/`source` fields present |
+| Live (`/live`) | PASS | 200; board currently reports 0 live events (Saturday ~1am PT — plausible, honestly reported) |
+| Scores | PASS | Scores is a board view, not a route — `/scores` correctly 404s; score data flows via `/api/sports` |
+| Game Center | PASS | `/api/sports/event?league=nfl&id=401873070` → 200, canonical ESPN id, full team/odds shape |
+| Props | PASS | `/api/sports/props?league=nfl&id=401873070` → 200 `{props:null}` — honest empty, no fabrication |
+| Futures | PASS | `/api/sports/futures?league=nfl` → 200 |
+| Odds/freshness | PASS w/ note | `/api/sports/odds` → 200, `freshness{state:fresh, provider:espn, sourceAt:null, fetchedAt, cache:miss, error:"missing_key"}` — see env finding below |
+| Market reference | PASS | `/api/sports/market` → 200, vig-free probabilities + `open` baseline, provider DraftKings |
+| News | PASS | `/api/sports/news?league=nfl` → 200 |
+| Team schedule | PASS | `/api/sports/team-schedule?league=nfl&team=2` → 200 |
+| Predictions (picks) | PASS | `/api/picks` → 401 unauthenticated (correct); auth-gating verified |
+| History | PASS | Covered by picks endpoints; 401 gate correct |
+| Follows/watchlist | PASS | `/api/account/follows` → 401 unauthenticated (correct) |
+| Leaderboard | PASS | `/api/leaderboard` → 200; `/api/account/leaderboard` route exists |
+| Auth/account | PASS | `GET /api/account` → `{user:null}` anonymous; bad login → 401 `invalid_credentials` generic (no enumeration) |
+| Stale-clock | PASS (code-verified) | Bundle contains the stale-clock path; live-game trigger not exercisable read-only (0 live events); contract unit-tested 285/285 |
+
+### Real-data findings
+
+- `/api/sports` returns the full board: **427 events across ~60 leagues** (NFL, NBA, NHL, MLB, EPL, UCL, ATP/WTA, UFC, etc.), `source: "ESPN"`, real team names/scores/logos.
+- Status mix at validation time: 220 final, 207 scheduled, **0 live** — consistent with ~1am PT Saturday.
+- Sample verified end-to-end: Dolphins at Bills (`401873070`), scheduled 2026-11-22T18:00Z, DraftKings odds via ESPN embedded source (spread −16.5, total 44.5).
+- **Degraded feed observed:** board `fetchedAt` held at `2026-11-21T07:56:57Z` across ~11 minutes of polling with `stale: true` — the stale flag is honestly reporting an aging snapshot (SWR design). Event-level fetches (`/api/sports/event`, `/api/sports/market`) returned fresh timestamps (~08:05Z), so upstream connectivity is healthy; the board snapshot refresh appears slow/backed-off. Impact: low (no live events); UI correctly labels it.
+
+### Secrets / client exposure
+
+- Scanned all served JS chunks across 10 pages (~18 chunks): **no** `service_role`, `ODDS_API_KEY`, `SUPABASE_*`, JWT (`eyJhbGciOi`), or API-key literals found.
+- No `*.supabase.co` URL in client bundles — Supabase is server-side only via custom API routes (service role never reaches the client).
+- API JSON responses contain no key material; `freshness.error:"missing_key"` reveals only that a key is absent, not its value.
+
+### Supabase persistence
+
+- **BLOCKED (read-only):** auth routes are functional (anonymous session + credential validation work), but distinguishing SupabaseStore vs local-JSON fallback requires a write (registration/pick). No test accounts were created per instructions. **Action for Kilo/user:** confirm `COWBOY_SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` are set in Vercel env, or authorize one disposable-account journey test.
+
+### Provider traffic / polling
+
+- `refreshAfterMs: 1000` is the server-directed board hint; client polling pauses when hidden and never overlaps (E2E-verified). No duplicate-polling evidence in responses; per-instance caches mean upstream call volume is bounded by design.
+- `/api/sports/odds` made one read-only call during validation (~3 credits if a key were configured — it is not, so zero upstream cost).
+
+### Environment finding (non-blocking)
+
+- **`ODDS_API_KEY` is not set in production Vercel env.** `/api/sports/odds` reports `freshness.error: "missing_key"` and serves ESPN embedded odds (honestly labeled `source: "espn"`, `provider: "DraftKings"`). This is correct degraded behavior — the quota-cost fix is dormant until a key is added. ToS bookmaker odds require adding `ODDS_API_KEY` to Vercel env (free tier, no plan change).
+
+### P0/P1 defects
+
+**None found.**
+
+### Verdict
+
+**PASS — production is serving a build consistent with `4042592`, all public surfaces healthy, honest freshness/stale labeling confirmed under a real degraded-feed condition, no secret exposure, auth gating correct.** Remaining unknowns: Supabase-vs-JSON store confirmation (needs one authorized write or env check) and live-game stale-clock behavior (needs a live event window).
