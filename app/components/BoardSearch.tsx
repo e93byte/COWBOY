@@ -39,7 +39,7 @@ export function boardTournamentName(event: LiveEvent) {
   return separator >= 0 ? event.name.slice(separator + 3).trim() || undefined : undefined;
 }
 
-function suggestionsFor(events: readonly LiveEvent[], leagues: readonly League[], query: string) {
+function suggestionsFor(events: readonly LiveEvent[], leagues: readonly League[], catalogue: readonly League[], query: string) {
   const value = words(query);
   if (value.length < 2) return [];
   const tokens = value.split(' ');
@@ -53,6 +53,12 @@ function suggestionsFor(events: readonly LiveEvent[], leagues: readonly League[]
   }
   for (const league of leagues) {
     add({kind:'league', id:league.id, name:league.name}, league.name + ' ' + league.id, 0);
+  }
+  // A global catalogue must not displace a matching live team or league from
+  // keyboard selection. Unavailable competitions still appear afterwards.
+  for (const league of catalogue) {
+    if (leagues.some(active => active.id === league.id)) continue;
+    add({kind:'league', id:league.id, name:league.name}, league.name + ' ' + league.id, 6);
   }
   for (const event of events) {
     const kind = event.sport === 'tennis' || event.sport === 'mma' ? 'tournament' : null;
@@ -72,9 +78,10 @@ function suggestionsFor(events: readonly LiveEvent[], leagues: readonly League[]
   return [...results.values()].sort((a,b)=>a.order-b.order).slice(0,7).map(row=>row.item);
 }
 
-export function BoardSearch({events, leagues, query, onChange, onSelect}: {
+export function BoardSearch({events, leagues, catalogue = leagues, query, onChange, onSelect}: {
   events: readonly LiveEvent[];
   leagues: readonly League[];
+  catalogue?: readonly League[];
   query: string;
   onChange: (value: string) => void;
   onSelect: (item: BoardSuggestion) => void;
@@ -82,7 +89,7 @@ export function BoardSearch({events, leagues, query, onChange, onSelect}: {
   const [open, setOpen] = useState(false);
   const input = useRef<HTMLInputElement>(null);
   const listId = useId();
-  const suggestions = useMemo(()=>suggestionsFor(events, leagues, query),[events, leagues, query]);
+  const suggestions = useMemo(()=>suggestionsFor(events, leagues, catalogue, query),[events, leagues, catalogue, query]);
   const visible = open && suggestions.length > 0;
 
   function navigate(event: KeyboardEvent<HTMLDivElement>) {

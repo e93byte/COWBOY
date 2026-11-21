@@ -1141,7 +1141,7 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
             <TabIcon tab={f}/>{f==='all' ? 'All games' : f==='live' ? 'Live now' : f==='watchlist' ? 'Watchlist' : 'Upcoming'}
           </button>)}
         </div>}
-        <BoardSearch events={leagueEvents} leagues={SPORTS_CATALOGUE} query={query} onChange={setQuery} onSelect={selectSuggestion}/>
+        <BoardSearch events={leagueEvents} leagues={availableLeagues} catalogue={SPORTS_CATALOGUE} query={query} onChange={setQuery} onSelect={selectSuggestion}/>
       </div>}
       {!liveView && filter==='watchlist' && deviceFollows.length > 0 && <div className="cw-follow-list">
         <button disabled={subscriptions.disabled} onClick={()=>void subscriptions.save(deviceFollows,true)}>

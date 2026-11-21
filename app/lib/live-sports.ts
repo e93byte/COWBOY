@@ -4,6 +4,7 @@ import { hasActiveScores, LIVE_SCORE_REFRESH_MS, SCHEDULE_REFRESH_MS, SCORE_RETR
 import { applyNhlScores, easternScoreDate } from './nhl-score-fallback';
 import { applyMlbScores } from './mlb-score-fallback';
 import { CircuitBreaker } from './circuit-breaker';
+import { getExchangeOdds } from './exchange-odds';
 import { liveScoreStageMatches, normalizeLiveScorePayload, normalizeOpenLigaPayload, normalizeSportsDbPayload, sportsDbLeagueMatches } from './provider-fallbacks';
 
 export { LIVE_LEAGUES } from './sports-leagues';
@@ -1643,6 +1644,20 @@ export function createLiveSportsClient(options: ClientOptions = {}) {
     const oddsBooks = dedupeOdds([...(Array.isArray(data.odds) ? data.odds : []),
       ...(Array.isArray(data.pickcenter) ? data.pickcenter : [])]);
     const primaryOdds = oddsBooks.find(book => /draftkings/i.test(book.provider)) ?? oddsBooks[0] ?? event.odds;
+    // Kalshi exchange prices become one more book in the Game Center odds
+    // board. They are cached per league and matched by team name + date.
+    const exchange = await getExchangeOdds(league, event.home.name, event.away.name, event.startsAt)
+      .catch(() => null);
+    if (exchange && (exchange.home !== null || exchange.away !== null)) {
+      oddsBooks.push({
+        provider: 'Kalshi', spread: null, total: null,
+        homeMoneyline: exchange.home, awayMoneyline: exchange.away, drawMoneyline: exchange.draw,
+        homeSpreadPrice: null, awaySpreadPrice: null, overPrice: null, underPrice: null,
+        openSpread: null, openTotal: null, openHomeMoneyline: null, openAwayMoneyline: null, openDrawMoneyline: null,
+        favorite: exchange.home !== null && exchange.away !== null
+          ? (Math.abs(exchange.home) < Math.abs(exchange.away) ? 'home' : 'away') : null,
+      });
+    }
     const venue = text(object(object(data.gameInfo).venue).fullName).trim();
     const hasStarted = event.status === 'live' || event.completed;
     const teamStats = hasStarted ? normalizeBoxScore(data, event) : [];
