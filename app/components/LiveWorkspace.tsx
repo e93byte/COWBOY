@@ -678,7 +678,7 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
       setParlayPending(false);
     }
   };
-  const pickPanel = <PickPanel selections={selections} user={account.user} disabled={selectionDisabled} pending={pending}
+  const pickPanel = <PickPanel selections={selections} user={account.user} disabled={selectionDisabled} checkingEligibility={!board && busy} pending={pending}
     onReview={()=>{setReview(true);setDrawer(false);}}
     draftEvents={draftEvents} onChoose={togglePick} onChangeMarket={changeDraftMarket} onClear={()=>setSelections([])}
     onRemove={pick=>setSelections(previous=>previous.filter(item=>item.requestId!==pick.requestId))}
@@ -1301,14 +1301,15 @@ export default function LiveWorkspace({initialView = 'board'}: {initialView?: Wo
         <a className="cw-discover-link" href="/offline.html">Open saved scoreboard</a>
       </div>}
       {board?.stale&&<div className="cw-alert" role="status">Some score updates are delayed. Each affected game shows its own update status and pick availability.</div>}
-      {board?.leagues.filter(l=>l.status!=='ok').map(l=><div className="cw-league-error cw-league-health" key={l.id}>
+      {board?.leagues.filter(l=>l.status!=='ok').map(l=>{
+        const lastScoreUpdate = l.scoresUpdatedAt ?? l.lastSuccessAt;
+        return <div className="cw-league-error cw-league-health" key={l.id}>
         <div>
-          <span>{l.name}: {l.backupSource?'backup scores':l.status==='error'?'scores unavailable':'delayed'}</span>
-          {l.scoresUpdatedAt && <small>Backup checked <time dateTime={l.scoresUpdatedAt}>{time(l.scoresUpdatedAt)}</time></small>}
-          {l.lastSuccessAt && <small>Last primary update <time dateTime={l.lastSuccessAt}>{time(l.lastSuccessAt)}</time></small>}
+          <span>{l.name}: {l.status==='error'&&!l.backupSource?'scores unavailable':'updates delayed'}</span>
+          {lastScoreUpdate && <small>Last score update <time dateTime={lastScoreUpdate}>{time(lastScoreUpdate)}</time></small>}
         </div>
         <button disabled={busy} onClick={()=>refreshLeague(l.id)} aria-label={`Retry ${l.name} feed`}>Retry</button>
-      </div>)}
+      </div>;})}
       <div className="cw-board-meta" id="games-board" tabIndex={-1} data-options-expanded={boardOptionsExpanded}>
         <div className="cw-board-context">
           <h2>{teamFilter?.name ?? pickedLeague?.name ?? sportLabel ?? (liveView ? liveScopeLabel : 'Around the leagues')}

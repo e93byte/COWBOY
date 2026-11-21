@@ -1881,9 +1881,8 @@
 /* Keep the home board wide on desktop; the sports rail spans its own row. */
 .cowboy-live.cw-home-page .cw-grid { grid-template-columns: minmax(0, 1fr) 300px; }
 .cowboy-live.cw-home-page .cw-grid-empty-tray { grid-template-columns: minmax(0, 1fr) 218px; }
-.cowboy-live.cw-grid-empty-tray .cw-picks-rail > :not(.cw-selected) { display: none; }
-.cowboy-live.cw-grid-empty-tray .cw-slip-empty { padding-block: 17px; }
-.cowboy-live.cw-grid-empty-tray .cw-slip-empty img { width: 48px; height: 48px; margin-bottom: 7px; }
+.cowboy-live .cw-grid-empty-tray .cw-slip-empty { padding-block: 17px; }
+.cowboy-live .cw-grid-empty-tray .cw-slip-empty img { width: 48px; height: 48px; margin-bottom: 7px; }
 .cowboy-live .cw-event-updated { color: #e9b879; border: 1px solid rgba(233,184,121,.26); border-radius: 999px; padding: 2px 6px; font-size: 8px; white-space: nowrap; }
 .cowboy-live.cw-live-page .cw-grid,
 .cowboy-live.cw-picks-page .cw-grid { grid-template-columns: minmax(0, 1fr); }

@@ -534,8 +534,8 @@ export function PicksHistory({tickets,busy,error,onRefresh,onUpdate,user,onSignI
     {cancelling&&<Modal title="Cancel your free pick?" onClose={()=>setCancelling(null)} locked={cancelPending}><p className="cw-dialog-copy">Remove your call for <strong>{cancelling.selection}</strong> in {cancelling.eventName}? The server will verify the game has not started before cancelling.</p>{cancelError&&<p role="alert" className="cw-form-error">{cancelError}</p>}<button className="cw-primary" disabled={cancelPending} onClick={()=>void cancel()}>{cancelPending?'Cancelling…':'Confirm cancellation'}</button><button className="cw-clear" disabled={cancelPending} onClick={()=>setCancelling(null)}>Keep pick</button></Modal>}
   </section>;
 }
-export function PickPanel({selections,user,disabled,pending,draftEvents,onChoose,onChangeMarket,onClear,onReview,onRemove,onSignIn}: {
-  selections: Selection[]; user: User|null; disabled: boolean; pending: boolean;
+export function PickPanel({selections,user,disabled,checkingEligibility,pending,draftEvents,onChoose,onChangeMarket,onClear,onReview,onRemove,onSignIn}: {
+  selections: Selection[]; user: User|null; disabled: boolean; checkingEligibility: boolean; pending: boolean;
   draftEvents: ReadonlyMap<string, LiveEvent>;
   onChoose: (event: LiveEvent, side: PickSide, market?: PickMarket) => void;
   onChangeMarket: (selection: Selection, event: LiveEvent, side: PickSide, market: PickMarket) => void;
@@ -589,7 +589,7 @@ export function PickPanel({selections,user,disabled,pending,draftEvents,onChoose
         {confirmClear && <button type="button" className="cw-clear" disabled={pending}
           onClick={()=>{setConfirmClear(false);onClear();}}>Clear all</button>}
       </div>}
-      {disabled && <p className="cw-form-error" role="status">A pick is paused or locked. Refresh the board or remove the unavailable pick.</p>}
+      {checkingEligibility ? <p role="status">Checking pick availability…</p> : disabled && <p className="cw-form-error" role="status">A pick is paused or locked. Refresh the board or remove the unavailable pick.</p>}
       <button className="cw-primary" disabled={disabled||pending} onClick={user?onReview:onSignIn}>
         {user ? count === 1 ? 'Review free pick' : `Review ${count} free picks` : count === 1 ? 'Sign in to save pick' : 'Sign in to save picks'}
       </button>
